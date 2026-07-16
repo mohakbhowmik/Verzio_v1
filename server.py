@@ -1,64 +1,118 @@
 import os
 import logging
-from fastapi import FastAPI, Depends, HTTPException, Request, Query, status
+import httpx
+from fastapi import FastAPI, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
-from database import init_db, get_db, Business, Appointment
-from booking_engine import process_persistent_booking, BookingEngineException
-
-load_dotenv()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("VERZIO_SERVER")
+from database import init_db, get_db, Appointment
+from booking_runtime import BookingRuntime
 
 app = FastAPI(title="Verzio Studio API")
 
-# Secrets
-META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
-VERIFY_TOKEN = os.getenv("VERZIO_VERIFY_TOKEN")
+# Setup Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("VERZIO_SERVER")
 
 @app.on_event("startup")
-def on_startup():
+def startup():
+    init_db()
+
+@app.on_event("startup")
+def startup():
     init_db()
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": "1.2.0"}
+    return {
+        "status": "healthy",
+        "version": "1.2.0"
+    }
 
-@app.get("/webhook")
-async def verify(mode: str = Query(None, alias="hub.mode"), 
-                 token: str = Query(None, alias="hub.verify_token"), 
-                 challenge: str = Query(None, alias="hub.challenge")):
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        return int(challenge)
-    raise HTTPException(status_code=403)
+async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
+    """
+    Placeholder for Meta API Graph calls.
+    In Mission 3, this will use httpx to send actual JSON to Meta.
+    """
+    logger.info(f"DEBUG: Dispatching {payload.get('type')} UI to {to} for tenant {tenant_id}")
+
+async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
+    """
+    Placeholder for Meta API Graph calls.
+    In Mission 3, this will use httpx to send actual JSON to Meta.
+    """
+    logger.info(f"DEBUG: Dispatching {payload.get('type')} UI to {to} for tenant {tenant_id}")
 
 @app.post("/webhook")
 async def webhook(request: Request, db: Session = Depends(get_db)):
     try:
         data = await request.json()
-        entry = data["entry"][0]["changes"][0]["value"]
-        if "messages" not in entry:
-            return {"status": "ignored"}
-
-        msg = entry["messages"][0]
-        from_phone = msg["from"]
-        tenant_id = entry["metadata"]["phone_number_id"]
         
-        # Handle Interactive Buttons (Confirm/Cancel from your diagram)
+        # Safe extraction of the value object
+        entries = data.get("entry", [])
+        if not entries:
+            return {"status": "ok"}
+            
+        changes = entries[0].get("changes", [])
+        if not changes:
+            return {"status": "ok"}
+            
+        val = changes[0].get("value", {})
+        if "messages" not in val:
+            return {"status": "ok"}
+        
+        msg = val["messages"][0]
+        phone = msg["from"]
+        tenant_id = val["metadata"]["phone_number_id"]
+        
+        runtime = BookingRuntime(db)
+
+        # 1. HANDLE INTERACTIVE REPLIES (Buttons & Lists)
         if msg.get("type") == "interactive":
-            btn_id = msg["interactive"]["button_reply"]["id"]
-            action, appt_id = btn_id.split("_")
-            appt = db.query(Appointment).filter(Appointment.id == int(appt_id)).first()
-            if appt:
-                appt.status = "confirmed" if action == "confirm" else "cancelled"
-                db.commit()
-                logger.info(f"Booking {appt_id} updated to {appt.status}")
+            itype = msg["interactive"].get("type")
+            
+            # Extract ID based on interactive type
+            if itype == "button_reply":
+                iid = msg["interactive"]["button_reply"]["id"]
+            elif itype == "list_reply":
+                iid = msg["interactive"]["list_reply"]["id"]
+            else:
+                return {"status": "unsupported_interactive_type"}
+
+            # BRANCH A: MANAGER FLOW (Approval/Rejection)
+            if iid.startswith(("confirm_", "cancel_")):
+                act, aid = iid.split("_")
+                # Modern SQLAlchemy session.get()
+                appt = db.get(Appointment, int(aid))
+                if appt:
+                    appt.status = "confirmed" if act == "confirm" else "cancelled"
+                    db.commit()
+                    logger.info(f"Appointment {aid} updated to {appt.status} by manager")
+                return {"status": "ok"}
+            
+            # BRANCH B: CUSTOMER JOURNEY
+            resp = await runtime.process_interaction(phone, tenant_id, iid)
+            await dispatch_whatsapp(phone, tenant_id, resp)
+
+        # 2. HANDLE ENTRY POINT (Text Messages)
+        elif msg.get("type") == "text":
+            # Any text (Hi, Book, etc.) triggers the service list
+            resp = await runtime.process_interaction(phone, tenant_id, "action_start")
+            await dispatch_whatsapp(phone, tenant_id, resp)
 
         return {"status": "ok"}
+
     except Exception as e:
-        logger.error(f"Webhook error: {e}")
+        logger.error(f"Webhook Processing Error: {e}", exc_info=True)
+        # Always return 200/ok to Meta to prevent retry loops on malformed payloads
         return {"status": "error"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+@app.get("/webhook")
+async def verify(
+    mode: str = Query(None, alias="hub.mode"), 
+    token: str = Query(None, alias="hub.verify_token"), 
+    challenge: str = Query(None, alias="hub.challenge")
+):
+    """Handle Meta's Webhook verification handshake."""
+    verify_token = os.getenv("VERZIO_VERIFY_TOKEN")
+    if mode == "subscribe" and token == verify_token:
+        return int(challenge)
+    raise HTTPException(status_code=403, detail="Verification failed")
