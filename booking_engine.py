@@ -13,8 +13,10 @@ class BookingEngineException(Exception):
 class VerzioSaaSEngine:
     def get_tenant_config(self, db: Session, tenant_id: str) -> Business:
         biz = db.query(Business).filter(Business.whatsapp_business_phone_number_id == tenant_id).first()
-        if not biz or not biz.is_active:
-            raise BookingEngineException("Business inactive or not found.", "ERR_TENANT_LOCKED")
+        if not biz:
+            raise BookingEngineException("Business not found.", "ERR_NOT_FOUND")
+        if not biz.is_active or not biz.accepting_bookings:
+            raise BookingEngineException("Business is not currently accepting bookings.", "ERR_TENANT_LOCKED")
         return biz
 
     def get_available_dates(self, db: Session, biz: Business) -> list:
@@ -23,44 +25,68 @@ class VerzioSaaSEngine:
         for i in range(biz.advance_booking_days):
             target = today + timedelta(days=i)
             if target.isoformat() not in (biz.holidays or []):
-                available_dates.append(target)
+                # Only include if business has operational hours for this day
+                day_name = target.strftime("%a").lower()[:3]
+                if day_name in biz.operational_hours:
+                    available_dates.append(target)
         return available_dates[:10]
 
     def get_available_slots(self, db: Session, biz: Business, target_date: datetime) -> list:
         day_name = target_date.strftime("%a").lower()[:3]
         hours = biz.operational_hours.get(day_name)
-        if not hours: return []
+        if not hours: 
+            return []
 
         start_h, end_h = hours
         start_time = datetime.strptime(start_h, "%H:%M").time()
         end_time = datetime.strptime(end_h, "%H:%M").time()
 
+        # Fetch existing occupancy for the date
         existing = db.query(Appointment.appointment_time).filter(
-            Appointment.business_id == biz.id,
-            Appointment.status.in_(["pending", "confirmed"])
+             Appointment.business_id == biz.id,
+             Appointment.status.in_(["pending", "confirmed"]),
+             Appointment.appointment_time >= datetime.combine(target_date.date(), dt_time.min),
+             Appointment.appointment_time <= datetime.combine(target_date.date(), dt_time.max)
         ).all()
-        booked = [b[0].strftime("%H:%M") for b in existing if b[0].date() == target_date.date()]
+        
+        occupancy_map = {}
+        for appt in existing:
+            time_key = appt[0].strftime("%H:%M")
+            occupancy_map[time_key] = occupancy_map.get(time_key, 0) + 1
 
         slots = []
         curr = datetime.combine(target_date.date(), start_time)
         limit = datetime.combine(target_date.date(), end_time)
+        
         while curr < limit:
             s_str = curr.strftime("%H:%M")
-            if s_str not in booked:
+            # Only show if capacity remains
+            if occupancy_map.get(s_str, 0) < biz.max_parallel_bookings:
                 slots.append(s_str)
+            # Increment only by slot_interval (no buffers)
             curr += timedelta(minutes=biz.slot_interval)
         return slots
 
     def validate_and_book(self, db: Session, tenant_id: str, target_dt: datetime, customer_phone: str, service_id: int) -> Appointment:
         biz = self.get_tenant_config(db, tenant_id)
+        if biz.max_parallel_bookings < 1:
+            raise BookingEngineException(
+                "Invalid business configuration.",
+                "ERR_INVALID_CONFIG"
+            )
         
-        collision = db.query(Appointment).filter(
+        if target_dt.date().isoformat() in (biz.holidays or []):
+            raise BookingEngineException("Business is closed on this date.", "ERR_HOLIDAY")
+
+        # Re-verify capacity to prevent race conditions
+        count = db.query(Appointment).filter(
             Appointment.business_id == biz.id,
             Appointment.appointment_time == target_dt,
             Appointment.status.in_(["pending", "confirmed"])
-        ).first()
-        if collision:
-            raise BookingEngineException("Slot taken.", "ERR_COLLISION")
+        ).count()
+        
+        if count >= biz.max_parallel_bookings:
+            raise BookingEngineException("This slot just reached full capacity.", "ERR_CAPACITY")
 
         status = "confirmed" if biz.approval_mode == "automatic" else "pending"
         new_appt = Appointment(

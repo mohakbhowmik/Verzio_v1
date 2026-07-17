@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from runtime_state import RuntimeStateManager
-from booking_engine import VerzioSaaSEngine
+from booking_engine import VerzioSaaSEngine, BookingEngineException
 from database import Business, Service
 from datetime import datetime
 
@@ -84,7 +84,47 @@ class BookingRuntime:
         }
 
     def _finalize(self, phone, tenant_id, session):
-        dt = datetime.strptime(f"{session.selected_date} {session.selected_time}", "%Y-%m-%d %H:%M")
-        appt = self.engine.validate_and_book(self.db, tenant_id, dt, phone, session.selected_service_id)
-        self.state_mgr.clear_session(phone)
-        return {"type": "text", "body": f"Success! Booking ID {appt.id} is {appt.status}."}
+        try:
+            dt = datetime.strptime(
+                f"{session.selected_date} {session.selected_time}",
+                "%Y-%m-%d %H:%M"
+            )
+
+            appt = self.engine.validate_and_book(
+                self.db,
+                tenant_id,
+                dt,
+                phone,
+                session.selected_service_id
+            )
+
+            self.state_mgr.clear_session(phone)
+
+            return {
+                "type": "text",
+                "body": f"Success! Booking ID {appt.id} is {appt.status}."
+            }
+
+        except BookingEngineException as e:
+
+            if e.error_code == "ERR_TENANT_LOCKED":
+                message = "This business is temporarily not accepting bookings."
+
+            elif e.error_code == "ERR_HOLIDAY":
+                message = "The business is closed on the selected date."
+
+            elif e.error_code == "ERR_CAPACITY":
+                message = "Sorry, that time slot has just become full. Please choose another."
+
+            elif e.error_code == "ERR_INVALID_CONFIG":
+                message = "The business configuration is currently unavailable."
+
+            else:
+                message = "Unable to complete your booking."
+
+            self.state_mgr.clear_session(phone)
+
+            return {
+                "type": "text",
+                "body": message
+            }

@@ -16,9 +16,6 @@ logger = logging.getLogger("VERZIO_SERVER")
 def startup():
     init_db()
 
-@app.on_event("startup")
-def startup():
-    init_db()
 
 @app.get("/health")
 async def health():
@@ -34,18 +31,14 @@ async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
     """
     logger.info(f"DEBUG: Dispatching {payload.get('type')} UI to {to} for tenant {tenant_id}")
 
-async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
-    """
-    Placeholder for Meta API Graph calls.
-    In Mission 3, this will use httpx to send actual JSON to Meta.
-    """
-    logger.info(f"DEBUG: Dispatching {payload.get('type')} UI to {to} for tenant {tenant_id}")
+
+
 
 @app.post("/webhook")
 async def webhook(request: Request, db: Session = Depends(get_db)):
     try:
         data = await request.json()
-        
+        logger.info(f"Received webhook: {data}")
         # Safe extraction of the value object
         entries = data.get("entry", [])
         if not entries:
@@ -61,7 +54,11 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
         
         msg = val["messages"][0]
         phone = msg["from"]
-        tenant_id = val["metadata"]["phone_number_id"]
+        metadata = val.get("metadata", {})
+        tenant_id = metadata.get("phone_number_id")
+
+        if not tenant_id:
+            return {"status": "ok"}
         
         runtime = BookingRuntime(db)
 
