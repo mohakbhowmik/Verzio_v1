@@ -12,11 +12,26 @@ class BookingEngineException(Exception):
 
 class VerzioSaaSEngine:
     def get_tenant_config(self, db: Session, tenant_id: str) -> Business:
-        biz = db.query(Business).filter(Business.whatsapp_business_phone_number_id == tenant_id).first()
+        print("=" * 60)
+        print("TENANT ID RECEIVED:", repr(tenant_id))
+        print("TYPE:", type(tenant_id))
+        print("=" * 60)
+
+        biz = db.query(Business).filter(
+            Business.whatsapp_business_phone_number_id == tenant_id
+        ).first()
+
+        print("BUSINESS FOUND:", biz)
+
         if not biz:
             raise BookingEngineException("Business not found.", "ERR_NOT_FOUND")
+
         if not biz.is_active or not biz.accepting_bookings:
-            raise BookingEngineException("Business is not currently accepting bookings.", "ERR_TENANT_LOCKED")
+            raise BookingEngineException(
+                "Business is not currently accepting bookings.",
+                "ERR_TENANT_LOCKED"
+            )
+
         return biz
 
     def get_available_dates(self, db: Session, biz: Business) -> list:
