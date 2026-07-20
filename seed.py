@@ -16,6 +16,7 @@ try:
     print("🌱 Seeding Verzio Business...")
 
     biz_config = {
+        # Business Hours
         "operational_hours": {
             "mon": ["09:00", "18:00"],
             "tue": ["09:00", "18:00"],
@@ -25,11 +26,16 @@ try:
             "sat": ["10:00", "15:00"]
         },
         "holidays": [],
+
+        # Booking Settings
         "slot_interval": 60,
         "advance_booking_days": 14,
+        "enable_service_selection": True,
         "approval_mode": "manual",
         "accepting_bookings": True,
         "max_parallel_bookings": 2,
+
+        # Notifications
         "notification_preferences": {
             "whatsapp_owner": True,
             "whatsapp_customer": True

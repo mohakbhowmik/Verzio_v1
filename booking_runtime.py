@@ -98,11 +98,48 @@ class BookingRuntime:
                 session.selected_service_id
             )
 
+            biz = self.db.get(Business, appt.business_id)
+            svc = self.db.get(Service, appt.service_id)
+
+            dt_str = appt.appointment_time.strftime("%A, %b %d")
+            tm_str = appt.appointment_time.strftime("%I:%M %p")
+
+            owner_payload = {
+                "type": "buttons",
+                "body": (
+                    f"📅 New Booking Request\n\n"
+                    f"Customer: {phone}\n"
+                    f"Service: {svc.name}\n"
+                    f"Date: {dt_str}\n"
+                    f"Time: {tm_str}\n"
+                    f"Booking ID: {appt.id}"
+                ),
+                "buttons": [
+                    {
+                        "id": f"confirm_{appt.id}",
+                        "title": "Approve ✅"
+                    },
+                    {
+                        "id": f"cancel_{appt.id}",
+                        "title": "Reject ❌"
+                    }
+                ]
+            }
+
             self.state_mgr.clear_session(phone)
 
             return {
-                "type": "text",
-                "body": f"Success! Booking ID {appt.id} is {appt.status}."
+                "customer": {
+                    "type": "text",
+                    "body": (
+                        "✅ Booking request received.\n\n"
+                        "Waiting for business approval."
+                    )
+                },
+                "owner": {
+                    "recipient": biz.manager_phone_number,
+                    "payload": owner_payload
+                }
             }
 
         except BookingEngineException as e:

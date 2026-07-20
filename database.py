@@ -29,6 +29,12 @@ class Business(Base):
     holidays = Column(JSON, default=list) 
     slot_interval = Column(Integer, default=30) 
     advance_booking_days = Column(Integer, default=14)
+    enable_service_selection = Column(
+    Boolean,
+    default=True,
+    server_default="true",
+    nullable=False
+    )
     approval_mode = Column(String, default="manual") 
     notification_preferences = Column(JSON, default=dict) 
 

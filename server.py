@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-print("VERIFY TOKEN:", os.getenv("VERZIO_VERIFY_TOKEN"))
+print("META TOKEN:", os.getenv("META_ACCESS_TOKEN"))
 print("PHONE NUMBER ID:", os.getenv("PHONE_NUMBER_ID"))
 
 
@@ -45,16 +45,49 @@ async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
         "Content-Type": "application/json",
     }
 
+    # Base Meta Payload
     body = {
         "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {
-            "body": "Hello from Verzio! 🚀"
-        }
+        "to": to
     }
 
-    print("\n========== OUTGOING REQUEST ==========")
+    # Mapping Runtime response types to Meta Cloud API format
+    msg_type = payload.get("type")
+
+    if msg_type == "text":
+        body["type"] = "text"
+        body["text"] = {"body": payload["body"]}
+
+    elif msg_type == "list":
+        body["type"] = "interactive"
+        body["interactive"] = {
+            "type": "list",
+            "header": {"type": "text", "text": payload.get("header", "")},
+            "body": {"text": payload.get("body", "")},
+            "action": {
+                "button": payload.get("button", "Select"),
+                "sections": payload.get("sections", [])
+            }
+        }
+
+    elif msg_type == "buttons":
+        body["type"] = "interactive"
+        body["interactive"] = {
+            "type": "button",
+            "body": {"text": payload.get("body", "")},
+            "action": {
+                "buttons": [
+                    {
+                        "type": "reply",
+                        "reply": {"id": b["id"], "title": b["title"]}
+                    } for b in payload.get("buttons", [])
+                ]
+            }
+        }
+    else:
+        raise ValueError(f"Unsupported WhatsApp payload type: {msg_type}")
+
+    print(f"\n========== OUTGOING {msg_type.upper()} REQUEST ==========")
     print(body)
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -66,7 +99,8 @@ async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
 
     print("\n========== META RESPONSE ==========")
     print(response.status_code)
-    print(response.text)
+    if response.status_code != 200:
+        print(response.text)
 
 @app.post("/webhook")
 async def webhook(request: Request, db: Session = Depends(get_db)):
@@ -150,18 +184,36 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
 
                 act, aid = iid.split("_")
 
+                # Use modern SQLAlchemy get
                 appt = db.get(Appointment, int(aid))
 
                 if appt:
+                    # 1. Update status in database
                     appt.status = (
                         "confirmed"
                         if act == "confirm"
                         else "cancelled"
                     )
-
                     db.commit()
-
                     print(f"✅ Appointment {aid} updated")
+
+                    # 2. Determine message content
+                    msg_text = (
+                        "✅ Your appointment has been confirmed."
+                        if act == "confirm"
+                        else "❌ Unfortunately your booking could not be approved."
+                    )
+
+                    # 3. Dispatch notification to the CUSTOMER
+                    # We use the customer_phone from the appt record and the current tenant_id
+                    await dispatch_whatsapp(
+                        to=appt.customer_phone,
+                        tenant_id=tenant_id,
+                        payload={
+                            "type": "text",
+                            "body": msg_text
+                        }
+                    )
 
                 return {"status": "ok"}
 
@@ -178,11 +230,29 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
 
             print("➡ Calling dispatch_whatsapp()")
 
-            await dispatch_whatsapp(
-                phone,
-                tenant_id,
-                resp
-            )
+            if isinstance(resp, dict) and "customer" in resp and "owner" in resp:
+
+                # Send customer message
+                await dispatch_whatsapp(
+                    phone,
+                    tenant_id,
+                    resp["customer"]
+                )
+
+                # Send owner message
+                await dispatch_whatsapp(
+                    resp["owner"]["recipient"],
+                    tenant_id,
+                    resp["owner"]["payload"]
+                )
+
+            else:
+
+                await dispatch_whatsapp(
+                    phone,
+                    tenant_id,
+                    resp
+                )
 
             print("✅ dispatch_whatsapp() completed")
 
@@ -207,14 +277,29 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
 
             print("Calling dispatch_whatsapp...")
 
-            await dispatch_whatsapp(
-                phone,
-                tenant_id,
-                resp
-            )
+            if isinstance(resp, dict) and "customer" in resp and "owner" in resp:
+
+                await dispatch_whatsapp(
+                    phone,
+                    tenant_id,
+                    resp["customer"]
+                )
+
+                await dispatch_whatsapp(
+                    resp["owner"]["recipient"],
+                    tenant_id,
+                    resp["owner"]["payload"]
+                )
+
+            else:
+
+                await dispatch_whatsapp(
+                    phone,
+                    tenant_id,
+                    resp
+                )
 
             print("✅ dispatch_whatsapp completed")
-
         else:
             print(f"⚠ Unsupported message type: {msg.get('type')}")
 
