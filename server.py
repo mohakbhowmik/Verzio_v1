@@ -2,6 +2,8 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from routers.admin_businesses import router as business_router
+from routers.admin_services import router as services_router
 
 import os
 from dotenv import load_dotenv
@@ -21,6 +23,9 @@ from booking_runtime import BookingRuntime
 
 print("ACCESS TOKEN:", os.getenv("META_ACCESS_TOKEN"))
 app = FastAPI(title="Verzio Studio API")
+
+app.include_router(business_router)
+app.include_router(services_router)
 
 templates = Jinja2Templates(directory="templates")
 

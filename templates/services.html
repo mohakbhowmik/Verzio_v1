@@ -7,9 +7,9 @@
   <div>
     <div class="page-eyebrow">Catalog</div>
     <h1 class="page-title">Services</h1>
-    <div class="page-subtitle">The menu customers see when booking through WhatsApp.</div>
+    <div class="page-subtitle">The menu customers see when booking through WhatsApp, across every business.</div>
   </div>
-  <a href="#" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
+  <a href="/admin/services/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
 </div>
 
 <div class="filter-bar">
@@ -21,40 +21,56 @@
     <thead>
       <tr>
         <th>Service</th>
+        <th>Business</th>
         <th>Duration</th>
         <th>Price</th>
         <th>Status</th>
-        <th class="text-end">Visible to customers</th>
+        <th class="text-end">Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% set dummy_services = [
-        {"name": "Haircut", "icon": "bi-scissors", "duration": 60, "price": 300.0, "active": true},
-        {"name": "Beard Trim", "icon": "bi-brush", "duration": 60, "price": 150.0, "active": true},
-        {"name": "Hair Spa", "icon": "bi-droplet", "duration": 60, "price": 800.0, "active": true},
-        {"name": "Bridal Package", "icon": "bi-stars", "duration": 180, "price": 6500.0, "active": false},
-      ] %}
-      {% for s in dummy_services %}
+      {% for s in services %}
       <tr>
         <td>
           <div class="table-entity">
-            <div class="table-avatar"><i class="bi {{ s.icon }}"></i></div>
+            <div class="table-avatar"><i class="bi bi-scissors"></i></div>
             <div class="cell-primary">{{ s.name }}</div>
           </div>
         </td>
+        <td class="cell-secondary">{{ s.business.name if s.business else "—" }}</td>
         <td class="mono cell-secondary">{{ s.duration }} min</td>
-        <td class="mono cell-primary">₹{{ "%.2f"|format(s.price) }}</td>
+        <td class="mono cell-primary">{% if s.price is not none %}₹{{ "%.2f"|format(s.price) }}{% else %}—{% endif %}</td>
         <td>
-          {% if s.active %}
+          {% if s.is_active %}
           <span class="status-badge status-active"><span class="dot"></span>Active</span>
           {% else %}
           <span class="status-badge status-inactive"><span class="dot"></span>Hidden</span>
           {% endif %}
         </td>
         <td class="text-end">
-          <div class="form-check form-switch d-inline-flex align-items-center justify-content-end m-0">
-            <input class="form-check-input" type="checkbox" role="switch" {% if s.active %}checked{% endif %} aria-label="Toggle visibility for {{ s.name }}">
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <a href="/admin/services/{{ s.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ s.name }}">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="/admin/services/{{ s.id }}/toggle" class="m-0 d-inline-flex">
+              <div class="form-check form-switch d-inline-flex align-items-center m-0">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  {% if s.is_active %}checked{% endif %}
+                  onchange="this.form.submit()"
+                  aria-label="Toggle visibility for {{ s.name }}"
+                >
+              </div>
+            </form>
           </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center cell-muted py-5">
+          No services yet. <a href="/admin/services/new">Add your first service</a> to get started.
         </td>
       </tr>
       {% endfor %}
