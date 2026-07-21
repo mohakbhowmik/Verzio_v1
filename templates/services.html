@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Services — Verzio Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Catalog</div>
+    <h1 class="page-title">Services</h1>
+    <div class="page-subtitle">The menu customers see when booking through WhatsApp.</div>
+  </div>
+  <a href="#" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
+</div>
+
+<div class="filter-bar">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search services…" data-table-search="#services-table">
+</div>
+
+<div class="table-verzio-wrap" id="services-table">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Duration</th>
+        <th>Price</th>
+        <th>Status</th>
+        <th class="text-end">Visible to customers</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set dummy_services = [
+        {"name": "Haircut", "icon": "bi-scissors", "duration": 60, "price": 300.0, "active": true},
+        {"name": "Beard Trim", "icon": "bi-brush", "duration": 60, "price": 150.0, "active": true},
+        {"name": "Hair Spa", "icon": "bi-droplet", "duration": 60, "price": 800.0, "active": true},
+        {"name": "Bridal Package", "icon": "bi-stars", "duration": 180, "price": 6500.0, "active": false},
+      ] %}
+      {% for s in dummy_services %}
+      <tr>
+        <td>
+          <div class="table-entity">
+            <div class="table-avatar"><i class="bi {{ s.icon }}"></i></div>
+            <div class="cell-primary">{{ s.name }}</div>
+          </div>
+        </td>
+        <td class="mono cell-secondary">{{ s.duration }} min</td>
+        <td class="mono cell-primary">₹{{ "%.2f"|format(s.price) }}</td>
+        <td>
+          {% if s.active %}
+          <span class="status-badge status-active"><span class="dot"></span>Active</span>
+          {% else %}
+          <span class="status-badge status-inactive"><span class="dot"></span>Hidden</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          <div class="form-check form-switch d-inline-flex align-items-center justify-content-end m-0">
+            <input class="form-check-input" type="checkbox" role="switch" {% if s.active %}checked{% endif %} aria-label="Toggle visibility for {{ s.name }}">
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="page-subtitle mt-3">
+  <i class="bi bi-info-circle me-1"></i> Only active services appear in the WhatsApp booking flow — this mirrors the <span class="mono">is_active</span> filter already applied in <span class="mono">booking_runtime.py</span>.
+</div>
+{% endblock %}

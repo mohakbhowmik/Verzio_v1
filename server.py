@@ -1,3 +1,8 @@
+from fastapi import Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+
 import os
 from dotenv import load_dotenv
 
@@ -9,13 +14,17 @@ print("PHONE NUMBER ID:", os.getenv("PHONE_NUMBER_ID"))
 
 import logging
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, Request, Query
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import init_db, get_db, Appointment
 from booking_runtime import BookingRuntime
 
 print("ACCESS TOKEN:", os.getenv("META_ACCESS_TOKEN"))
 app = FastAPI(title="Verzio Studio API")
+
+templates = Jinja2Templates(directory="templates")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
@@ -336,3 +345,14 @@ async def verify(
     if mode == "subscribe" and token == verify_token:
         return int(challenge)
     raise HTTPException(status_code=403, detail="Verification failed")
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "request": request
+        }
+    )

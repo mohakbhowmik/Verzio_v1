@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Verzio Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Overview</div>
+    <h1 class="page-title">Good morning, Verzio Parallel Salon</h1>
+    <div class="page-subtitle">Here's what's happening across your bookings today, {{ today_label|default("Tuesday, Jul 21") }}.</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/admin/appointments" class="btn-verzio-outline"><i class="bi bi-calendar3 me-1"></i> View calendar</a>
+    <a href="#" class="btn-verzio-primary"><i class="bi bi-download me-1"></i> Export today's manifest</a>
+  </div>
+</div>
+
+<!-- ==================== METRIC CARDS ==================== -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">Today's bookings</span>
+        <div class="metric-icon blue"><i class="bi bi-calendar-check"></i></div>
+      </div>
+      <div class="metric-value">18</div>
+      <span class="metric-delta up">
+        <i class="bi bi-arrow-up-right"></i> 12% vs. yesterday
+      </span>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">Pending approval</span>
+        <div class="metric-icon amber"><i class="bi bi-hourglass-split"></i></div>
+      </div>
+      <div class="metric-value">5</div>
+      <span class="metric-delta down">
+        <i class="bi bi-arrow-down-right"></i> 2 fewer than avg
+      </span>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">Confirmed this week</span>
+        <div class="metric-icon green"><i class="bi bi-check-circle"></i></div>
+      </div>
+      <div class="metric-value">96</div>
+      <span class="metric-delta up">
+        <i class="bi bi-arrow-up-right"></i> 8% vs. last week
+      </span>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-3">
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">Cancellation rate</span>
+        <div class="metric-icon red"><i class="bi bi-x-circle"></i></div>
+      </div>
+      <div class="metric-value">4.2%</div>
+      <span class="metric-delta down">
+        <i class="bi bi-arrow-down-right"></i> 1.1pt improvement
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ==================== RECENT APPOINTMENTS ==================== -->
+  <div class="col-lg-8">
+    <div class="section-head">
+      <h2>Recent appointments</h2>
+      <a href="/admin/appointments" class="section-sub">View all →</a>
+    </div>
+
+    <div class="table-verzio-wrap">
+      <table class="table table-verzio align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th class="text-end">Booking ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set dummy_appointments = [
+            {"name": "Aditi Rao", "phone": "+91 98200 11234", "service": "Haircut", "time": "10:00 AM", "status": "confirmed", "id": "1042"},
+            {"name": "Guest Client", "phone": "+91 90210 55621", "service": "Hair Spa", "time": "11:30 AM", "status": "pending", "id": "1043"},
+            {"name": "Meera Iyer", "phone": "+91 88888 22110", "service": "Beard Trim", "time": "01:00 PM", "status": "confirmed", "id": "1044"},
+            {"name": "Guest Client", "phone": "+91 99887 76655", "service": "Haircut", "time": "02:30 PM", "status": "cancelled", "id": "1045"},
+            {"name": "Sanjay Mehta", "phone": "+91 91234 56780", "service": "Hair Spa", "time": "04:00 PM", "status": "pending", "id": "1046"},
+          ] %}
+          {% for a in dummy_appointments %}
+          <tr>
+            <td>
+              <div class="table-entity">
+                <div class="table-avatar">{{ a.name[:2]|upper }}</div>
+                <div>
+                  <div class="cell-primary">{{ a.name }}</div>
+                  <div class="cell-muted mono" style="font-size:11.5px;">{{ a.phone }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="cell-secondary">{{ a.service }}</td>
+            <td class="mono cell-secondary">{{ a.time }}</td>
+            <td>
+              <span class="status-badge status-{{ a.status }}">
+                <span class="dot"></span>{{ a.status|capitalize }}
+              </span>
+            </td>
+            <td class="text-end mono cell-muted">#{{ a.id }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== SIDE PANEL ==================== -->
+  <div class="col-lg-4">
+    <div class="section-head">
+      <h2>Capacity today</h2>
+      <span class="section-sub">Live</span>
+    </div>
+
+    <div class="card-verzio p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="cell-primary" style="font-size:13.5px;">Verzio Parallel Salon</span>
+        <span class="mono cell-muted" style="font-size:12px;">14 / 20 slots</span>
+      </div>
+      <div class="capacity-track" style="height:8px;">
+        <div class="capacity-fill mid" style="width:70%;"></div>
+      </div>
+      <div class="cell-muted mt-2" style="font-size:12px;">Max 2 concurrent bookings per slot · 8 slots remaining today</div>
+    </div>
+
+    <div class="section-head">
+      <h2>Needs your approval</h2>
+    </div>
+
+    <div class="card-verzio p-3">
+      {% set pending_queue = [
+        {"name": "Meera Iyer", "service": "Hair Spa · 11:30 AM"},
+        {"name": "Guest Client", "service": "Haircut · 02:30 PM"},
+      ] %}
+      {% for p in pending_queue %}
+      <div class="d-flex align-items-center justify-content-between {% if not loop.last %}mb-3 pb-3{% endif %}" style="{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+        <div class="d-flex align-items-center">
+          <div class="table-avatar">{{ p.name[:2]|upper }}</div>
+          <div>
+            <div class="cell-primary" style="font-size:13px;">{{ p.name }}</div>
+            <div class="cell-muted" style="font-size:11.5px;">{{ p.service }}</div>
+          </div>
+        </div>
+        <div class="d-flex gap-1">
+          <button class="icon-btn" style="width:28px;height:28px;color:var(--success);" aria-label="Approve"><i class="bi bi-check-lg"></i></button>
+          <button class="icon-btn" style="width:28px;height:28px;color:var(--danger);" aria-label="Reject"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

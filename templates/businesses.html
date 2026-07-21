@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Businesses — Verzio Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Multi-tenant</div>
+    <h1 class="page-title">Businesses</h1>
+    <div class="page-subtitle">Every tenant on Verzio, their booking rules, and live capacity.</div>
+  </div>
+  <a href="#" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add business</a>
+</div>
+
+<div class="filter-bar">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search businesses…" data-table-search="#businesses-table">
+  <div class="d-flex gap-2" data-filter-group="#businesses-table">
+    <button class="filter-pill active" data-filter-value="all">All</button>
+    <button class="filter-pill" data-filter-value="active">Accepting bookings</button>
+    <button class="filter-pill" data-filter-value="inactive">Paused</button>
+  </div>
+</div>
+
+<div class="table-verzio-wrap" id="businesses-table">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Business</th>
+        <th>WhatsApp number ID</th>
+        <th>Approval mode</th>
+        <th>Capacity</th>
+        <th>Advance window</th>
+        <th>Status</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set dummy_businesses = [
+        {"name": "Verzio Parallel Salon", "initials": "VP", "phone_id": "1265387899980753", "approval": "Manual", "used": 14, "capacity": 20, "window": "14 days", "active": true},
+        {"name": "Clinic Beta", "initials": "CB", "phone_id": "8814402219981120", "approval": "Automatic", "used": 22, "capacity": 30, "window": "30 days", "active": true},
+        {"name": "Salon Alpha", "initials": "SA", "phone_id": "7723190045512980", "approval": "Manual", "used": 3, "capacity": 12, "window": "7 days", "active": false},
+        {"name": "Glow Studio", "initials": "GS", "phone_id": "4491027758812345", "approval": "Manual", "used": 9, "capacity": 10, "window": "14 days", "active": true},
+      ] %}
+      {% for b in dummy_businesses %}
+      {% set pct = (b.used / b.capacity * 100) | round(0, 'floor') %}
+      <tr data-status="{{ 'active' if b.active else 'inactive' }}">
+        <td>
+          <div class="table-entity">
+            <div class="table-avatar">{{ b.initials }}</div>
+            <div class="cell-primary">{{ b.name }}</div>
+          </div>
+        </td>
+        <td class="mono cell-secondary">{{ b.phone_id }}</td>
+        <td class="cell-secondary">{{ b.approval }}</td>
+        <td>
+          <div class="capacity-cell">
+            <div class="capacity-track">
+              <div class="capacity-fill {% if pct >= 85 %}high{% elif pct >= 60 %}mid{% endif %}" style="width:{{ pct }}%;"></div>
+            </div>
+            <span class="capacity-text">{{ b.used }}/{{ b.capacity }}</span>
+          </div>
+        </td>
+        <td class="cell-secondary">{{ b.window }}</td>
+        <td>
+          {% if b.active %}
+          <span class="status-badge status-active"><span class="dot"></span>Accepting</span>
+          {% else %}
+          <span class="status-badge status-inactive"><span class="dot"></span>Paused</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          <div class="form-check form-switch d-inline-flex align-items-center justify-content-end m-0">
+            <input class="form-check-input" type="checkbox" role="switch" {% if b.active %}checked{% endif %} aria-label="Toggle accepting bookings for {{ b.name }}">
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
