@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if business %}Edit {{ business.name }}{% else %}New Business{% endif %} — Verzio Studio
+{% endblock %}
+
+{% block page_title %}
+  {% if business %}Edit Business{% else %}New Business{% endif %}
+{% endblock %}
+
+{% block content %}
+<form action="{{ form_action }}" method="post">
+
+{% if error %}
+<div class="alert alert-danger mb-4">
+    {{ error }}
+</div>
+{% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h4 mb-0 fw-bold">{% if business %}Update Tenant Details{% else %}Register New Tenant{% endif %}</h1>
+            <p class="text-muted small mb-0">Configure core identity and booking logic for this business.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/admin/businesses" class="btn-console-outline">Cancel</a>
+            <button type="submit" class="btn-verzio-primary">
+                Save Business
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- LEFT COLUMN: Identity & Hours -->
+        <div class="col-lg-7">
+            <!-- Identity Section -->
+            <div class="section-container mb-4">
+                <div class="section-head">
+                    <h2 class="section-title">Identity & Connectivity</h2>
+                </div>
+                <div class="p-3">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Business Name</label>
+                        <input type="text" name="name" class="form-control form-control-sm" value="{{ business.name if business else '' }}" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">WhatsApp Business Phone Number ID</label>
+                            <input type="text" name="whatsapp_business_phone_number_id" class="form-control form-control-sm mono" value="{{ business.whatsapp_business_phone_number_id if business else '' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold">Manager Phone Number</label>
+                            <input type="text" name="manager_phone_number" class="form-control form-control-sm mono" value="{{ business.manager_phone_number if business else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold">Timezone</label>
+                        <select name="timezone" class="form-select form-select-sm">
+                            <option value="Asia/Kolkata" {% if business and business.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata (IST)</option>
+                            <option value="UTC" {% if not business or business.timezone == 'UTC' %}selected{% endif %}>UTC</option>
+                            
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operational Hours -->
+            <div class="section-container">
+                <div class="section-head">
+                    <h2 class="section-title">Operational Hours</h2>
+                </div>
+                <div class="p-3">
+                    {% set days = [
+                        ('mon', 'Monday'), ('tue', 'Tuesday'), ('wed', 'Wednesday'), 
+                        ('thu', 'Thursday'), ('fri', 'Friday'), ('sat', 'Saturday'), ('sun', 'Sunday')
+                    ] %}
+                    {% for key, label in days %}
+                    <div class="d-flex align-items-center justify-content-between py-2 {% if not loop.last %}border-bottom{% endif %}" style="border-color: var(--border-subtle) !important;">
+                        <div style="width: 100px;" class="fw-medium small">{{ label }}</div>
+                        <div class="d-flex gap-2">
+                            <input type="time" name="hours_{{ key }}_open" class="form-control form-control-sm" 
+                                   value="{{ business.operational_hours[key][0] if business and business.operational_hours and key in business.operational_hours else '09:00' }}">
+                            <input type="time" name="hours_{{ key }}_close" class="form-control form-control-sm" 
+                                   value="{{ business.operational_hours[key][1] if business and business.operational_hours and key in business.operational_hours else '18:00' }}">
+                        </div>
+                        <div class="form-check form-switch ms-3">
+                            <input class="form-check-input" type="checkbox" name="hours_{{ key }}_enabled" 
+                                   {% if not business or (business.operational_hours and key in business.operational_hours) %}checked{% endif %}>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Rules & Preferences -->
+        <div class="col-lg-5">
+            <!-- Booking Logic -->
+            <div class="section-container mb-4">
+                <div class="section-head">
+                    <h2 class="section-title">Booking Rules</h2>
+                </div>
+                <div class="p-3">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Slot Interval (Min)</label>
+                            <select name="slot_interval" class="form-select form-select-sm mono">
+                                <option value="15" {% if business and business.slot_interval == 15 %}selected{% endif %}>15</option>
+                                <option value="30" {% if not business or business.slot_interval == 30 %}selected{% endif %}>30</option>
+                                <option value="60" {% if business and business.slot_interval == 60 %}selected{% endif %}>60</option>
+                                <option value="90" {% if business and business.slot_interval == 90 %}selected{% endif %}>90</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Max Parallel Bookings</label>
+                            <input type="number" name="max_parallel_bookings" class="form-control form-control-sm mono" value="{{ business.max_parallel_bookings if business else 1 }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Advance window (Days)</label>
+                            <input type="number" name="advance_booking_days" class="form-control form-control-sm mono" value="{{ business.advance_booking_days if business else 14 }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Approval Mode</label>
+                            <select name="approval_mode" class="form-select form-select-sm">
+                                <option value="manual" {% if not business or business.approval_mode == 'manual' %}selected{% endif %}>Manual</option>
+                                <option value="automatic" {% if business and business.approval_mode == 'automatic' %}selected{% endif %}>Automatic</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 py-2 border-top border-bottom" style="border-color: var(--border-subtle) !important;">
+                        <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+                            <label class="small fw-bold">Accepting Bookings</label>
+                            <input class="form-check-input ms-0" type="checkbox" name="accepting_bookings" {% if not business or business.accepting_bookings %}checked{% endif %}>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                      <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+                          <label class="small fw-bold">Business Active</label>
+
+                          <input
+                              class="form-check-input ms-0"
+                              type="checkbox"
+                              name="is_active"
+                              {% if not business or business.is_active %}checked{% endif %}>
+                      </div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="form-check form-switch d-flex justify-content-between align-items-center p-0">
+                            <label class="small fw-bold">Enable Service Selection</label>
+                            <input class="form-check-input ms-0" type="checkbox" name="enable_service_selection" {% if not business or business.enable_service_selection %}checked{% endif %}>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications & Holidays -->
+            <div class="section-container">
+                <div class="section-head">
+                    <h2 class="section-title">Preferences & Holidays</h2>
+                </div>
+                <div class="p-3">
+                    <label class="form-label small fw-bold mb-2">WhatsApp Notifications</label>
+                    <div class="d-flex gap-3 mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="notify_owner" id="notifyOwner" {% if not business or (business.notification_preferences and business.notification_preferences.get('whatsapp_owner')) %}checked{% endif %}>
+                            <label class="form-check-label small" for="notifyOwner">Owner</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="notify_customer" id="notifyCustomer" {% if not business or (business.notification_preferences and business.notification_preferences.get('whatsapp_customer')) %}checked{% endif %}>
+                            <label class="form-check-label small" for="notifyCustomer">Customer</label>
+                        </div>
+                    </div>
+
+                    <label class="form-label small fw-bold">Holidays (YYYY-MM-DD)</label>
+                    <textarea name="holidays" class="form-control form-control-sm mono" rows="3" placeholder="2026-12-25, 2027-01-01">{{ business.holidays|join(', ') if business and business.holidays else '' }}</textarea>
+                    <div class="cell-muted mt-1" style="font-size: 10px;">Comma separated dates.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
