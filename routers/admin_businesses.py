@@ -75,6 +75,8 @@ def _holidays_to_text(biz: Business | None) -> str:
     return "\n".join(biz.holidays)
 
 
+
+
 def _parse_holidays(raw: str) -> list:
     if not raw:
         return []
@@ -246,17 +248,22 @@ async def update_business(business_id: int, request: Request, db: Session = Depe
     return RedirectResponse(url="/admin/businesses", status_code=303)
 
 
-@router.post("/{business_id}/toggle")
-async def toggle_business_accepting_bookings(business_id: int, db: Session = Depends(get_db)):
-    biz = db.get(Business, business_id)
-    if not biz:
-        raise HTTPException(status_code=404, detail="Business not found.")
+@router.post("/{business_id}/toggle-active")
+def toggle_business_active(
+    business_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    business = db.query(Business).filter(Business.id == business_id).first()
 
-    biz.accepting_bookings = not biz.accepting_bookings
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    business.is_active = not business.is_active
+
     db.commit()
 
-    logger.info(
-        "Toggled accepting_bookings for '%s' (id=%s) -> %s",
-        biz.name, biz.id, biz.accepting_bookings
+    return RedirectResponse(
+        url="/admin/businesses",
+        status_code=303
     )
-    return RedirectResponse(url="/admin/businesses", status_code=303)

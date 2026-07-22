@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-eyebrow">Tenants</div>
+    <div class="page-eyebrow"> </div>
     <h1 class="page-title">Businesses</h1>
     <div class="page-subtitle">Every business running on Verzio, and their WhatsApp booking status.</div>
   </div>
@@ -64,11 +64,7 @@
               </button>
             </form>
 
-            <form method="post" action="/admin/businesses/{{ b.id }}/delete" class="m-0 d-inline-flex" onsubmit="return confirm('Delete {{ b.name }}? This cannot be undone.');">
-              <button type="submit" class="icon-btn" style="width:30px;height:30px; color: var(--danger);" aria-label="Delete {{ b.name }}">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
+
           </div>
         </td>
       </tr>

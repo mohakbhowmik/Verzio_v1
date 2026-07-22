@@ -2,9 +2,12 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+
 from routers.admin_businesses import router as business_router
 from routers.admin_services import router as services_router
-
+from routers.admin_system import router as system_router
+from routers.admin_appointments import router as appointments_router
+from routers.admin_subscriptions import router as subscriptions_router
 
 
 from activity_log import log_event
@@ -30,6 +33,9 @@ app = FastAPI(title="Verzio Studio API")
 
 app.include_router(business_router)
 app.include_router(services_router)
+app.include_router(system_router)
+app.include_router(appointments_router)
+app.include_router(subscriptions_router)
 
 templates = Jinja2Templates(directory="templates")
 
