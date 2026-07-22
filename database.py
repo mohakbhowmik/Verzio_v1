@@ -97,3 +97,39 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# --- APPEND TO database.py ---
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), unique=True, nullable=False)
+    plan = Column(String, default="trial") 
+    status = Column(String, default="active") 
+    monthly_amount = Column(Float, nullable=True)
+    next_billing_date = Column(String, nullable=True) 
+    notes = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    business = relationship("Business", backref="subscription", uselist=False)
+
+class PaymentRecord(Base):
+    __tablename__ = "payment_records"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="INR")
+    paid_on = Column(String, nullable=False)
+    status = Column(String, default="paid")
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    business = relationship("Business", backref="payment_records")
+
+class ActivityEvent(Base):
+    __tablename__ = "activity_events"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True, index=True)
+    event_type = Column(String, nullable=False, index=True)
+    status = Column(String, default="info") 
+    message = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    business = relationship("Business", backref="activity_events")

@@ -5,6 +5,10 @@ from fastapi.staticfiles import StaticFiles
 from routers.admin_businesses import router as business_router
 from routers.admin_services import router as services_router
 
+
+
+from activity_log import log_event
+
 import os
 from dotenv import load_dotenv
 
@@ -18,7 +22,7 @@ import logging
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from database import init_db, get_db, Appointment
+from database import Business, init_db, get_db, Appointment
 from booking_runtime import BookingRuntime
 
 print("ACCESS TOKEN:", os.getenv("META_ACCESS_TOKEN"))
@@ -47,7 +51,13 @@ async def health():
         "version": "1.2.0"
     }
 
-async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
+async def dispatch_whatsapp(
+    to: str,
+    tenant_id: str,
+    payload: dict,
+    db: Session = None,
+    business_id: int = None
+):
     access_token = os.getenv("META_ACCESS_TOKEN")
     phone_number_id = os.getenv("PHONE_NUMBER_ID")
     api_version = os.getenv("GRAPH_API_VERSION", "v23.0")
@@ -111,6 +121,25 @@ async def dispatch_whatsapp(to: str, tenant_id: str, payload: dict):
             json=body
         )
 
+# ---- Activity Logging ----
+        if db:
+            if response.status_code == 200:
+                log_event(
+                    db=db,
+                    event_type="whatsapp_sent",
+                    status="success",
+                    message=f"Sent {payload.get('type')} message to {to}",
+                    business_id=business_id
+                )
+            else:
+                log_event(
+                    db=db,
+                    event_type="whatsapp_failed",
+                    status="error",
+                    message=f"Meta API Error {response.status_code}: {response.text[:200]}",
+                    business_id=business_id
+                )
+
     print("\n========== META RESPONSE ==========")
     print(response.status_code)
     if response.status_code != 200:
@@ -151,6 +180,20 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
 
         phone = msg.get("from")
         tenant_id = val.get("metadata", {}).get("phone_number_id")
+
+        biz = db.query(Business).filter(
+            Business.whatsapp_business_phone_number_id == tenant_id
+        ).first()
+
+        business_id = biz.id if biz else None
+
+        log_event(
+            db=db,
+            event_type="webhook_received",
+            status="info",
+            message=f"Incoming {msg.get('type')} message",
+            business_id=business_id
+        )
 
         print(f"📞 Phone: {phone}")
         print(f"🏢 Tenant ID: {tenant_id}")
@@ -209,6 +252,24 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                         else "cancelled"
                     )
                     db.commit()
+
+                    if act == "confirm":
+                        log_event(
+                            db=db,
+                            event_type="booking_confirmed",
+                            status="success",
+                            message=f"Appointment #{appt.id} confirmed",
+                            business_id=appt.business_id
+                        )
+                    else:
+                        log_event(
+                            db=db,
+                            event_type="booking_cancelled",
+                            status="warning",
+                            message=f"Appointment #{appt.id} cancelled",
+                            business_id=appt.business_id
+                        )
+                    
                     print(f"✅ Appointment {aid} updated")
 
                     # 2. Determine message content
@@ -226,9 +287,10 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                         payload={
                             "type": "text",
                             "body": msg_text
-                        }
+                        },
+                        db=db,
+                        business_id=appt.business_id
                     )
-
                 return {"status": "ok"}
 
             print("➡ Calling process_interaction()")
@@ -250,14 +312,18 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                 await dispatch_whatsapp(
                     phone,
                     tenant_id,
-                    resp["customer"]
+                    resp["customer"],
+                    db=db,
+                    business_id=business_id
                 )
 
                 # Send owner message
                 await dispatch_whatsapp(
                     resp["owner"]["recipient"],
                     tenant_id,
-                    resp["owner"]["payload"]
+                    resp["owner"]["payload"],
+                    db=db,
+                    business_id=business_id
                 )
 
             else:
@@ -265,7 +331,9 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                 await dispatch_whatsapp(
                     phone,
                     tenant_id,
-                    resp
+                    resp,
+                    db=db,
+                    business_id=business_id
                 )
 
             print("✅ dispatch_whatsapp() completed")
@@ -336,6 +404,15 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
             f"Webhook Processing Error: {e}",
             exc_info=True
         )
+        try:
+            log_event(
+                db,
+                "webhook_failed",
+                status="error",
+                message=str(e)[:500]
+            )
+        except Exception:
+            pass
 
         return {"status": "error"}
 
@@ -353,11 +430,15 @@ async def verify(
 
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(request: Request):
+async def admin_dashboard(
+    request: Request,
+    db: Session = Depends(get_db)
+):
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
-            "request": request
+            "request": request,
+            "active_page": "dashboard"
         }
     )

@@ -1,79 +1,81 @@
 {% extends "base.html" %}
 
 {% block title %}Businesses — Verzio Studio{% endblock %}
+{% block page_title %}Businesses{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-eyebrow">Multi-tenant</div>
+    <div class="page-eyebrow">Tenants</div>
     <h1 class="page-title">Businesses</h1>
-    <div class="page-subtitle">Every tenant on Verzio, their booking rules, and live capacity.</div>
+    <div class="page-subtitle">Every business running on Verzio, and their WhatsApp booking status.</div>
   </div>
-  <a href="/admin/businesses/new" class="btn-verzio-primary">
-    <i class="bi bi-plus-lg me-1"></i>
-    Add Business
-</a>
+  <a href="/admin/businesses/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add business</a>
 </div>
 
 <div class="filter-bar">
   <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search businesses…" data-table-search="#businesses-table">
-  <div class="d-flex gap-2" data-filter-group="#businesses-table">
-    <button class="filter-pill active" data-filter-value="all">All</button>
-    <button class="filter-pill" data-filter-value="active">Accepting bookings</button>
-    <button class="filter-pill" data-filter-value="inactive">Paused</button>
-  </div>
 </div>
 
 <div class="table-verzio-wrap" id="businesses-table">
   <table class="table table-verzio align-middle mb-0">
     <thead>
       <tr>
-        <th>Business</th>
-        <th>WhatsApp number ID</th>
-        <th>Approval mode</th>
-        <th>Concurrent Capacity</th>
-        <th>Advance window</th>
+        <th>Business Name</th>
+        <th>Manager</th>
         <th>Status</th>
         <th class="text-end">Actions</th>
       </tr>
     </thead>
     <tbody>
-      
       {% for b in businesses %}
-      <tr data-status="{{ 'active' if b.accepting_bookings else 'inactive' }}"></tr>
+      <tr>
         <td>
           <div class="table-entity">
-            <div class="table-avatar">{{ b.initials }}</div>
-            <div class="cell-primary"><a href="/admin/businesses/{{ b.id }}/edit"
-                                        class="text-decoration-none fw-semibold">
-                                           {{ b.name }}
-            </a></div>
+            <div class="table-avatar">{{ b.name[:2]|upper }}</div>
+            <a href="/admin/businesses/{{ b.id }}/edit">
+                {{ b.name }}
+            </a>
           </div>
         </td>
-        <td class="mono cell-secondary">{{ b.whatsapp_business_phone_number_id }}</td>
-        <td class="cell-secondary">{{ b.approval_mode|title }}</td>
+        <td class="cell-secondary">{{ b.manager_phone_number }}</td>
         <td>
-          <div class="cell-primary">
-            {{ b.max_parallel_bookings }}
-          </div>
-        </td>
-        <td class="cell-secondary">{{ b.advance_booking_days }} days</td>
-        <td>
-          <span class="status-badge {{ b.status_class }}">
-              <span class="dot"></span>{{ b.status_text }}
-          </span>
+          {% if not b.is_active %}
+          <span class="status-badge status-inactive"><span class="dot"></span>Inactive</span>
+          {% elif not b.accepting_bookings %}
+          <span class="status-badge status-pending"><span class="dot"></span>Bookings Paused</span>
+          {% else %}
+          <span class="status-badge status-active"><span class="dot"></span>Active</span>
+          {% endif %}
         </td>
         <td class="text-end">
-          <div class="form-check form-switch d-inline-flex align-items-center justify-content-end m-0">
-            <form method="POST" action="/admin/businesses/{{ b.id }}/toggle">
-    <input
-        class="form-check-input"
-        type="checkbox"
-        onchange="this.form.submit()"
-        {% if b.accepting_bookings %}checked{% endif %}
-    >
-</form>
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <a href="/admin/businesses/{{ b.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ b.name }}">
+              <i class="bi bi-pencil"></i>
+            </a>
+
+            <form method="post" action="/admin/businesses/{{ b.id }}/toggle" class="m-0 d-inline-flex">
+              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if b.is_active %}Disable{% else %}Enable{% endif %} {{ b.name }}">
+                {% if b.is_active %}
+                <i class="bi bi-pause-circle"></i>
+                {% else %}
+                <i class="bi bi-play-circle"></i>
+                {% endif %}
+              </button>
+            </form>
+
+            <form method="post" action="/admin/businesses/{{ b.id }}/delete" class="m-0 d-inline-flex" onsubmit="return confirm('Delete {{ b.name }}? This cannot be undone.');">
+              <button type="submit" class="icon-btn" style="width:30px;height:30px; color: var(--danger);" aria-label="Delete {{ b.name }}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
           </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="text-center cell-muted py-5">
+          No businesses yet. <a href="/admin/businesses/new">Add your first business</a> to get started.
         </td>
       </tr>
       {% endfor %}
