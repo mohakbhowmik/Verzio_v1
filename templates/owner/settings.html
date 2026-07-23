@@ -82,6 +82,22 @@
     font-size: 12px;
     color: var(--text-muted);
   }
+
+  .coming-soon {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    color: var(--text-tertiary);
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .control-disabled {
+    opacity: 0.62;
+  }
 </style>
 {% endblock %}
 
@@ -114,9 +130,11 @@
               <input type="text" class="form-control-verzio" name="business_name" value="{{ business.name if business else '' }}" placeholder="Business Name">
             </div>
             <div class="col-md-6">
-              <label class="form-label mb-2">Owner Name</label>
-              <input type="text" class="form-control-verzio" name="owner_name" value="" placeholder="Owner Name" disabled>
-              <!-- TODO: owner_name is not persisted in the current Business model. -->
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label mb-0">Owner Name</label>
+                <span class="coming-soon">Coming Soon</span>
+              </div>
+              <input type="text" class="form-control-verzio control-disabled" name="owner_name" value="" placeholder="Owner Name" disabled>
             </div>
             <div class="col-md-6">
               <label class="form-label mb-2">Phone Number</label>
@@ -171,15 +189,18 @@
               </div>
             </div>
             <div class="col-lg-6">
-              <div class="toggle-row">
+              <div class="toggle-row control-disabled">
                 <div class="toggle-copy">
                   <div class="fw-medium">Auto Confirm Bookings</div>
-                  <div class="cell-muted">TODO: not yet backed by a dedicated Business column.</div>
+                  <div class="cell-muted">Automatic confirmation will be available in a future release.</div>
                 </div>
-                <label class="vz-toggle">
+                <div class="text-end">
+                  <span class="coming-soon">Coming Soon</span>
+                  <label class="vz-toggle mt-2">
                   <input type="checkbox" name="auto_confirm_bookings" disabled>
                   <span class="vz-toggle-track"></span>
-                </label>
+                  </label>
+                </div>
               </div>
             </div>
             <div class="col-lg-6">
@@ -195,15 +216,18 @@
               </div>
             </div>
             <div class="col-lg-6">
-              <div class="toggle-row">
+              <div class="toggle-row control-disabled">
                 <div class="toggle-copy">
                   <div class="fw-medium">Allow Customer Notes</div>
-                  <div class="cell-muted">TODO: no matching field exists in Business model yet.</div>
+                  <div class="cell-muted">Customer notes will be available in a future release.</div>
                 </div>
-                <label class="vz-toggle">
+                <div class="text-end">
+                  <span class="coming-soon">Coming Soon</span>
+                  <label class="vz-toggle mt-2">
                   <input type="checkbox" name="allow_customer_notes" disabled>
                   <span class="vz-toggle-track"></span>
-                </label>
+                  </label>
+                </div>
               </div>
             </div>
             <div class="col-lg-6">
@@ -247,14 +271,18 @@
               <input type="number" class="form-control-verzio" name="max_parallel_bookings" value="{{ business.max_parallel_bookings if business else 1 }}">
             </div>
             <div class="col-md-3">
-              <label class="form-label mb-2">Buffer Between Appointments</label>
-              <input type="number" class="form-control-verzio" value="" disabled>
-              <div class="settings-note">TODO: no Business field exists for this setting.</div>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label mb-0">Buffer Between Appointments</label>
+                <span class="coming-soon">Coming Soon</span>
+              </div>
+              <input type="number" class="form-control-verzio control-disabled" value="" disabled>
             </div>
             <div class="col-md-3">
-              <label class="form-label mb-2">Minimum Booking Notice</label>
-              <input type="number" class="form-control-verzio" value="" disabled>
-              <div class="settings-note">TODO: no Business field exists for this setting.</div>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label mb-0">Minimum Booking Notice</label>
+                <span class="coming-soon">Coming Soon</span>
+              </div>
+              <input type="number" class="form-control-verzio control-disabled" value="" disabled>
             </div>
           </div>
 
@@ -338,11 +366,10 @@
         </div>
         <div class="p-4">
           <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn-verzio-outline" disabled>Pause Online Bookings</button>
-            <button type="button" class="btn-verzio-outline" disabled>Export Business Data</button>
-            <button type="button" class="btn-verzio-outline" disabled>Delete Business</button>
+            <button type="button" class="btn-verzio-outline" disabled>Pause Online Bookings <span class="coming-soon ms-2">Coming Soon</span></button>
+            <button type="button" class="btn-verzio-outline" disabled>Export Business Data <span class="coming-soon ms-2">Coming Soon</span></button>
+            <button type="button" class="btn-verzio-outline" disabled>Delete Business <span class="coming-soon ms-2">Coming Soon</span></button>
           </div>
-          <div class="cell-muted mt-3">These actions are disabled for this Version 1 settings pass.</div>
         </div>
       </div>
     </div>
