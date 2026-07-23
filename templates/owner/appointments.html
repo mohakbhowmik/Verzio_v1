@@ -6,19 +6,37 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-eyebrow">Owner Portal</div>
     <h1 class="page-title">Appointments</h1>
-    <div class="page-subtitle">Bookings for your tenant only, synced from WhatsApp.</div>
+    <div class="page-subtitle">Manage bookings for {{ business.name if business else 'your business' }}.</div>
   </div>
 </div>
 
+<form method="get" action="/owner/appointments" class="filter-bar">
+  <input
+    type="search"
+    name="search"
+    class="form-control-verzio"
+    style="max-width:260px;"
+    placeholder="Search customer or phone..."
+    value="{{ search }}"
+  >
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <select name="sort" class="form-select-verzio" style="width:auto;" aria-label="Sort appointments">
+      <option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest first</option>
+      <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest first</option>
+    </select>
+    <button type="submit" class="btn-verzio-outline">Apply</button>
+  </div>
+</form>
+
 <div class="filter-bar">
-  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search by phone number..." data-table-search="#appointments-table">
-  <div class="d-flex gap-2" data-filter-group="#appointments-table">
-    <button class="filter-pill active" data-filter-value="all">All</button>
-    <button class="filter-pill" data-filter-value="pending">Pending</button>
-    <button class="filter-pill" data-filter-value="confirmed">Confirmed</button>
-    <button class="filter-pill" data-filter-value="cancelled">Cancelled</button>
+  <div class="d-flex gap-2 flex-wrap">
+    {% for filter_status, filter_label in [("all", "All"), ("pending", "Pending"), ("confirmed", "Confirmed"), ("completed", "Completed"), ("cancelled", "Cancelled")] %}
+    <a
+      class="filter-pill {% if status == filter_status %}active{% endif %}"
+      href="/owner/appointments?search={{ search|urlencode }}&status={{ filter_status }}&sort={{ sort }}"
+    >{{ filter_label }}</a>
+    {% endfor %}
   </div>
 </div>
 
@@ -30,6 +48,7 @@
         <th>Service</th>
         <th>Date &amp; time</th>
         <th>Status</th>
+        <th class="text-end">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -37,9 +56,10 @@
       <tr data-status="{{ appointment.status }}">
         <td>
           <div class="table-entity">
-            <div class="table-avatar"><i class="bi bi-telephone"></i></div>
+            <div class="table-avatar"><i class="bi bi-person"></i></div>
             <div>
-              <div class="cell-primary mono">{{ appointment.customer_phone }}</div>
+              <div class="cell-primary">{{ appointment.customer_name or 'Customer' }}</div>
+              <div class="cell-muted mono">{{ appointment.customer_phone }}</div>
             </div>
           </div>
         </td>
@@ -50,10 +70,41 @@
             <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
           </span>
         </td>
+        <td class="text-end">
+          {% if appointment.status == "pending" %}
+          <div class="d-flex justify-content-end gap-2">
+            <form method="post" action="/owner/appointments/{{ appointment.id }}/approve" class="m-0">
+              <button type="submit" class="icon-btn" aria-label="Approve appointment #{{ appointment.id }}" title="Approve">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </form>
+            <form method="post" action="/owner/appointments/{{ appointment.id }}/reject" class="m-0">
+              <button type="submit" class="icon-btn" aria-label="Reject appointment #{{ appointment.id }}" title="Reject">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+          </div>
+          {% elif appointment.status == "confirmed" %}
+          <div class="d-flex justify-content-end gap-2">
+            <form method="post" action="/owner/appointments/{{ appointment.id }}/complete" class="m-0">
+              <button type="submit" class="icon-btn" aria-label="Complete appointment #{{ appointment.id }}" title="Complete">
+                <i class="bi bi-check2-circle"></i>
+              </button>
+            </form>
+            <form method="post" action="/owner/appointments/{{ appointment.id }}/cancel" class="m-0">
+              <button type="submit" class="icon-btn" aria-label="Cancel appointment #{{ appointment.id }}" title="Cancel">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </form>
+          </div>
+          {% else %}
+          <span class="cell-muted">View only</span>
+          {% endif %}
+        </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="4" class="text-center cell-muted py-5">
+        <td colspan="5" class="text-center cell-muted py-5">
           No appointments found for this tenant.
         </td>
       </tr>
