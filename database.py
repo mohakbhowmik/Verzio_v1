@@ -1,8 +1,10 @@
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, ForeignKey, Float
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, ForeignKey, Float, Text
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from dotenv import load_dotenv
+
+
 
 load_dotenv()
 
@@ -51,6 +53,32 @@ class UserSession(Base):
     selected_date = Column(String, nullable=True)
     selected_time = Column(String, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    severity = Column(String, nullable=False)      # warning | error | critical
+    module = Column(String, nullable=False)
+
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
+
+    phone_number = Column(String, nullable=True)
+
+    title = Column(String, nullable=False)
+
+    message = Column(Text, nullable=False)
+
+    stack_trace = Column(Text, nullable=True)
+
+    resolved = Column(Boolean, default=False)
+
+    resolved_at = Column(DateTime, nullable=True)
+
 
 class Service(Base):
     __tablename__ = "services"
@@ -133,3 +161,6 @@ class ActivityEvent(Base):
     message = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     business = relationship("Business", backref="activity_events")
+
+
+Base.metadata.create_all(bind=engine)

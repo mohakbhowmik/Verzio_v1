@@ -40,13 +40,15 @@
         </td>
         <td class="cell-secondary">{{ b.manager_phone_number }}</td>
         <td>
-          {% if not b.is_active %}
-          <span class="status-badge status-inactive"><span class="dot"></span>Inactive</span>
-          {% elif not b.accepting_bookings %}
-          <span class="status-badge status-pending"><span class="dot"></span>Bookings Paused</span>
-          {% else %}
-          <span class="status-badge status-active"><span class="dot"></span>Active</span>
-          {% endif %}
+            {% if b.is_active %}
+                <span class="status-badge status-active">
+                    <span class="dot"></span>Active
+                </span>
+            {% else %}
+                <span class="status-badge status-inactive">
+                    <span class="dot"></span>Inactive
+                </span>
+            {% endif %}
         </td>
         <td class="text-end">
           <div class="d-flex align-items-center justify-content-end gap-2">
@@ -54,12 +56,21 @@
               <i class="bi bi-pencil"></i>
             </a>
 
-            <form method="post" action="/admin/businesses/{{ b.id }}/toggle" class="m-0 d-inline-flex">
-              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if b.is_active %}Disable{% else %}Enable{% endif %} {{ b.name }}">
+            <form method="post"
+                  action="/admin/businesses/{{ b.id }}/toggle-active"
+                  class="m-0 d-inline-flex">
+
+              <button
+                  type="submit"
+                  class="icon-btn"
+                  style="width:30px;height:30px;"
+                  aria-label="{% if b.is_active %}Deactivate Tenant{% else %}Activate Tenant{% endif %} {{ b.name }}">
+             
+
                 {% if b.is_active %}
-                <i class="bi bi-pause-circle"></i>
+                    <i class="bi bi-play-fill"></i>
                 {% else %}
-                <i class="bi bi-play-circle"></i>
+                    <i class="bi bi-pause-fill"></i>
                 {% endif %}
               </button>
             </form>

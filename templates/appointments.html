@@ -13,7 +13,7 @@
 </div>
 
 <div class="filter-bar">
-  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search by customer or phone…" data-table-search="#appointments-table">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search by phone number..." data-table-search="#appointments-table">
   <div class="d-flex gap-2" data-filter-group="#appointments-table">
     <button class="filter-pill active" data-filter-value="all">All</button>
     <button class="filter-pill" data-filter-value="pending">Pending</button>
@@ -35,33 +35,29 @@
       </tr>
     </thead>
     <tbody>
-      {% set dummy_appointments = [
-        {"name": "Aditi Rao", "phone": "+91 98200 11234", "business": "Verzio Parallel Salon", "service": "Haircut", "date": "Jul 21", "time": "10:00 AM", "status": "confirmed", "id": "1042"},
-        {"name": "Guest Client", "phone": "+91 90210 55621", "business": "Verzio Parallel Salon", "service": "Hair Spa", "date": "Jul 21", "time": "11:30 AM", "status": "pending", "id": "1043"},
-        {"name": "Meera Iyer", "phone": "+91 88888 22110", "business": "Clinic Beta", "service": "Consultation", "date": "Jul 21", "time": "01:00 PM", "status": "confirmed", "id": "1044"},
-        {"name": "Guest Client", "phone": "+91 99887 76655", "business": "Salon Alpha", "service": "Haircut", "date": "Jul 21", "time": "02:30 PM", "status": "cancelled", "id": "1045"},
-        {"name": "Sanjay Mehta", "phone": "+91 91234 56780", "business": "Verzio Parallel Salon", "service": "Hair Spa", "date": "Jul 22", "time": "04:00 PM", "status": "pending", "id": "1046"},
-        {"name": "Priya Nair", "phone": "+91 90000 12345", "business": "Glow Studio", "service": "Facial", "date": "Jul 22", "time": "09:30 AM", "status": "confirmed", "id": "1047"},
-        {"name": "Guest Client", "phone": "+91 97865 43210", "business": "Clinic Beta", "service": "Follow-up", "date": "Jul 22", "time": "12:00 PM", "status": "no_show", "id": "1048"},
-      ] %}
-      {% for a in dummy_appointments %}
+     
+      {% for a in appointments %}
       <tr data-status="{{ a.status }}">
         <td>
           <div class="table-entity">
-            <div class="table-avatar">{{ a.name[:2]|upper }}</div>
+            <div class="table-avatar">
+                <i class="bi bi-telephone"></i>
+            </div>
+
             <div>
-              <div class="cell-primary">{{ a.name }}</div>
-              <div class="cell-muted mono" style="font-size:11.5px;">{{ a.phone }}</div>
+                <div class="cell-primary mono">
+                    {{ a.customer_phone }}
+                </div>
             </div>
           </div>
         </td>
-        <td class="cell-secondary">{{ a.business }}</td>
-        <td class="cell-secondary">{{ a.service }}</td>
-        <td class="mono cell-secondary">{{ a.date }}, {{ a.time }}</td>
+        <td class="cell-secondary">{{ a.business.name }}</td>
+        <td class="cell-secondary">{{ a.service.name }}</td>
+        <td class="mono cell-secondary">{{ a.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
         <td>
-          <span class="status-badge status-{{ a.status }}">
-            <span class="dot"></span>{{ a.status|replace("_", " ")|capitalize }}
-          </span>
+            <span class="status-badge status-{{ a.status }}">
+                <span class="dot"></span>{{ a.status|replace("_", " ")|capitalize }}
+            </span>
         </td>
         <td class="text-end mono cell-muted">#{{ a.id }}</td>
       </tr>

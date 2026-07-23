@@ -1,16 +1,114 @@
 {% extends "base.html" %}
 
-{% block title %}System — Verzio Studio{% endblock %}
+{% block title %}System{% endblock %}
 {% block page_title %}System{% endblock %}
 
 {% block content %}
-<div class="section-container">
-    <div class="section-head">
-        <h2 class="section-title">Platform Logs & Health</h2>
-    </div>
-    <div class="p-5 text-center">
-        <i class="bi bi-terminal cell-muted fs-2 mb-3 d-block"></i>
-        <div class="cell-muted">System observability shell established.</div>
-    </div>
+
+<div class="row mb-4">
+
+<div class="col-md-3">
+<div class="card">
+<div class="card-body">
+
+<h6>API</h6>
+
+<h4 class="text-success">
+{{ api_status }}
+</h4>
+
 </div>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card">
+<div class="card-body">
+
+<h6>Database</h6>
+
+<h4 class="text-success">
+{{ database_status }}
+</h4>
+
+</div>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card">
+<div class="card-body">
+
+<h6>Businesses</h6>
+
+<h3>{{ businesses }}</h3>
+
+</div>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card">
+<div class="card-body">
+
+<h6>Today's Appointments</h6>
+
+<h3>{{ todays_appointments }}</h3>
+
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-header">
+
+Latest Activity
+
+</div>
+
+<table class="table">
+
+<thead>
+
+<tr>
+
+<th>Time</th>
+
+<th>Type</th>
+
+<th>Status</th>
+
+<th>Message</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for e in recent_events %}
+
+<tr>
+
+<td>{{ e.created_at }}</td>
+
+<td>{{ e.event_type }}</td>
+
+<td>{{ e.status }}</td>
+
+<td>{{ e.message }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
 {% endblock %}

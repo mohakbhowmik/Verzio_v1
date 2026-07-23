@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Verzio Studio{% endblock %}</title>
+
+    <!-- Bootstrap 5 (Utility & Grid only) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    
+    <!-- Fonts: Inter for readability, JetBrains Mono for ID/Phone data -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+    <!-- Design System: White Background / Thin Borders / Accent Only -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <div class="app-shell">
+        
+        <!-- ==================== SIDEBAR ==================== -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                Verzio Studio
+            </div>
+
+           <nav class="sidebar">
+                <h2>Verzio</h2>
+
+                <a href="/owner/dashboard">🏠 Dashboard</a>
+                <a href="/owner/appointments">📅 Appointments</a>
+                <a href="/owner/services">💼 Services</a>
+                <a href="/owner/settings">⚙ Settings</a>
+                <a href="/owner/reports">📊 Reports</a>
+
+                <hr>
+
+                <a href="/logout">Logout</a>
+            </nav>
+
+            
+        </aside>
+
+        <!-- ==================== MAIN COLUMN ==================== -->
+        <div class="main-col">
+            
+            <!-- ---- Top Bar ---- -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <h1 class="page-current-title">{% block page_title %}Overview{% endblock %}</h1>
+                </div>
+
+                <div class="topbar-center">
+                    <div class="topbar-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" placeholder="Search data...">
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="profile-trigger">
+                        <span class="mono">ADMIN</span>
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ---- Main Content Area ---- -->
+            <main class="content-container">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Minimum Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', path='js/script.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

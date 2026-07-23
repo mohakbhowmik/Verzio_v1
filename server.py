@@ -2,12 +2,15 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from incident_service import create_incident
 
 from routers.admin_businesses import router as business_router
 from routers.admin_services import router as services_router
 from routers.admin_system import router as system_router
 from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
+
+from owner.owner_dashboard import router as owner_dashboard_router
 
 
 from activity_log import log_event
@@ -36,6 +39,8 @@ app.include_router(services_router)
 app.include_router(system_router)
 app.include_router(appointments_router)
 app.include_router(subscriptions_router)
+
+app.include_router(owner_dashboard_router)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -145,6 +150,19 @@ async def dispatch_whatsapp(
                     message=f"Meta API Error {response.status_code}: {response.text[:200]}",
                     business_id=business_id
                 )
+
+                
+
+                create_incident(
+                    severity="error",
+                    module="WhatsApp",
+                    title="Meta API Error",
+                    message=response.text,
+                    business_id=business_id,
+                    phone_number=to,
+                )
+
+        
 
     print("\n========== META RESPONSE ==========")
     print(response.status_code)

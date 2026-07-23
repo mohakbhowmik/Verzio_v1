@@ -251,17 +251,23 @@ async def update_business(business_id: int, request: Request, db: Session = Depe
 @router.post("/{business_id}/toggle-active")
 def toggle_business_active(
     business_id: int,
-    request: Request,
     db: Session = Depends(get_db)
 ):
-    business = db.query(Business).filter(Business.id == business_id).first()
+    business = db.get(Business, business_id)
 
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
 
+    # Toggle platform activation
     business.is_active = not business.is_active
 
     db.commit()
+
+    logger.info(
+        "Business '%s' platform activation changed -> %s",
+        business.name,
+        business.is_active
+    )
 
     return RedirectResponse(
         url="/admin/businesses",

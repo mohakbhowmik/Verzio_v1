@@ -1,0 +1,44 @@
+{% extends "owner/base.html" %}
+
+{% block content %}
+
+<h1>Appointments</h1>
+
+<input
+type="text"
+placeholder="Search appointments..."
+class="form-control">
+
+<table class="table">
+
+    <thead>
+
+        <tr>
+
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+        <tr>
+
+            <td colspan="5">
+
+                No appointments found.
+
+            </td>
+
+        </tr>
+
+    </tbody>
+
+</table>
+
+{% endblock %}
