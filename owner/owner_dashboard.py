@@ -48,6 +48,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
                 "todays_appointments": [],
                 "pending_count": 0,
                 "confirmed_count": 0,
+                "completed_count": 0,
                 "cancelled_count": 0,
                 "service_count": 0,
                 "recent_activity": [],
@@ -72,6 +73,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
 
     pending_count = sum(1 for a in appointments if a.status == "pending")
     confirmed_count = sum(1 for a in appointments if a.status == "confirmed")
+    completed_count = sum(1 for a in appointments if a.status == "completed")
     cancelled_count = sum(1 for a in appointments if a.status == "cancelled")
     service_count = db.query(Service).filter(Service.business_id == business.id).count()
 
@@ -94,6 +96,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
             "todays_appointments": todays_appointments,
             "pending_count": pending_count,
             "confirmed_count": confirmed_count,
+            "completed_count": completed_count,
             "cancelled_count": cancelled_count,
             "service_count": service_count,
             "recent_activity": recent_activity,

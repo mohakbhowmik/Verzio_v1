@@ -89,7 +89,9 @@ def generate_daily_excel_report(business_id: int, business_name: str, db: Sessio
         # Dynamic subtle coloring for status column
         if appt.status == "confirmed":
             status_cell.font = Font(name=font_family, size=11, bold=True, color="16A34A")
-        elif appt.status == "cancelled" or appt.status == "no_show":
+        elif appt.status == "completed":
+            status_cell.font = Font(name=font_family, size=11, bold=True, color="2563EB")
+        elif appt.status == "cancelled":
             status_cell.font = Font(name=font_family, size=11, bold=True, color="DC2626")
         else:
             status_cell.font = Font(name=font_family, size=11, bold=True, color="D97706")

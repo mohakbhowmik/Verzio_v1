@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from activity_log import log_event
 from database import Appointment, Business, Service, get_db
 
 router = APIRouter(prefix="/owner/appointments", tags=["owner-appointments"])
@@ -122,6 +123,15 @@ async def update_owner_appointment(
 
     appointment.status = next_status
     db.commit()
+
+    if next_status == "completed":
+        log_event(
+            db=db,
+            event_type="appointment_completed",
+            status="success",
+            message=f"Appointment #{appointment.id} completed",
+            business_id=appointment.business_id,
+        )
 
     query = request.query_params
     redirect_url = "/owner/appointments"

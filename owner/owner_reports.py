@@ -59,6 +59,7 @@ async def owner_reports_page(
 
     pending_count = sum(1 for appointment in appointments if appointment.status == "pending")
     confirmed_count = sum(1 for appointment in appointments if appointment.status == "confirmed")
+    completed_count = sum(1 for appointment in appointments if appointment.status == "completed")
 
     return templates.TemplateResponse(
         request=request,
@@ -69,6 +70,7 @@ async def owner_reports_page(
             "todays_count": todays_count,
             "pending_count": pending_count,
             "confirmed_count": confirmed_count,
+            "completed_count": completed_count,
             "recent_activity": recent_activity,
         },
     )
