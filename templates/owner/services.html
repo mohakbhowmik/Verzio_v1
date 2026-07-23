@@ -6,10 +6,10 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-eyebrow">Owner Portal</div>
     <h1 class="page-title">Services</h1>
     <div class="page-subtitle">Service catalog for your current tenant only.</div>
   </div>
+  <a href="/owner/services/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
 </div>
 
 <div class="filter-bar">
@@ -24,6 +24,7 @@
         <th>Duration</th>
         <th>Price</th>
         <th>Status</th>
+        <th class="text-end">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -44,10 +45,26 @@
             <span class="status-badge status-inactive"><span class="dot"></span>Inactive</span>
           {% endif %}
         </td>
+        <td class="text-end">
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <a href="/owner/services/{{ service.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ service.name }}">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
+              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
+                {% if service.is_active %}
+                <i class="bi bi-eye-slash"></i>
+                {% else %}
+                <i class="bi bi-eye"></i>
+                {% endif %}
+              </button>
+            </form>
+          </div>
+        </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="4" class="text-center cell-muted py-5">
+        <td colspan="5" class="text-center cell-muted py-5">
           No services found for this tenant.
         </td>
       </tr>
