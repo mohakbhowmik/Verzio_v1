@@ -34,9 +34,6 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
         )
 
     if business is None:
-        business = db.query(Business).order_by(Business.id.asc()).first()
-
-    if business is None:
         return templates.TemplateResponse(
             request=request,
             name="owner/dashboard.html",

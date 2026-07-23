@@ -115,14 +115,12 @@ async def owner_settings_save(
     business.max_parallel_bookings = int(form.get("max_parallel_bookings") or business.max_parallel_bookings or 1)
     business.slot_interval = int(form.get("slot_duration") or business.slot_interval or 30)
     business.advance_booking_days = int(form.get("advance_booking_days") or business.advance_booking_days or 14)
-    business.approval_mode = "manual" if form.get("require_owner_approval") == "on" else "auto"
+    business.approval_mode = "manual" if form.get("require_owner_approval") == "on" else "automatic"
     business.operational_hours = _build_operational_hours(form)
 
     notification_preferences = business.notification_preferences or {}
     notification_preferences["whatsapp_owner"] = bool(notification_preferences.get("whatsapp_owner"))
-    notification_preferences["whatsapp_customer"] = bool(
-        notification_preferences.get("whatsapp_customer") or form.get("send_booking_confirmation") == "on"
-    )
+    notification_preferences["whatsapp_customer"] = form.get("send_booking_confirmation") == "on"
     business.notification_preferences = notification_preferences
 
     db.commit()

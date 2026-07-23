@@ -103,7 +103,10 @@ async def new_owner_service_form(request: Request, db: Session = Depends(get_db)
     return templates.TemplateResponse(
         request=request,
         name="service_form.html",
-        context=_form_context(business) | {"form_action": "/owner/services"},
+        context=_form_context(business) | {
+            "form_action": "/owner/services",
+            "owner_portal": True,
+        },
     )
 
 
@@ -120,7 +123,10 @@ async def create_owner_service(request: Request, db: Session = Depends(get_db)):
             request=request,
             name="service_form.html",
             context=_form_context(business, error="Service name is required.")
-            | {"form_action": "/owner/services"},
+            | {
+                "form_action": "/owner/services",
+                "owner_portal": True,
+            },
             status_code=400,
         )
 
@@ -152,7 +158,10 @@ async def edit_owner_service_form(
         request=request,
         name="service_form.html",
         context=_form_context(business, service=service)
-        | {"form_action": f"/owner/services/{service.id}"},
+        | {
+            "form_action": f"/owner/services/{service.id}",
+            "owner_portal": True,
+        },
     )
 
 
@@ -177,7 +186,10 @@ async def update_owner_service(
                 business,
                 service=service,
                 error="Service name is required.",
-            ) | {"form_action": f"/owner/services/{service.id}"},
+            ) | {
+                "form_action": f"/owner/services/{service.id}",
+                "owner_portal": True,
+            },
             status_code=400,
         )
 
