@@ -11,6 +11,10 @@ from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
 
 from owner.owner_dashboard import router as owner_dashboard_router
+from owner.owner_appointments import router as owner_appointments_router
+from owner.owner_services import router as owner_services_router
+from owner.owner_settings import router as owner_settings_router
+from owner.owner_reports import router as owner_reports_router
 
 
 from activity_log import log_event
@@ -41,6 +45,10 @@ app.include_router(appointments_router)
 app.include_router(subscriptions_router)
 
 app.include_router(owner_dashboard_router)
+app.include_router(owner_appointments_router)
+app.include_router(owner_services_router)
+app.include_router(owner_settings_router)
+app.include_router(owner_reports_router)
 
 templates = Jinja2Templates(directory="templates")
 

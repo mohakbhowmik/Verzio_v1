@@ -1,19 +1,66 @@
 {% extends "owner/base.html" %}
 
+{% block title %}Reports — Verzio Studio{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
 {% block content %}
-
-<h1>Reports</h1>
-
-<div class="card">
-
-<h2>Available Reports</h2>
-
-<button>Morning Report</button>
-
-<button>Night Report</button>
-
-<button>Today's Report</button>
-
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Owner Portal</div>
+    <h1 class="page-title">Reports</h1>
+    <div class="page-subtitle">Operational summary for the authenticated tenant.</div>
+  </div>
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-4">
+    <div class="metric-card">
+      <span class="metric-label">Today's appointments</span>
+      <div class="d-flex align-items-baseline gap-2">
+        <span class="metric-value">{{ todays_count }}</span>
+        <span class="cell-muted">booked</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-4">
+    <div class="metric-card">
+      <span class="metric-label">Pending</span>
+      <div class="d-flex align-items-baseline gap-2">
+        <span class="metric-value">{{ pending_count }}</span>
+        <span class="cell-muted">open</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-lg-4">
+    <div class="metric-card">
+      <span class="metric-label">Confirmed</span>
+      <div class="d-flex align-items-baseline gap-2">
+        <span class="metric-value">{{ confirmed_count }}</span>
+        <span class="cell-muted">scheduled</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-container">
+  <div class="section-head">
+    <h2 class="section-title">Latest activity</h2>
+  </div>
+
+  <div class="activity-feed">
+    {% for event in recent_activity %}
+    <div class="activity-item">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="activity-type mono">{{ event.event_type|replace("_", " ")|upper }}</span>
+        <span class="activity-time mono">{{ event.created_at.strftime("%H:%M") }}</span>
+      </div>
+      <div class="activity-msg">{{ event.message[:100] }}{% if event.message|length > 100 %}...{% endif %}</div>
+    </div>
+    {% else %}
+    <div class="text-center cell-muted py-4">No recent activity logged for this tenant.</div>
+    {% endfor %}
+  </div>
+</div>
 {% endblock %}

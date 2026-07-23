@@ -1,47 +1,58 @@
 {% extends "owner/base.html" %}
 
+{% block title %}Services — Verzio Studio{% endblock %}
+{% block page_title %}Services{% endblock %}
+
 {% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Owner Portal</div>
+    <h1 class="page-title">Services</h1>
+    <div class="page-subtitle">Service catalog for your current tenant only.</div>
+  </div>
+</div>
 
-<h1>Services</h1>
+<div class="filter-bar">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search services…" data-table-search="#services-table">
+</div>
 
-<button>
-
-+ Add Service
-
-</button>
-
-<table class="table">
-
-<thead>
-
-<tr>
-
-<th>Name</th>
-
-<th>Duration</th>
-
-<th>Price</th>
-
-<th>Status</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-<tr>
-
-<td colspan="4">
-
-No services added.
-
-</td>
-
-</tr>
-
-</tbody>
-
-</table>
-
+<div class="table-verzio-wrap" id="services-table">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Duration</th>
+        <th>Price</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for service in services %}
+      <tr>
+        <td>
+          <div class="table-entity">
+            <div class="table-avatar">{{ service.name[:2]|upper }}</div>
+            <div class="cell-primary">{{ service.name }}</div>
+          </div>
+        </td>
+        <td class="cell-secondary">{{ service.duration }} mins</td>
+        <td class="cell-secondary">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if service.is_active %}
+            <span class="status-badge status-active"><span class="dot"></span>Active</span>
+          {% else %}
+            <span class="status-badge status-inactive"><span class="dot"></span>Inactive</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="text-center cell-muted py-5">
+          No services found for this tenant.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

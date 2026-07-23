@@ -1,39 +1,128 @@
 {% extends "owner/base.html" %}
 
+{% block title %}Owner Dashboard — Verzio Studio{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
-
-<h1>Owner Dashboard</h1>
-
-<div class="stats-grid">
-
-    <div class="stat-card">
-        <h3>Today's Appointments</h3>
-        <h2>0</h2>
+<div class="page-header">
+    <div>
+        <div class="page-eyebrow">Owner Portal</div>
+        <h1 class="page-title">{{ business.name if business else 'Business Dashboard' }}</h1>
+        <div class="page-subtitle">Bookings, service capacity, and recent activity for your current tenant.</div>
     </div>
-
-    <div class="stat-card">
-        <h3>Pending</h3>
-        <h2>0</h2>
-    </div>
-
-    <div class="stat-card">
-        <h3>Completed</h3>
-        <h2>0</h2>
-    </div>
-
-    <div class="stat-card">
-        <h3>Cancelled</h3>
-        <h2>0</h2>
-    </div>
-
 </div>
 
-<div class="card">
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="metric-card">
+            <span class="metric-label">Today's appointments</span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="metric-value">{{ todays_appointments|length }}</span>
+                <span class="cell-muted">live queue</span>
+            </div>
+        </div>
+    </div>
 
-    <h2>Upcoming Appointments</h2>
+    <div class="col-6 col-lg-3">
+        <div class="metric-card">
+            <span class="metric-label">Pending</span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="metric-value">{{ pending_count }}</span>
+                <span class="cell-muted">needs review</span>
+            </div>
+        </div>
+    </div>
 
-    <p>No appointments found.</p>
+    <div class="col-6 col-lg-3">
+        <div class="metric-card">
+            <span class="metric-label">Confirmed</span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="metric-value">{{ confirmed_count }}</span>
+                <span class="cell-muted">scheduled</span>
+            </div>
+        </div>
+    </div>
 
+    <div class="col-6 col-lg-3">
+        <div class="metric-card">
+            <span class="metric-label">Services</span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="metric-value">{{ service_count }}</span>
+                <span class="cell-muted">active catalog</span>
+            </div>
+        </div>
+    </div>
 </div>
 
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="section-container">
+            <div class="section-head">
+                <h2 class="section-title">Upcoming appointments</h2>
+            </div>
+
+            <div class="table-verzio-wrap">
+                <table class="table table-verzio align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Service</th>
+                            <th>Date &amp; time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in appointments %}
+                        <tr data-status="{{ appointment.status }}">
+                            <td>
+                                <div class="table-entity">
+                                    <div class="table-avatar"><i class="bi bi-telephone"></i></div>
+                                    <div>
+                                        <div class="cell-primary mono">{{ appointment.customer_phone }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="cell-secondary">{{ appointment.service.name if appointment.service else 'Service removed' }}</td>
+                            <td class="mono cell-secondary">{{ appointment.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
+                            <td>
+                                <span class="status-badge status-{{ appointment.status }}">
+                                    <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center cell-muted py-5">
+                                No appointments found for this business.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="section-container">
+            <div class="section-head">
+                <h2 class="section-title">Latest activity</h2>
+            </div>
+
+            <div class="activity-feed">
+                {% for event in recent_activity %}
+                <div class="activity-item">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <span class="activity-type mono">{{ event.event_type|replace("_", " ")|upper }}</span>
+                        <span class="activity-time mono">{{ event.created_at.strftime("%H:%M") }}</span>
+                    </div>
+                    <div class="activity-msg">{{ event.message[:100] }}{% if event.message|length > 100 %}...{% endif %}</div>
+                </div>
+                {% else %}
+                <div class="text-center cell-muted py-4">No recent activity logged for this business.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

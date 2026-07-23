@@ -1,44 +1,64 @@
 {% extends "owner/base.html" %}
 
+{% block title %}Appointments — Verzio Studio{% endblock %}
+{% block page_title %}Appointments{% endblock %}
+
 {% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Owner Portal</div>
+    <h1 class="page-title">Appointments</h1>
+    <div class="page-subtitle">Bookings for your tenant only, synced from WhatsApp.</div>
+  </div>
+</div>
 
-<h1>Appointments</h1>
+<div class="filter-bar">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search by phone number..." data-table-search="#appointments-table">
+  <div class="d-flex gap-2" data-filter-group="#appointments-table">
+    <button class="filter-pill active" data-filter-value="all">All</button>
+    <button class="filter-pill" data-filter-value="pending">Pending</button>
+    <button class="filter-pill" data-filter-value="confirmed">Confirmed</button>
+    <button class="filter-pill" data-filter-value="cancelled">Cancelled</button>
+  </div>
+</div>
 
-<input
-type="text"
-placeholder="Search appointments..."
-class="form-control">
-
-<table class="table">
-
+<div class="table-verzio-wrap" id="appointments-table">
+  <table class="table table-verzio align-middle mb-0">
     <thead>
-
-        <tr>
-
-            <th>Customer</th>
-            <th>Service</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Status</th>
-
-        </tr>
-
+      <tr>
+        <th>Customer</th>
+        <th>Service</th>
+        <th>Date &amp; time</th>
+        <th>Status</th>
+      </tr>
     </thead>
-
     <tbody>
-
-        <tr>
-
-            <td colspan="5">
-
-                No appointments found.
-
-            </td>
-
-        </tr>
-
+      {% for appointment in appointments %}
+      <tr data-status="{{ appointment.status }}">
+        <td>
+          <div class="table-entity">
+            <div class="table-avatar"><i class="bi bi-telephone"></i></div>
+            <div>
+              <div class="cell-primary mono">{{ appointment.customer_phone }}</div>
+            </div>
+          </div>
+        </td>
+        <td class="cell-secondary">{{ appointment.service.name if appointment.service else 'Service removed' }}</td>
+        <td class="mono cell-secondary">{{ appointment.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
+        <td>
+          <span class="status-badge status-{{ appointment.status }}">
+            <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="text-center cell-muted py-5">
+          No appointments found for this tenant.
+        </td>
+      </tr>
+      {% endfor %}
     </tbody>
-
-</table>
-
+  </table>
+</div>
 {% endblock %}
