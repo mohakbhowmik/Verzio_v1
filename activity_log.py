@@ -14,6 +14,7 @@ def log_event(
 ) -> None:
     """
     Append an event to the activity log.
+    Standard event_types: booking_confirmed, booking_cancelled, appointment_completed, appointment_no_show, etc.
     FAILS SAFE: If logging fails, it will not interrupt the main process.
     """
     try:

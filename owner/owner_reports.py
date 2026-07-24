@@ -67,6 +67,8 @@ async def owner_reports_page(
     confirmed_count = sum(1 for appointment in appointments if appointment.status == "confirmed")
     completed_count = sum(1 for appointment in appointments if appointment.status == "completed")
     cancelled_count = sum(1 for appointment in appointments if appointment.status == "cancelled")
+    no_show_count = sum(1 for appointment in appointments if appointment.status == "no_show")
+    # Revenue is computed strictly for confirmed and completed bookings (no_show excluded)
     revenue = sum(
         appointment.service.price or 0
         for appointment in appointments
@@ -85,6 +87,7 @@ async def owner_reports_page(
             "confirmed_count": confirmed_count,
             "completed_count": completed_count,
             "cancelled_count": cancelled_count,
+            "no_show_count": no_show_count,
             "revenue": revenue,
             "recent_activity": recent_activity,
         },

@@ -56,7 +56,7 @@ class VerzioSaaSEngine:
         start_time = datetime.strptime(start_h, "%H:%M").time()
         end_time = datetime.strptime(end_h, "%H:%M").time()
 
-        # Fetch existing occupancy for the date
+        # Fetch existing occupancy for the date (only active pending/confirmed bookings count against capacity; no_show/completed/cancelled do not)
         existing = db.query(Appointment.appointment_time).filter(
              Appointment.business_id == biz.id,
              Appointment.status.in_(["pending", "confirmed"]),

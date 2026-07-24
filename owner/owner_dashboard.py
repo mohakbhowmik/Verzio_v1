@@ -1,6 +1,5 @@
-from datetime import date, datetime, timedelta
-
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -11,6 +10,7 @@ from database import (
     Service,
     get_db,
 )
+from owner.owner_auth import resolve_owner_and_business
 
 router = APIRouter()
 
@@ -19,38 +19,9 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/owner")
 async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
-    owner_phone = (
-        request.cookies.get("verzio_owner_phone")
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
-
-    business = None
-    if owner_phone:
-        business = (
-            db.query(Business)
-            .filter(Business.manager_phone_number == owner_phone)
-            .first()
-        )
-
-    if business is None:
-        return templates.TemplateResponse(
-            request=request,
-            name="owner/dashboard.html",
-            context={
-                "request": request,
-                "active_page": "dashboard",
-                "business": None,
-                "appointments": [],
-                "todays_appointments": [],
-                "pending_count": 0,
-                "confirmed_count": 0,
-                "completed_count": 0,
-                "cancelled_count": 0,
-                "service_count": 0,
-                "recent_activity": [],
-            },
-        )
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
 
     appointments = (
         db.query(Appointment)
@@ -72,6 +43,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
     confirmed_count = sum(1 for a in appointments if a.status == "confirmed")
     completed_count = sum(1 for a in appointments if a.status == "completed")
     cancelled_count = sum(1 for a in appointments if a.status == "cancelled")
+    no_show_count = sum(1 for a in appointments if a.status == "no_show")
     service_count = db.query(Service).filter(Service.business_id == business.id).count()
 
     recent_activity = (
@@ -95,6 +67,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
             "confirmed_count": confirmed_count,
             "completed_count": completed_count,
             "cancelled_count": cancelled_count,
+            "no_show_count": no_show_count,
             "service_count": service_count,
             "recent_activity": recent_activity,
         },

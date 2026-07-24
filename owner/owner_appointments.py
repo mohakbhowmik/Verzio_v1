@@ -9,12 +9,13 @@ from database import Appointment, Business, Service, get_db
 router = APIRouter(prefix="/owner/appointments", tags=["owner-appointments"])
 templates = Jinja2Templates(directory="templates")
 
-ALLOWED_STATUSES = {"pending", "confirmed", "completed", "cancelled"}
+ALLOWED_STATUSES = {"pending", "confirmed", "completed", "cancelled", "no_show"}
 ACTION_TARGETS = {
     "approve": ("pending", "confirmed"),
     "reject": ("pending", "cancelled"),
     "complete": ("confirmed", "completed"),
     "cancel": ("confirmed", "cancelled"),
+    "no_show": ("confirmed", "no_show"),
 }
 
 
@@ -130,6 +131,14 @@ async def update_owner_appointment(
             event_type="appointment_completed",
             status="success",
             message=f"Appointment #{appointment.id} completed",
+            business_id=appointment.business_id,
+        )
+    elif next_status == "no_show":
+        log_event(
+            db=db,
+            event_type="appointment_no_show",
+            status="warning",
+            message=f"Appointment #{appointment.id} marked as no-show",
             business_id=appointment.business_id,
         )
 

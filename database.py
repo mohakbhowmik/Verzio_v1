@@ -43,6 +43,21 @@ class Business(Base):
     appointments = relationship("Appointment", back_populates="business")
     services = relationship("Service", back_populates="business")
     staff_members = relationship("Staff", back_populates="business")
+    owners = relationship("Owner", back_populates="business")
+
+class Owner(Base):
+    __tablename__ = "owners"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    phone_number = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    business = relationship("Business", back_populates="owners")
 
 class UserSession(Base):
     __tablename__ = "user_sessions"
@@ -110,7 +125,7 @@ class Appointment(Base):
     customer_phone = Column(String, nullable=False)
     customer_name = Column(String, nullable=True)
     appointment_time = Column(DateTime, nullable=False)
-    status = Column(String, default="pending") 
+    status = Column(String, default="pending")  # Valid: pending, confirmed, completed, cancelled, no_show
     created_at = Column(DateTime, default=datetime.utcnow)
     business = relationship("Business", back_populates="appointments")
     service = relationship("Service", back_populates="appointments")

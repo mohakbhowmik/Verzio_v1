@@ -10,12 +10,12 @@ from routers.admin_system import router as system_router
 from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
 
+from owner.owner_auth import router as owner_auth_router
 from owner.owner_dashboard import router as owner_dashboard_router
 from owner.owner_appointments import router as owner_appointments_router
 from owner.owner_services import router as owner_services_router
 from owner.owner_settings import router as owner_settings_router
 from owner.owner_reports import router as owner_reports_router
-
 
 from activity_log import log_event
 
@@ -44,6 +44,7 @@ app.include_router(system_router)
 app.include_router(appointments_router)
 app.include_router(subscriptions_router)
 
+app.include_router(owner_auth_router)
 app.include_router(owner_dashboard_router)
 app.include_router(owner_appointments_router)
 app.include_router(owner_services_router)
@@ -267,7 +268,7 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
             print(f"Interaction ID: {iid}")
 
             # Manager buttons
-            if iid.startswith(("confirm_", "cancel_")):
+            if iid.startswith(("confirm_", "cancel_", "noshow_")):
 
                 print("➡ Manager Action")
 
@@ -277,15 +278,9 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                 appt = db.get(Appointment, int(aid))
 
                 if appt:
-                    # 1. Update status in database
-                    appt.status = (
-                        "confirmed"
-                        if act == "confirm"
-                        else "cancelled"
-                    )
-                    db.commit()
-
+                    # 1. Update status in database & determine event/message
                     if act == "confirm":
+                        appt.status = "confirmed"
                         log_event(
                             db=db,
                             event_type="booking_confirmed",
@@ -293,7 +288,19 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                             message=f"Appointment #{appt.id} confirmed",
                             business_id=appt.business_id
                         )
+                        msg_text = "✅ Your appointment has been confirmed."
+                    elif act == "noshow":
+                        appt.status = "no_show"
+                        log_event(
+                            db=db,
+                            event_type="appointment_no_show",
+                            status="warning",
+                            message=f"Appointment #{appt.id} marked as no-show",
+                            business_id=appt.business_id
+                        )
+                        msg_text = "⚠️ Your appointment has been recorded as a No Show."
                     else:
+                        appt.status = "cancelled"
                         log_event(
                             db=db,
                             event_type="booking_cancelled",
@@ -301,17 +308,13 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                             message=f"Appointment #{appt.id} cancelled",
                             business_id=appt.business_id
                         )
+                        msg_text = "❌ Unfortunately your booking could not be approved."
+
+                    db.commit()
                     
                     print(f"✅ Appointment {aid} updated")
 
-                    # 2. Determine message content
-                    msg_text = (
-                        "✅ Your appointment has been confirmed."
-                        if act == "confirm"
-                        else "❌ Unfortunately your booking could not be approved."
-                    )
-
-                    # 3. Dispatch notification to the CUSTOMER
+                    # 2. Dispatch notification to the CUSTOMER
                     # We use the customer_phone from the appt record and the current tenant_id
                     await dispatch_whatsapp(
                         to=appt.customer_phone,
