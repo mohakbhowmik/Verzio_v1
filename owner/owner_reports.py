@@ -33,12 +33,22 @@ def _resolve_business(request: Request, db: Session) -> Business | None:
 async def owner_reports_page(
     request: Request,
     db: Session = Depends(get_db),
-    report_date: date | None = Query(default=None, alias="date"),
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
 ):
     business = _resolve_business(request, db)
-    selected_date = report_date or date.today()
-    selected_start = datetime.combine(selected_date, datetime.min.time())
-    selected_end = datetime.combine(selected_date, datetime.max.time())
+    selected_from = from_date or date.today()
+    selected_to = to_date or selected_from
+
+    selected_start = datetime.combine(
+        selected_from,
+        datetime.min.time()
+    )
+
+    selected_end = datetime.combine(
+        selected_to,
+        datetime.max.time()
+    )
 
     appointments = []
     recent_activity = []
@@ -81,7 +91,8 @@ async def owner_reports_page(
         context={
             "active_page": "reports",
             "business": business,
-            "selected_date": selected_date.isoformat(),
+            "selected_from": selected_from.isoformat(),
+            "selected_to": selected_to.isoformat(),
             "total_count": total_count,
             "pending_count": pending_count,
             "confirmed_count": confirmed_count,

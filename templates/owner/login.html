@@ -1,65 +1,75 @@
-{% extends "owner/base.html" %}
+{% extends "owner/auth_base.html" %}
 
 {% block title %}Owner Login{% endblock %}
 
 {% block content %}
-<div class="container mt-5" style="max-width:420px;">
 
-    <h2 class="mb-4 text-center">
-        Verzio Owner Login
-    </h2>
+<h2 class="text-center mb-4">
+    Welcome Back
+</h2>
 
-    {% if error %}
-    <div class="alert alert-danger">
-        {{ error }}
-    </div>
-    {% endif %}
+<p class="text-center text-muted mb-4">
+    Sign in to continue to Verzio Studio
+</p>
 
-    <form method="post">
-
-        <div class="mb-3">
-            <label>Email or Phone</label>
-            <input
-                type="text"
-                name="identifier"
-                class="form-control"
-                required>
-        </div>
-
-        <div class="mb-3">
-            <label>Password</label>
-            <input
-                type="password"
-                name="password"
-                class="form-control"
-                required>
-        </div>
-
-        <div class="form-check mb-3">
-            <input
-                class="form-check-input"
-                type="checkbox"
-                name="remember_me"
-                id="remember">
-
-            <label
-                class="form-check-label"
-                for="remember">
-
-                Remember Me
-
-            </label>
-        </div>
-
-        <button
-            class="btn btn-primary w-100"
-            type="submit">
-
-            Login
-
-        </button>
-
-    </form>
-
+{% if error %}
+<div class="alert alert-danger">
+    {{ error }}
 </div>
+{% endif %}
+
+<form method="post">
+
+    <div class="mb-3">
+        <label class="form-label">
+            Email or Phone
+        </label>
+
+        <input
+            type="text"
+            name="identifier"
+            class="form-control-verzio"
+            placeholder="Enter your email or phone"
+            required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">
+            Password
+        </label>
+
+        <input
+            type="password"
+            name="password"
+            class="form-control-verzio"
+            placeholder="Enter your password"
+            required>
+    </div>
+
+    <div class="form-check mb-4">
+        <input
+            class="form-check-input"
+            type="checkbox"
+            id="remember"
+            name="remember_me">
+
+        <label
+            class="form-check-label"
+            for="remember">
+
+            Remember me
+
+        </label>
+    </div>
+
+    <button
+        type="submit"
+        class="btn-verzio-primary w-100">
+
+        Sign In
+
+    </button>
+
+</form>
+
 {% endblock %}

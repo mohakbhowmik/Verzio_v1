@@ -6,28 +6,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import Business, Service, get_db
+from owner.owner_auth import resolve_owner_and_business
 
 logger = logging.getLogger("VERZIO_OWNER_SERVICES")
 
 router = APIRouter(prefix="/owner/services", tags=["owner-services"])
 templates = Jinja2Templates(directory="templates")
 
-
-def _resolve_business(request: Request, db: Session) -> Business | None:
-    owner_phone = (
-        request.cookies.get("verzio_owner_phone")
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
-
-    if not owner_phone:
-        return None
-
-    return (
-        db.query(Business)
-        .filter(Business.manager_phone_number == owner_phone)
-        .first()
-    )
 
 
 def _form_context(
@@ -75,7 +60,7 @@ async def owner_services_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
 
     services = []
     if business:
@@ -99,7 +84,7 @@ async def owner_services_page(
 
 @router.get("/new")
 async def new_owner_service_form(request: Request, db: Session = Depends(get_db)):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     return templates.TemplateResponse(
         request=request,
         name="service_form.html",
@@ -112,7 +97,7 @@ async def new_owner_service_form(request: Request, db: Session = Depends(get_db)
 
 @router.post("")
 async def create_owner_service(request: Request, db: Session = Depends(get_db)):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     if not business:
         raise HTTPException(status_code=404, detail="Business not found.")
 
@@ -149,7 +134,7 @@ async def edit_owner_service_form(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     if not business:
         raise HTTPException(status_code=404, detail="Business not found.")
 
@@ -171,7 +156,7 @@ async def update_owner_service(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     if not business:
         raise HTTPException(status_code=404, detail="Business not found.")
 
@@ -208,7 +193,8 @@ async def toggle_owner_service(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
+
     if not business:
         raise HTTPException(status_code=404, detail="Business not found.")
 

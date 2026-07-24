@@ -31,7 +31,14 @@
 
 <div class="filter-bar">
   <div class="d-flex gap-2 flex-wrap">
-    {% for filter_status, filter_label in [("all", "All"), ("pending", "Pending"), ("confirmed", "Confirmed"), ("completed", "Completed"), ("cancelled", "Cancelled")] %}
+    {% for filter_status, filter_label in [
+      ("all", "All"),
+      ("pending", "Pending"),
+      ("confirmed", "Confirmed"),
+      ("completed", "Completed"),
+      ("cancelled", "Cancelled"),
+      ("no_show", "No Show")
+      ] %}
     <a
       class="filter-pill {% if status == filter_status %}active{% endif %}"
       href="/owner/appointments?search={{ search|urlencode }}&status={{ filter_status }}&sort={{ sort }}"

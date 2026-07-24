@@ -75,10 +75,21 @@
                 </div>
 
                 <div class="topbar-right">
-                    <div class="profile-trigger">
-                        <span class="mono">OWNER</span>
-                        <i class="bi bi-chevron-down"></i>
-                    </div>
+                    <details class="profile-menu">
+                        <summary class="profile-trigger">
+                            <span class="mono">OWNER</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </summary>
+
+                        <div class="profile-dropdown">
+                            <form action="/owner/logout" method="post">
+                                <button type="submit" class="dropdown-item">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                    Logout
+                                </button>
+                            </form>
+                        </div>
+                    </details>
                 </div>
             </header>
 

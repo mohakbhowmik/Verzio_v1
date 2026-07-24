@@ -12,11 +12,44 @@
   <a href="/owner/reports/export" class="btn-verzio-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export today's report</a>
 </div>
 
+
 <form method="get" action="/owner/reports" class="filter-bar">
-  <label for="report-date" class="cell-secondary">Report date</label>
-  <input id="report-date" type="date" name="date" class="form-control-verzio" style="max-width:220px;" value="{{ selected_date }}">
-  <button type="submit" class="btn-verzio-outline">Apply</button>
+
+    <label for="from-date" class="cell-secondary">
+        From
+    </label>
+
+    <input
+        id="from-date"
+        type="date"
+        name="from_date"
+        class="form-control-verzio"
+        style="max-width:220px;"
+        value="{{ selected_from }}"
+    >
+
+    <label for="to-date" class="cell-secondary">
+        To
+    </label>
+
+    <input
+        id="to-date"
+        type="date"
+        name="to_date"
+        class="form-control-verzio"
+        style="max-width:220px;"
+        value="{{ selected_to }}"
+    >
+
+    <button
+        type="submit"
+        class="btn-verzio-outline"
+    >
+        Apply
+    </button>
+
 </form>
+
 
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3">
@@ -69,16 +102,8 @@
     </div>
   </div>
 
-  <div class="col-6 col-lg-3">
-    <div class="metric-card">
-      <span class="metric-label">Revenue summary</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="metric-value">₹{{ "%.2f"|format(revenue) }}</span>
-        <span class="cell-muted">confirmed + completed</span>
-      </div>
-    </div>
-  </div>
-</div>
+  
+
 
 <div class="section-container">
   <div class="section-head">

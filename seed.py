@@ -1,5 +1,14 @@
-from database import SessionLocal, Business, Service, Appointment, UserSession, init_db
+from database import (
+    SessionLocal,
+    Business,
+    Service,
+    Appointment,
+    UserSession,
+    Owner,
+    init_db,
+)
 from datetime import datetime
+from owner.owner_auth import hash_password
 
 init_db()
 db = SessionLocal()
@@ -10,6 +19,7 @@ try:
     db.query(Appointment).delete()
     db.query(UserSession).delete()
     db.query(Service).delete()
+    db.query(Owner).delete()
     db.query(Business).delete()
     db.commit()
 
@@ -55,6 +65,19 @@ try:
     db.commit()
     db.refresh(new_business)
 
+
+    owner = Owner(
+        business_id=new_business.id,
+        full_name="Mohak Bhowmik",
+        email="admin@verzio.test",
+        phone_number="918208559570",
+        password_hash=hash_password("admin123"),
+        is_active=True,
+    )
+
+    db.add(owner)
+    db.commit()
+
     services = [
         Service(
             business_id=new_business.id,
@@ -87,5 +110,15 @@ try:
     print(f"👥 Online Capacity: {biz_config['max_parallel_bookings']} concurrent bookings")
     print(f"📆 Advance Booking Window: {biz_config['advance_booking_days']} days")
 
+
+
+
 finally:
     db.close()
+
+
+print()
+print("========== OWNER LOGIN ==========")
+print("Email    : admin@verzio.test")
+print("Password : admin123")
+print("=================================")

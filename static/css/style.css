@@ -125,26 +125,95 @@ body {
 .section-head { padding: 12px 16px; border-bottom: 1px solid var(--border-light); background: #fafafa; }
 .section-title { font-size: 13px; font-weight: 600; margin: 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
-.status-badge {
-    display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: #f1f5f9;
-}
-.status-badge .dot { width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
 
-.status-confirmed .dot { 
-  background:#10b981; 
-}
 
-.status-inactive .dot { 
-  background:#ef4444; 
-}
-
-.status-pending .dot {
-    background: #f59e0b;
+.status-badge{
+    display:inline-flex;
+    align-items:center;
+    font-size:11px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:12px;
+    background:#f1f5f9;
 }
 
-.status-active .dot { 
-  background:#10b981; 
+.status-badge .dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    margin-right:6px;
 }
+
+/* Confirmed */
+
+.status-badge.status-confirmed{
+    color:#3b82f6;
+}
+
+.status-badge.status-confirmed .dot{
+    background:#3b82f6;
+}
+
+/* Inactive */
+
+.status-badge.status-inactive{
+    color:#ef4444;
+}
+
+.status-badge.status-inactive .dot{
+    background:#ef4444;
+}
+
+/* Pending */
+
+.status-badge.status-pending{
+    color:#f59e0b;
+}
+
+.status-badge.status-pending .dot{
+    background:#f59e0b;
+}
+
+/* Completed */
+
+.status-badge.status-completed{
+    color:#10b981;
+}
+
+.status-badge.status-completed .dot{
+    background:#10b981;
+}
+
+/* Cancelled */
+
+.status-badge.status-cancelled{
+    color:#ef4444;
+}
+
+.status-badge.status-cancelled .dot{
+    background:#ef4444;
+}
+
+/* No Show */
+
+.status-badge.status-no_show{
+    color:#6b7280;
+}
+
+.status-badge.status-no_show .dot{
+    background:#6b7280;
+}
+
+/* Active */
+
+.status-badge.status-active{
+    color:#10b981;
+}
+
+.status-badge.status-active .dot{
+    background:#10b981;
+}
+
 
 .mono { font-family: var(--font-mono); }
 .cell-muted { color: var(--text-tertiary); font-size: 12px; }
@@ -419,4 +488,143 @@ Integrates with existing :root tokens defined above.
     background: #f8fafc;
     color: var(--text-main);
     border-color: #cbd5e1;
+}
+
+
+.profile-menu {
+    position: relative;
+}
+
+.profile-menu summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.profile-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.profile-dropdown {
+    position: absolute;
+    right: 0;
+    top: 42px;
+    min-width: 170px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.dropdown-item {
+    width: 100%;
+    padding: 12px 16px;
+    background: white;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dropdown-item:hover {
+    background: #f5f5f5;
+}
+
+
+/* ===========================
+   ACTIVITY FEED
+=========================== */
+
+.activity-feed{
+    display:flex;
+    flex-direction:column;
+}
+
+.activity-item{
+    padding:10px 16px;
+    border-bottom:1px solid var(--border-subtle);
+}
+
+.activity-item:last-child{
+    border-bottom:none;
+}
+
+.activity-type{
+    font-size:12px;
+    font-weight:600;
+    color:var(--text-main);
+    letter-spacing:.04em;
+}
+
+.activity-time{
+    font-size:12px;
+    color:var(--text-muted);
+    min-width:52px;
+    text-align:right;
+}
+
+.activity-msg{
+    margin-top:4px;
+    font-size:13px;
+    line-height:1.4;
+    color:var(--text-main);
+}
+
+.activity-context{
+    margin-top:4px;
+    font-size:12px;
+    color:var(--text-muted);
+}
+
+
+
+
+/* ===========================
+   AUTH PAGES
+=========================== */
+
+.auth-body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#f5f7fb;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+.auth-wrapper{
+    width:100%;
+    max-width:420px;
+    padding:20px;
+}
+
+.auth-brand{
+    text-align:center;
+    margin-bottom:24px;
+}
+
+.auth-brand h1{
+    margin:0;
+    font-size:32px;
+    font-weight:700;
+}
+
+.auth-brand p{
+    margin-top:8px;
+    color:#666;
+}
+
+.auth-card{
+    background:white;
+    border-radius:16px;
+    padding:48px;
+    border:1px solid var(--border-light);
+    box-shadow:0 15px 45px rgba(0,0,0,.06);
+}
+
+.auth-form{
+    max-width:340px;
+    margin:0 auto;
 }

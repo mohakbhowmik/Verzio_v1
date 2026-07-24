@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from datetime import date, datetime, timedelta
 
 from database import (
     ActivityEvent,
@@ -16,8 +17,16 @@ router = APIRouter()
 
 templates = Jinja2Templates(directory="templates")
 
-
 @router.get("/owner")
+async def owner_root(request: Request, db: Session = Depends(get_db)):
+    owner, business = resolve_owner_and_business(request, db)
+
+    if owner and business:
+        return RedirectResponse(url="/owner/dashboard", status_code=303)
+
+    return RedirectResponse(url="/owner/login", status_code=303)
+
+@router.get("/owner/dashboard")
 async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
     owner, business = resolve_owner_and_business(request, db)
     if not owner or not business:

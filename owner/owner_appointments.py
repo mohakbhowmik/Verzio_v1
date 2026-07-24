@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from owner.owner_auth import resolve_owner_and_business
 
 from activity_log import log_event
 from database import Appointment, Business, Service, get_db
@@ -19,21 +20,6 @@ ACTION_TARGETS = {
 }
 
 
-def _resolve_business(request: Request, db: Session) -> Business | None:
-    owner_phone = (
-        request.cookies.get("verzio_owner_phone")
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
-
-    if not owner_phone:
-        return None
-
-    return (
-        db.query(Business)
-        .filter(Business.manager_phone_number == owner_phone)
-        .first()
-    )
 
 
 @router.get("")
@@ -41,7 +27,7 @@ async def owner_appointments_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     search = request.query_params.get("search", "").strip()
     status = request.query_params.get("status", "all").strip().lower()
     sort = request.query_params.get("sort", "newest").strip().lower()
@@ -97,7 +83,7 @@ async def update_owner_appointment(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     transition = ACTION_TARGETS.get(action)
 
     if not business or not transition:
