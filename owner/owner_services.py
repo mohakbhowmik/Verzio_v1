@@ -66,7 +66,10 @@ async def owner_services_page(
     if business:
         services = (
             db.query(Service)
-            .filter(Service.business_id == business.id)
+            .filter(
+                Service.business_id == business.id,
+                Service.is_deleted == False,
+            )
             .order_by(Service.name.asc())
             .all()
         )

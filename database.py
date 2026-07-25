@@ -103,6 +103,7 @@ class Service(Base):
     duration = Column(Integer, default=30)
     price = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True)
+    is_deleted = Column(Boolean, default=False, nullable=False)
     business = relationship("Business", back_populates="services")
     appointments = relationship("Appointment", back_populates="service")
 

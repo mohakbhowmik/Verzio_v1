@@ -45,8 +45,9 @@ class BookingRuntime:
     def _render_services(self, phone, biz):
         # FIX 3: Filter by is_active == True
         svcs = self.db.query(Service).filter(
-            Service.business_id == biz.id, 
-            Service.is_active == True
+            Service.business_id == biz.id,
+            Service.is_active == True,
+            Service.is_deleted == False
         ).all()
         
         rows = [{"id": f"svc_{s.id}", "title": s.name, "description": f"${s.price}"} for s in svcs]
