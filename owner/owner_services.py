@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from database import Business, Service, get_db
+from database import Appointment, Business, Service, get_db
 from owner.owner_auth import resolve_owner_and_business
 
 logger = logging.getLogger("VERZIO_OWNER_SERVICES")
@@ -164,6 +164,11 @@ async def update_owner_service(
         raise HTTPException(status_code=404, detail="Business not found.")
 
     service = _service_for_business(service_id, business, db)
+    appointment = (
+        db.query(Appointment)
+        .filter(Appointment.service_id == service.id)
+        .first()
+    )
     form = await request.form()
     name = (form.get("name") or "").strip()
     if not name:
@@ -206,3 +211,50 @@ async def toggle_owner_service(
     db.commit()
     logger.info("Toggled owner service '%s' (id=%s) -> %s", service.name, service.id, service.is_active)
     return RedirectResponse(url="/owner/services", status_code=303)
+
+
+@router.post("/{service_id}/delete")
+async def delete_owner_service(
+    service_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    owner, business = resolve_owner_and_business(request, db)
+
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found.")
+
+    service = _service_for_business(service_id, business, db)
+
+    appointment = (
+        db.query(Appointment)
+        .filter(Appointment.service_id == service.id)
+        .first()
+    )
+
+    if appointment:
+        service.is_deleted = True
+        db.commit()
+
+        logger.info(
+            "Soft deleted owner service '%s' (id=%s)",
+            service.name,
+            service.id,
+        )
+    else:
+        db.delete(service)
+        db.commit()
+
+        logger.info(
+            "Deleted owner service '%s' (id=%s)",
+            service.name,
+            service.id,
+        )
+
+    return RedirectResponse(
+        url="/owner/services",
+        status_code=303,
+    )
+
+
+

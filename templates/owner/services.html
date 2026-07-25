@@ -59,6 +59,19 @@
                 {% endif %}
               </button>
             </form>
+            <form method="post"
+                  action="/owner/services/{{ service.id }}/delete"
+                  class="m-0 d-inline-flex">
+              <button
+                  type="submit"
+                  class="icon-btn"
+                  style="width:30px;height:30px;"
+                  aria-label="Delete {{ service.name }}"
+                  title="Delete"
+                  onclick="return confirm('Delete this service?');">
+                  <i class="bi bi-trash"></i>
+              </button>
+            </form>
           </div>
         </td>
       </tr>

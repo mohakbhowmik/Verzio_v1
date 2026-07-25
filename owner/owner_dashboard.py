@@ -54,7 +54,14 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
     cancelled_count = sum(1 for a in appointments if a.status == "cancelled")
     no_show_count = sum(1 for a in appointments if a.status == "no_show")
     
-    service_count = db.query(Service).filter(Service.business_id == business.id).count()
+    service_count = (
+        db.query(Service)
+        .filter(
+            Service.business_id == business.id,
+            Service.is_deleted == False
+        )
+        .count()
+    )
 
     recent_activity = (
         db.query(ActivityEvent)
