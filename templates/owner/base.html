@@ -77,20 +77,22 @@
                 <div class="topbar-right">
                     <details class="profile-menu">
                         <summary class="profile-trigger">
-                            <span class="mono">OWNER</span>
-                            <i class="bi bi-chevron-down"></i>
+                            <span class="mono fw-bold text-accent">{{ owner.full_name if owner else 'OWNER' }}</span>
+                            <i class="bi bi-chevron-down ms-1" style="font-size: 10px;"></i>
                         </summary>
 
                         <div class="profile-dropdown">
+                            <!-- You can add other links here later, like "Account Settings" -->
                             <form action="/owner/logout" method="post">
-                                <button type="submit" class="dropdown-item">
+                                <button type="submit" class="dropdown-item logout">
                                     <i class="bi bi-box-arrow-right"></i>
-                                    Logout
+                                    <span>Sign Out</span>
                                 </button>
                             </form>
                         </div>
                     </details>
                 </div>
+
             </header>
 
             <!-- ---- Main Content Area ---- -->

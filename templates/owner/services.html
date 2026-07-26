@@ -53,9 +53,9 @@
             <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
               <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
                 {% if service.is_active %}
-                <i class="bi bi-eye-slash"></i>
-                {% else %}
                 <i class="bi bi-eye"></i>
+                {% else %}
+                <i class="bi bi-eye-slash"></i>
                 {% endif %}
               </button>
             </form>

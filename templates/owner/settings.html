@@ -3,376 +3,237 @@
 {% block title %}Settings — Verzio Studio{% endblock %}
 {% block page_title %}Settings{% endblock %}
 
-{% block extra_head %}
-<style>
-  .vz-toggle {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-  }
-
-  .vz-toggle input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .vz-toggle-track {
-    width: 52px;
-    height: 30px;
-    border-radius: 999px;
-    background: #cbd5e1;
-    position: relative;
-    transition: background 0.25s ease, box-shadow 0.25s ease;
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.1);
-  }
-
-  .vz-toggle-track::after {
-    content: "";
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #ffffff;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
-    transition: transform 0.25s ease;
-  }
-
-  .vz-toggle:hover .vz-toggle-track {
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
-  }
-
-  .vz-toggle input:checked + .vz-toggle-track {
-    background: #10b981;
-  }
-
-  .vz-toggle input:checked + .vz-toggle-track::after {
-    transform: translateX(22px);
-  }
-
-  .vz-toggle input:disabled + .vz-toggle-track {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 14px 16px;
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    background: #fff;
-  }
-
-  .toggle-row .toggle-copy {
-    flex: 1;
-  }
-
-  .toggle-row .toggle-copy .fw-medium {
-    margin-bottom: 2px;
-  }
-
-  .settings-note {
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .coming-soon {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 8px;
-    border: 1px solid var(--border-light);
-    border-radius: 999px;
-    color: var(--text-tertiary);
-    background: #f8fafc;
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  .control-disabled {
-    opacity: 0.62;
-  }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Settings</h1>
-    <div class="page-subtitle">Business configuration and operational preferences.</div>
-  </div>
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-end w-100">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">STUDIO CONFIGURATION</span>
+            </div>
+            <h1 class="page-title" style="margin:0;">Settings & Rules</h1>
+            <p class="page-subtitle" style="margin-top:4px;">Define your business identity and automate your booking logic.</p>
+        </div>
+        <button type="submit" form="settings-form" class="btn-verzio-primary px-4 shadow-sm">
+            <i class="bi bi-check2-circle me-2"></i> Save All Changes
+        </button>
+    </div>
 </div>
 
 {% if message %}
-<div class="alert alert-success mb-4">{{ message }}</div>
+<div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-center">
+    <i class="bi bi-check-circle-fill me-2 text-success"></i> {{ message }}
+</div>
 {% endif %}
-{% if error %}
-<div class="alert alert-danger mb-4">{{ error }}</div>
-{% endif %}
 
-<form method="post" action="/owner/settings">
-  <div class="row g-4">
-    <div class="col-12">
-      <div class="section-container">
-        <div class="section-head">
-          <h2 class="section-title">Business Profile</h2>
+<form method="post" action="/owner/settings" id="settings-form">
+    <div class="row g-4">
+        
+        <!-- ROW 1: Identity -->
+        <div class="col-12">
+            <div class="section-container shadow-sm">
+                <div class="section-head"><h2 class="section-title">Business Profile</h2></div>
+                <div class="p-4">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Business Name</label>
+                            <input type="text" class="form-control-verzio" name="business_name" value="{{ business.name }}">
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex justify-content-between">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Owner Name</label>
+                                <span class="coming-soon-pill">Locked</span>
+                            </div>
+                            <input type="text" class="form-control-verzio opacity-50" value="Mohak Bhowmik" disabled>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Public Phone</label>
+                            <input type="text" class="form-control-verzio" name="phone_number" value="{{ business.manager_phone_number }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Timezone</label>
+                            <select class="form-select-verzio" name="timezone">
+                                <option value="Asia/Kolkata" {% if business.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata (IST)</option>
+                                <option value="UTC" {% if business.timezone == 'UTC' %}selected{% endif %}>UTC</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- ROW 2: Booking Controls -->
+        <div class="col-lg-6">
+            <div class="section-container shadow-sm h-100">
+                <div class="section-head"><h2 class="section-title">Booking Controls</h2></div>
+                <div class="p-4">
+                    <div class="row g-3">
+                        <!-- Functional -->
+                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border bg-light-hover">
+                            <div>
+                                <div class="fw-bold small">Accept Online Bookings</div>
+                                <div class="text-muted" style="font-size: 11px;">Enable/Disable WhatsApp inbound requests.</div>
+                            </div>
+                            <label class="vz-toggle">
+                                <input type="checkbox" name="accept_online_bookings" {% if business.accepting_bookings %}checked{% endif %}>
+                                <span class="vz-toggle-track"></span>
+                            </label>
+                        </div>
+
+                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border">
+                            <div>
+                                <div class="fw-bold small">Manual Approval Mode</div>
+                                <div class="text-muted" style="font-size: 11px;">Bookings stay 'Pending' until you approve.</div>
+                            </div>
+                            <label class="vz-toggle">
+                                <input type="checkbox" name="require_owner_approval" {% if business.approval_mode == 'manual' %}checked{% endif %}>
+                                <span class="vz-toggle-track"></span>
+                            </label>
+                        </div>
+
+                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border">
+                            <div>
+                                <div class="fw-bold small">Service Selection</div>
+                                <div class="text-muted" style="font-size: 11px;">Show service menu during WhatsApp flow.</div>
+                            </div>
+                            <label class="vz-toggle">
+                                <input type="checkbox" name="show_services_during_booking" {% if business.enable_service_selection %}checked{% endif %}>
+                                <span class="vz-toggle-track"></span>
+                            </label>
+                        </div>
+
+                        <!-- Locked Features -->
+                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border opacity-50 bg-light">
+                            <div>
+                                <div class="fw-bold small">AI Intent Recognition <span class="coming-soon-pill ms-2">Pro</span></div>
+                                <div class="text-muted" style="font-size: 11px;">Let clients book by typing naturally.</div>
+                            </div>
+                            <label class="vz-toggle"><input type="checkbox" disabled><span class="vz-toggle-track"></span></label>
+                        </div>
+
+                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border opacity-50 bg-light">
+                            <div>
+                                <div class="fw-bold small">Automatic Reminders <span class="coming-soon-pill ms-2">Pro</span></div>
+                                <div class="text-muted" style="font-size: 11px;">Send 2-hour-prior pings to reduce no-shows.</div>
+                            </div>
+                            <label class="vz-toggle"><input type="checkbox" disabled><span class="vz-toggle-track"></span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 3: Scheduling Logic -->
+        <div class="col-lg-6">
+            <div class="section-container shadow-sm h-100">
+                <div class="section-head"><h2 class="section-title">Scheduling Rules</h2></div>
+                <div class="p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Slot Interval (Min)</label>
+                            <input type="number" class="form-control-verzio" name="slot_duration" value="{{ business.slot_interval }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Advance Window (Days)</label>
+                            <input type="number" class="form-control-verzio" name="advance_booking_days" value="{{ business.advance_booking_days }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Parallel Capacity</label>
+                            <input type="number" class="form-control-verzio" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
+                        </div>
+                        
+                        <!-- Locked -->
+                        <div class="col-md-6 opacity-50">
+                            <label class="form-label small fw-bold text-muted">Min. Notice <span class="coming-soon-pill ms-1">Soon</span></label>
+                            <input type="text" class="form-control-verzio" value="2 Hours" disabled>
+                        </div>
+                        <div class="col-md-6 opacity-50">
+                            <label class="form-label small fw-bold text-muted">Buffer Time <span class="coming-soon-pill ms-1">Soon</span></label>
+                            <input type="text" class="form-control-verzio" value="15 Mins" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 4: Business Hours -->
+<div class="col-12">
+    <div class="section-container shadow-sm">
+        <div class="section-head"><h2 class="section-title">Operational Hours</h2></div>
         <div class="p-4">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label mb-2">Business Name</label>
-              <input type="text" class="form-control-verzio" name="business_name" value="{{ business.name if business else '' }}" placeholder="Business Name">
+            <div class="row g-3">
+                {% for row in hours_rows %}
+                <div class="col-md-4 col-xl-3">
+                    <div class="day-card {% if row.closed %}day-off{% endif %}" id="card-{{ row.key }}">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-bold">{{ row.label }}</span>
+                            <label class="vz-toggle">
+                                <input type="checkbox" name="hours_{{ row.key_name if row.key_name else row.key }}_enabled" 
+                                       onchange="document.getElementById('card-{{ row.key }}').classList.toggle('day-off')"
+                                       {% if not row.closed %}checked{% endif %}>
+                                <span class="vz-toggle-track"></span>
+                            </label>
+                        </div>
+                        <div class="row g-2">
+                            <!-- OPENING TIME -->
+                            <div class="col-6">
+                                <div class="time-input-wrapper">
+                                    <i class="bi bi-clock"></i>
+                                    <input type="time" class="form-control-verzio form-control-sm form-control-time" 
+                                           name="hours_{{ row.key_name if row.key_name else row.key }}_open" value="{{ row.open }}">
+                                </div>
+                            </div>
+                            <!-- CLOSING TIME -->
+                            <div class="col-6">
+                                <div class="time-input-wrapper">
+                                    <i class="bi bi-clock-history"></i>
+                                    <input type="time" class="form-control-verzio form-control-sm form-control-time" 
+                                           name="hours_{{ row.key_name if row.key_name else row.key }}_close" value="{{ row.close }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="col-md-6">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <label class="form-label mb-0">Owner Name</label>
-                <span class="coming-soon">Coming Soon</span>
-              </div>
-              <input type="text" class="form-control-verzio control-disabled" name="owner_name" value="" placeholder="Owner Name" disabled>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label mb-2">Phone Number</label>
-              <input type="text" class="form-control-verzio" name="phone_number" value="{{ business.manager_phone_number if business else '' }}" placeholder="Phone Number">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label mb-2">Timezone</label>
-              <select class="form-select-verzio" name="timezone">
-                <option value="UTC" {% if business and business.timezone == 'UTC' %}selected{% endif %}>UTC</option>
-                <option value="Asia/Kolkata" {% if business and business.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata</option>
-                <option value="America/New_York" {% if business and business.timezone == 'America/New_York' %}selected{% endif %}>America/New_York</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-end mt-4">
-            <button type="submit" class="btn-verzio-primary">Save Changes</button>
-          </div>
         </div>
-      </div>
     </div>
+</div>
 
-    <div class="col-12">
-      <div class="section-container">
-        <div class="section-head">
-          <h2 class="section-title">Booking Controls</h2>
+        <!-- ROW 5: Integration & Danger -->
+        <div class="col-12">
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <div class="section-container shadow-sm h-100">
+                        <div class="section-head"><h2 class="section-title">WhatsApp Integration</h2></div>
+                        <div class="p-4">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="small text-muted mb-1 text-uppercase fw-bold" style="font-size: 10px;">Phone Number ID</div>
+                                    <div class="p-2 border rounded bg-light mono small">{{ business.whatsapp_business_phone_number_id }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="small text-muted mb-1 text-uppercase fw-bold" style="font-size: 10px;">Webhook Status</div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="dot bg-success me-2"></span>
+                                        <span class="small fw-bold">Live & Connected</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="section-container shadow-sm border-danger-subtle h-100">
+                        <div class="section-head"><h2 class="section-title text-danger">Danger Zone</h2></div>
+                        <div class="p-4 d-flex flex-column gap-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm w-100 opacity-50" disabled>Pause All Bookings</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm w-100 opacity-50" disabled>Delete Business Account</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="p-4">
-          <div class="row g-3">
-            <div class="col-lg-6">
-              <div class="toggle-row">
-                <div class="toggle-copy">
-                  <div class="fw-medium">Accept Online Bookings</div>
-                  <div class="cell-muted">Enable or disable inbound booking requests.</div>
-                </div>
-                <label class="vz-toggle">
-                  <input type="checkbox" name="accept_online_bookings" {% if business and business.accepting_bookings %}checked{% endif %}>
-                  <span class="vz-toggle-track"></span>
-                </label>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="toggle-row">
-                <div class="toggle-copy">
-                  <div class="fw-medium">Require Owner Approval</div>
-                  <div class="cell-muted">Uses the existing approval_mode field.</div>
-                </div>
-                <label class="vz-toggle">
-                  <input type="checkbox" name="require_owner_approval" {% if business and business.approval_mode == 'manual' %}checked{% endif %}>
-                  <span class="vz-toggle-track"></span>
-                </label>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="toggle-row control-disabled">
-                <div class="toggle-copy">
-                  <div class="fw-medium">Auto Confirm Bookings</div>
-                  <div class="cell-muted">Automatic confirmation will be available in a future release.</div>
-                </div>
-                <div class="text-end">
-                  <span class="coming-soon">Coming Soon</span>
-                  <label class="vz-toggle mt-2">
-                  <input type="checkbox" name="auto_confirm_bookings" disabled>
-                  <span class="vz-toggle-track"></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="toggle-row">
-                <div class="toggle-copy">
-                  <div class="fw-medium">Show Services During Booking</div>
-                  <div class="cell-muted">Connected to enable_service_selection.</div>
-                </div>
-                <label class="vz-toggle">
-                  <input type="checkbox" name="show_services_during_booking" {% if business and business.enable_service_selection %}checked{% endif %}>
-                  <span class="vz-toggle-track"></span>
-                </label>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="toggle-row control-disabled">
-                <div class="toggle-copy">
-                  <div class="fw-medium">Allow Customer Notes</div>
-                  <div class="cell-muted">Customer notes will be available in a future release.</div>
-                </div>
-                <div class="text-end">
-                  <span class="coming-soon">Coming Soon</span>
-                  <label class="vz-toggle mt-2">
-                  <input type="checkbox" name="allow_customer_notes" disabled>
-                  <span class="vz-toggle-track"></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="toggle-row">
-                <div class="toggle-copy">
-                  <div class="fw-medium">Send Booking Confirmation</div>
-                  <div class="cell-muted">Mapped to notification_preferences.whatsapp_customer.</div>
-                </div>
-                <label class="vz-toggle">
-                  <input type="checkbox" name="send_booking_confirmation" {% if business and business.notification_preferences and business.notification_preferences.whatsapp_customer %}checked{% endif %}>
-                  <span class="vz-toggle-track"></span>
-                </label>
-              </div>
-            </div>
-          </div>
 
-          <div class="d-flex justify-content-end mt-4">
-            <button type="submit" class="btn-verzio-primary">Save Changes</button>
-          </div>
-        </div>
-      </div>
     </div>
-
-    <div class="col-12">
-      <div class="section-container">
-        <div class="section-head">
-          <h2 class="section-title">Scheduling</h2>
-        </div>
-        <div class="p-4">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-3">
-              <label class="form-label mb-2">Slot Duration</label>
-              <input type="number" class="form-control-verzio" name="slot_duration" value="{{ business.slot_interval if business else 30 }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label mb-2">Advance Booking Days</label>
-              <input type="number" class="form-control-verzio" name="advance_booking_days" value="{{ business.advance_booking_days if business else 14 }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label mb-2">Maximum Parallel Bookings</label>
-              <input type="number" class="form-control-verzio" name="max_parallel_bookings" value="{{ business.max_parallel_bookings if business else 1 }}">
-            </div>
-            <div class="col-md-3">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <label class="form-label mb-0">Buffer Between Appointments</label>
-                <span class="coming-soon">Coming Soon</span>
-              </div>
-              <input type="number" class="form-control-verzio control-disabled" value="" disabled>
-            </div>
-            <div class="col-md-3">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <label class="form-label mb-0">Minimum Booking Notice</label>
-                <span class="coming-soon">Coming Soon</span>
-              </div>
-              <input type="number" class="form-control-verzio control-disabled" value="" disabled>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-end mt-4">
-            <button type="submit" class="btn-verzio-primary">Save Changes</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12">
-      <div class="section-container">
-        <div class="section-head">
-          <h2 class="section-title">Business Hours</h2>
-        </div>
-        <div class="p-4">
-          <div class="row g-3">
-            {% for row in hours_rows %}
-            <div class="col-md-6">
-              <div class="border rounded p-3">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <div>
-                    <div class="fw-medium">{{ row.label }}</div>
-                    <div class="cell-muted">{{ row.open }} → {{ row.close }}</div>
-                  </div>
-                  <label class="vz-toggle">
-                    <input type="checkbox" name="hours_{{ row.key }}_enabled" {% if not row.closed %}checked{% endif %}>
-                    <span class="vz-toggle-track"></span>
-                  </label>
-                </div>
-                <div class="row g-2">
-                  <div class="col-6">
-                    <label class="form-label mb-2">Opening Time</label>
-                    <input type="time" class="form-control-verzio" name="hours_{{ row.key }}_open" value="{{ row.open }}">
-                  </div>
-                  <div class="col-6">
-                    <label class="form-label mb-2">Closing Time</label>
-                    <input type="time" class="form-control-verzio" name="hours_{{ row.key }}_close" value="{{ row.close }}">
-                  </div>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12">
-      <div class="section-container">
-        <div class="section-head">
-          <h2 class="section-title">WhatsApp Integration</h2>
-        </div>
-        <div class="p-4">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label mb-2">Connected Number</label>
-              <input type="text" class="form-control-verzio" value="{{ business.manager_phone_number if business else '' }}" readonly>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label mb-2">Phone Number ID</label>
-              <input type="text" class="form-control-verzio" value="{{ business.whatsapp_business_phone_number_id if business else '' }}" readonly>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label mb-2">Connection Status</label>
-              <input type="text" class="form-control-verzio" value="Connected" readonly>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label mb-2">Webhook Status</label>
-              <input type="text" class="form-control-verzio" value="Healthy" readonly>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12">
-      <div class="section-container">
-        <div class="section-head">
-          <h2 class="section-title">Danger Zone</h2>
-        </div>
-        <div class="p-4">
-          <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn-verzio-outline" disabled>Pause Online Bookings <span class="coming-soon ms-2">Coming Soon</span></button>
-            <button type="button" class="btn-verzio-outline" disabled>Export Business Data <span class="coming-soon ms-2">Coming Soon</span></button>
-            <button type="button" class="btn-verzio-outline" disabled>Delete Business <span class="coming-soon ms-2">Coming Soon</span></button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </form>
 {% endblock %}

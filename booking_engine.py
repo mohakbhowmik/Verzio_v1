@@ -1,4 +1,5 @@
 import logging
+import pytz  # NEW: Required for timezone handling
 from datetime import datetime, timedelta, time as dt_time
 from sqlalchemy.orm import Session
 from database import Business, Appointment, Service
@@ -12,16 +13,9 @@ class BookingEngineException(Exception):
 
 class VerzioSaaSEngine:
     def get_tenant_config(self, db: Session, tenant_id: str) -> Business:
-        print("=" * 60)
-        print("TENANT ID RECEIVED:", repr(tenant_id))
-        print("TYPE:", type(tenant_id))
-        print("=" * 60)
-
         biz = db.query(Business).filter(
             Business.whatsapp_business_phone_number_id == tenant_id
         ).first()
-
-        print("BUSINESS FOUND:", biz)
 
         if not biz:
             raise BookingEngineException("Business not found.", "ERR_NOT_FOUND")
@@ -35,20 +29,27 @@ class VerzioSaaSEngine:
         return biz
 
     def get_available_dates(self, db: Session, biz: Business) -> list:
+        # Get current date in Business Timezone to avoid "today" being wrong
+        tz = pytz.timezone(biz.timezone or "UTC")
+        today = datetime.now(tz).date()
+        
         available_dates = []
-        today = datetime.now().date()
         for i in range(biz.advance_booking_days):
             target = today + timedelta(days=i)
             if target.isoformat() not in (biz.holidays or []):
-                # Only include if business has operational hours for this day
                 day_name = target.strftime("%a").lower()[:3]
                 if day_name in biz.operational_hours:
                     available_dates.append(target)
         return available_dates[:10]
 
     def get_available_slots(self, db: Session, biz: Business, target_date: datetime) -> list:
+        # 1. Resolve Business Timezone
+        tz = pytz.timezone(biz.timezone or "UTC")
+        now_in_tz = datetime.now(tz)
+        
         day_name = target_date.strftime("%a").lower()[:3]
         hours = biz.operational_hours.get(day_name)
+        
         if not hours: 
             return []
 
@@ -56,7 +57,7 @@ class VerzioSaaSEngine:
         start_time = datetime.strptime(start_h, "%H:%M").time()
         end_time = datetime.strptime(end_h, "%H:%M").time()
 
-        # Fetch existing occupancy for the date (only active pending/confirmed bookings count against capacity; no_show/completed/cancelled do not)
+        # Fetch existing occupancy
         existing = db.query(Appointment.appointment_time).filter(
              Appointment.business_id == biz.id,
              Appointment.status.in_(["pending", "confirmed"]),
@@ -73,27 +74,33 @@ class VerzioSaaSEngine:
         curr = datetime.combine(target_date.date(), start_time)
         limit = datetime.combine(target_date.date(), end_time)
         
+        # 2. Logic: Loop through slots and validate against "Now"
         while curr < limit:
             s_str = curr.strftime("%H:%M")
+            
+            # Check if this slot is in the past (only relevant for today)
+            if target_date.date() == now_in_tz.date():
+                slot_time = datetime.strptime(s_str, "%H:%M").time()
+                if slot_time <= now_in_tz.time():
+                    curr += timedelta(minutes=biz.slot_interval)
+                    continue
+
             # Only show if capacity remains
             if occupancy_map.get(s_str, 0) < biz.max_parallel_bookings:
                 slots.append(s_str)
-            # Increment only by slot_interval (no buffers)
+            
             curr += timedelta(minutes=biz.slot_interval)
+            
         return slots
 
     def validate_and_book(self, db: Session, tenant_id: str, target_dt: datetime, customer_phone: str, service_id: int) -> Appointment:
         biz = self.get_tenant_config(db, tenant_id)
-        if biz.max_parallel_bookings < 1:
-            raise BookingEngineException(
-                "Invalid business configuration.",
-                "ERR_INVALID_CONFIG"
-            )
         
+        # Holiday Check
         if target_dt.date().isoformat() in (biz.holidays or []):
             raise BookingEngineException("Business is closed on this date.", "ERR_HOLIDAY")
 
-        # Re-verify capacity to prevent race conditions
+        # Capacity Check
         count = db.query(Appointment).filter(
             Appointment.business_id == biz.id,
             Appointment.appointment_time == target_dt,

@@ -4,124 +4,113 @@
 {% block page_title %}Reports{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Reports</h1>
-    <div class="page-subtitle">Business performance summary for the selected date.</div>
-  </div>
-  <a href="/owner/reports/export" class="btn-verzio-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export today's report</a>
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-end w-100">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">PERFORMANCE INSIGHTS</span>
+            </div>
+            <h1 class="page-title" style="margin:0;">Business Reports</h1>
+            <p class="page-subtitle" style="margin-top:4px;">Analyze booking trends and operational efficiency.</p>
+        </div>
+        <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn-verzio-primary">
+            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export Manifest
+        </a>
+    </div>
+</div>
+
+<!-- Filter Toolbar -->
+<div class="section-container mb-4">
+    <form method="get" action="/owner/reports" class="p-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <span class="text-muted small fw-bold text-uppercase">Date Range:</span>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="date" name="from_date" class="form-control-verzio" value="{{ selected_from }}">
+                    <span class="text-muted">to</span>
+                    <input type="date" name="to_date" class="form-control-verzio" value="{{ selected_to }}">
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn-verzio-outline">
+                    <i class="bi bi-filter me-1"></i> Apply Filter
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
 
 
-<form method="get" action="/owner/reports" class="filter-bar">
 
-    <label for="from-date" class="cell-secondary">
-        From
-    </label>
-
-    <input
-        id="from-date"
-        type="date"
-        name="from_date"
-        class="form-control-verzio"
-        style="max-width:220px;"
-        value="{{ selected_from }}"
-    >
-
-    <label for="to-date" class="cell-secondary">
-        To
-    </label>
-
-    <input
-        id="to-date"
-        type="date"
-        name="to_date"
-        class="form-control-verzio"
-        style="max-width:220px;"
-        value="{{ selected_to }}"
-    >
-
-    <button
-        type="submit"
-        class="btn-verzio-outline"
-    >
-        Apply
-    </button>
-
-</form>
-
-
-<div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
-    <div class="metric-card">
-      <span class="metric-label">Total appointments</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="metric-value">{{ total_count }}</span>
-        <span class="cell-muted">selected day</span>
-      </div>
+<!-- 6-Column Metric Grid -->
+<div class="row row-cols-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Total Bookings</span>
+            <div class="metric-value">{{ total_count }}</div>
+            <span class="cell-muted">in period</span>
+        </div>
     </div>
-  </div>
-
-  <div class="col-6 col-lg-3">
-    <div class="metric-card">
-      <span class="metric-label">Pending</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="metric-value">{{ pending_count }}</span>
-        <span class="cell-muted">open</span>
-      </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Completed</span>
+            <div class="metric-value text-success">{{ completed_count }}</div>
+            <span class="cell-muted">finished</span>
+        </div>
     </div>
-  </div>
-
-  <div class="col-6 col-lg-3">
-    <div class="metric-card">
-      <span class="metric-label">Confirmed</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="metric-value">{{ confirmed_count }}</span>
-        <span class="cell-muted">scheduled</span>
-      </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Pending</span>
+            <div class="metric-value text-amber">{{ pending_count }}</div>
+            <span class="cell-muted">needs action</span>
+        </div>
     </div>
-  </div>
-
-  <div class="col-6 col-lg-3">
-    <div class="metric-card">
-      <span class="metric-label">Completed</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="metric-value">{{ completed_count }}</span>
-        <span class="cell-muted">finished</span>
-      </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Confirmed</span>
+            <div class="metric-value text-accent">{{ confirmed_count }}</div>
+            <span class="cell-muted">scheduled</span>
+        </div>
     </div>
-  </div>
-
-  <div class="col-6 col-lg-3">
-    <div class="metric-card">
-      <span class="metric-label">Cancelled</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="metric-value">{{ cancelled_count }}</span>
-        <span class="cell-muted">selected day</span>
-      </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Cancelled</span>
+            <div class="metric-value text-danger">{{ cancelled_count }}</div>
+            <span class="cell-muted">drop-offs</span>
+        </div>
     </div>
-  </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">No-Show</span>
+            <div class="metric-value" style="color: #64748b;">{{ no_show_count }}</div>
+            <span class="cell-muted">missed slots</span>
+        </div>
+    </div>
+</div>
 
-  
 
 
 <div class="section-container">
-  <div class="section-head">
-    <h2 class="section-title">Latest activity</h2>
-  </div>
-
-  <div class="activity-feed">
-    {% for event in recent_activity %}
-    <div class="activity-item">
-      <div class="d-flex justify-content-between align-items-start mb-1">
-        <span class="activity-type mono">{{ event.event_type|replace("_", " ")|upper }}</span>
-        <span class="activity-time mono">{{ event.created_at.strftime("%H:%M") }}</span>
-      </div>
-      <div class="activity-msg">{{ event.message[:100] }}{% if event.message|length > 100 %}...{% endif %}</div>
+    <div class="section-head">
+        <h2 class="section-title">Timeline of Activity</h2>
     </div>
-    {% else %}
-    <div class="text-center cell-muted py-4">No recent activity logged for this tenant.</div>
-    {% endfor %}
-  </div>
+    <div class="activity-feed p-2">
+        {% for event in recent_activity %}
+        <div class="activity-item p-3 mb-2 rounded-3" style="background: #fcfcfd; border: 1px solid var(--border-subtle);">
+            <div class="d-flex justify-content-between align-items-start">
+                <span class="activity-type mono text-accent" style="font-size: 11px;">{{ event.event_type|replace("_", " ")|upper }}</span>
+                <span class="activity-time mono">{{ event.created_at.strftime("%d %b, %H:%M") }}</span>
+            </div>
+            <div class="activity-msg mt-1">{{ event.message[:120] if event.message else 'No log details' }}</div>
+        </div>
+        {% else %}
+        <div class="text-center cell-muted py-5">
+            <i class="bi bi-info-circle d-block fs-3 mb-2"></i>
+            No activity found for this date range.
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

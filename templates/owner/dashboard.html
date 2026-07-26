@@ -1,74 +1,80 @@
 {% extends "owner/base.html" %}
 
-{% block title %}Owner Dashboard — Verzio Studio{% endblock %}
+{% block title %}Dashboard — Verzio Studio{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header mb-4">
     <div>
-        <div class="page-eyebrow">Owner Portal</div>
-        <h1 class="page-title">{{ business.name if business else 'Business Dashboard' }}</h1>
-        <div class="page-subtitle">Bookings, service capacity, and recent activity for your current tenant.</div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">OWNER PORTAL</span>
+        </div>
+        <h1 class="page-title" style="margin:0;">{{ business.name if business else 'Dashboard' }}</h1>
+        <p class="page-subtitle" style="margin-top:4px;">Manage your daily operations, capacity, and recent bookings.</p>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
+<!-- 5-Column Metric Grid -->
+<div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Today's appointments</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value">{{ todays_appointments|length }}</span>
-                <span class="cell-muted">live queue</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Today's</span>
+                <i class="bi bi-calendar-check text-muted"></i>
             </div>
+            <div class="metric-value">{{ todays_appointments|length }}</div>
+            <span class="cell-muted">live queue</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Pending</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value">{{ pending_count }}</span>
-                <span class="cell-muted">needs review</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Pending</span>
+                <i class="bi bi-hourglass-split text-muted"></i>
             </div>
+            <div class="metric-value">{{ pending_count }}</div>
+            <span class="cell-muted">needs review</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Confirmed</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value">{{ confirmed_count }}</span>
-                <span class="cell-muted">scheduled</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Confirmed</span>
+                <i class="bi bi-check-circle text-muted"></i>
             </div>
+            <div class="metric-value">{{ confirmed_count }}</div>
+            <span class="cell-muted">scheduled</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Completed</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value">{{ completed_count }}</span>
-                <span class="cell-muted">finished</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Completed</span>
+                <i class="bi bi-flag text-muted"></i>
             </div>
+            <div class="metric-value">{{ completed_count }}</div>
+            <span class="cell-muted">finished</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Services</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value">{{ service_count }}</span>
-                <span class="cell-muted">active catalog</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Services</span>
+                <i class="bi bi-list-stars text-muted"></i>
             </div>
+            <div class="metric-value">{{ service_count }}</div>
+            <span class="cell-muted">active catalog</span>
         </div>
     </div>
 </div>
 
-<div class="row g-3">
+<div class="row g-4">
+    <!-- Appointments Table -->
     <div class="col-lg-8">
         <div class="section-container">
-            <div class="section-head">
-                <h2 class="section-title">Upcoming appointments</h2>
+            <div class="section-head d-flex justify-content-between align-items-center">
+                <h2 class="section-title">Recent Appointments</h2>
+                <a href="/owner/appointments" class="text-accent small fw-bold text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
             </div>
 
             <div class="table-verzio-wrap">
@@ -77,23 +83,21 @@
                         <tr>
                             <th>Customer</th>
                             <th>Service</th>
-                            <th>Date &amp; time</th>
+                            <th>Date &amp; Time</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for appointment in appointments %}
-                        <tr data-status="{{ appointment.status }}">
+                        <tr>
                             <td>
                                 <div class="table-entity">
-                                    <div class="table-avatar"><i class="bi bi-telephone"></i></div>
-                                    <div>
-                                        <div class="cell-primary mono">{{ appointment.customer_phone }}</div>
-                                    </div>
+                                    <div class="table-avatar"><i class="bi bi-phone"></i></div>
+                                    <div class="cell-primary mono">{{ appointment.customer_phone }}</div>
                                 </div>
                             </td>
                             <td class="cell-secondary">{{ appointment.service.name if appointment.service else 'Service removed' }}</td>
-                            <td class="mono cell-secondary">{{ appointment.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
+                            <td class="mono cell-secondary">{{ appointment.appointment_time.strftime("%d %b, %I:%M %p") }}</td>
                             <td>
                                 <span class="status-badge status-{{ appointment.status }}">
                                     <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
@@ -103,7 +107,8 @@
                         {% else %}
                         <tr>
                             <td colspan="4" class="text-center cell-muted py-5">
-                                No appointments found for this business.
+                                <i class="bi bi-calendar-x d-block fs-2 mb-2"></i>
+                                No appointments found.
                             </td>
                         </tr>
                         {% endfor %}
@@ -113,23 +118,24 @@
         </div>
     </div>
 
+    <!-- Activity Feed -->
     <div class="col-lg-4">
         <div class="section-container">
             <div class="section-head">
                 <h2 class="section-title">Latest activity</h2>
             </div>
 
-            <div class="activity-feed">
+            <div class="activity-feed p-2">
                 {% for event in recent_activity %}
-                <div class="activity-item">
-                    <div class="d-flex justify-content-between align-items-start mb-1">
-                        <span class="activity-type mono">{{ event.event_type|replace("_", " ")|upper }}</span>
+                <div class="activity-item p-3 mb-2 rounded-3" style="background: #fcfcfd; border: 1px solid var(--border-subtle);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="activity-type mono text-accent" style="font-size: 11px;">{{ event.event_type|replace("_", " ")|upper }}</span>
                         <span class="activity-time mono">{{ event.created_at.strftime("%H:%M") }}</span>
                     </div>
-                    <div class="activity-msg">{{ event.message[:100] }}{% if event.message|length > 100 %}...{% endif %}</div>
+                    <div class="activity-msg mt-1">{{ event.message[:80] if event.message else 'No message' }}...</div>
                 </div>
                 {% else %}
-                <div class="text-center cell-muted py-4">No recent activity logged for this business.</div>
+                <div class="text-center cell-muted py-4">No recent activity logged.</div>
                 {% endfor %}
             </div>
         </div>

@@ -498,6 +498,13 @@ Integrates with existing :root tokens defined above.
 .profile-menu summary {
     list-style: none;
     cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.profile-menu summary:hover {
+    background: var(--bg-sidebar);
 }
 
 .profile-menu summary::-webkit-details-marker {
@@ -507,29 +514,69 @@ Integrates with existing :root tokens defined above.
 .profile-dropdown {
     position: absolute;
     right: 0;
-    top: 42px;
-    min-width: 170px;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.12);
-    overflow: hidden;
+    top: calc(100% + 10px);
+    width: 200px;
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 8px;
     z-index: 1000;
 }
 
+/* Arrow pointing up */
+.profile-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 15px;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border-left: 1px solid var(--border-light);
+    border-top: 1px solid var(--border-light);
+    transform: rotate(45deg);
+}
+
 .dropdown-item {
+    display: flex;
+    align-items: center;
     width: 100%;
-    padding: 12px 16px;
-    background: white;
+    padding: 10px 12px;
+    background: transparent;
     border: none;
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 500;
     text-align: left;
     cursor: pointer;
-    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.dropdown-item i {
+    margin-right: 10px;
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+/* Logout specific styling */
+.dropdown-item.logout {
+    color: var(--status-red);
+}
+
+.dropdown-item.logout i {
+    color: var(--status-red);
 }
 
 .dropdown-item:hover {
-    background: #f5f5f5;
+    background: var(--bg-sidebar);
 }
+
+.dropdown-item.logout:hover {
+    background: #fef2f2; /* Light red */
+}
+
 
 
 /* ===========================
@@ -781,4 +828,170 @@ Integrates with existing :root tokens defined above.
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+
+
+
+/* --- Dashboard Upgrades --- */
+
+.bg-soft-accent { background-color: var(--accent-soft); }
+.text-accent { color: var(--accent); }
+
+.metric-card {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 16px;
+    height: 100%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.metric-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.section-head .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+
+/* --- Content Spacing --- */
+
+.content-container {
+    padding: 32px; /* Adds space on all sides */
+    width: 100%;
+    max-width: 1600px; /* Optional: Keeps content from getting too wide on ultrawide monitors */
+    margin: 0 auto;    /* Centers the content if max-width is hit */
+}
+
+/* On smaller screens, reduce padding slightly to save space */
+@media (max-width: 768px) {
+    .content-container {
+        padding: 16px;
+    }
+}
+
+
+
+
+/* --- Color Utility Helpers --- */
+
+.text-accent { color: var(--accent) !important; }
+.text-amber { color: var(--status-amber) !important; }
+.text-success { color: var(--status-green) !important; }
+.text-danger { color: var(--status-red) !important; }
+
+.bg-soft-accent { background-color: var(--accent-soft) !important; }
+
+
+
+
+/* --- Premium Settings Refinement --- */
+
+.settings-card {
+    background: #fff;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+    transition: all 0.3s ease;
+}
+
+.settings-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+}
+
+.day-card {
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 12px;
+    transition: all 0.2s;
+}
+
+.day-card.day-off {
+    background: #f8fafc;
+    opacity: 0.5;
+}
+
+.day-card.day-off input {
+    pointer-events: none;
+}
+
+.coming-soon-pill {
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+
+
+/* --- Premium Time Picker Styling --- */
+
+.time-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.time-input-wrapper i {
+    position: absolute;
+    left: 12px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.form-control-time {
+    padding-left: 36px !important;
+    font-family: 'JetBrains Mono', monospace; /* Mono looks better for numbers */
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+    background-color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+/* Customizing the native "Clock" icon button */
+.form-control-time::-webkit-calendar-picker-indicator {
+    background: transparent;
+    bottom: 0;
+    color: transparent;
+    cursor: pointer;
+    height: auto;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
+}
+
+.form-control-time:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+.day-card:not(.day-off) .form-control-time {
+    border-color: var(--border-light);
 }
