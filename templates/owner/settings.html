@@ -129,8 +129,17 @@
                 <div class="p-4">
                     <div class="row g-4">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Slot Interval (Min)</label>
-                            <input type="number" class="form-control-verzio" name="slot_duration" value="{{ business.slot_interval }}">
+                            <label class="form-label small fw-bold text-muted">Slot Interval</label>
+                            <select class="form-select-verzio" name="slot_duration">
+                                <option value="5" {% if business.slot_interval == 5 %}selected{% endif %}>5 Mins</option>
+                                <option value="10" {% if business.slot_interval == 10 %}selected{% endif %}>10 Mins</option>
+                                <option value="15" {% if business.slot_interval == 15 %}selected{% endif %}>15 Mins</option>
+                                <option value="30" {% if business.slot_interval == 30 or not business.slot_interval %}selected{% endif %}>30 Mins</option>
+                                <option value="45" {% if business.slot_interval == 45 %}selected{% endif %}>45 Mins</option>
+                                <option value="60" {% if business.slot_interval == 60 %}selected{% endif %}>1 Hour</option>
+                                <option value="90" {% if business.slot_interval == 90 %}selected{% endif %}>1 Hr 30 Mins</option>
+                                <option value="120" {% if business.slot_interval == 120 %}selected{% endif %}>2 Hours</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted">Advance Window (Days)</label>

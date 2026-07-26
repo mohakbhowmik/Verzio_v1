@@ -18,18 +18,12 @@ Current Function
 
 Next Step
 
-Update dashboard queries to ignore deleted services.
+Fix the Owner settings (Time interval, restrict the interface such that it displays only dropdown values eg: 5min, 10min, 15min, 30min, 45min, 1hour, 1hr 30min, 2 hour, etc)
 
 ---
 
 After Completion
 
-Test dashboard.
-
-Then implement delete endpoint.
-
-Then test booking runtime.
-
-Status:
-
-38/52 milestones complete.
+Need to run a final check through the entire UI, make sure everything runs.
+Make the platform such that the UI looks good even wehen accessed from a mbile phone as 
+most business owners would be using a phone on the go.

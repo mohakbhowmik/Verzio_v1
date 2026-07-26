@@ -56,11 +56,15 @@ async def owner_reports_page(
 
         recent_activity = (
             db.query(ActivityEvent)
-            .filter(ActivityEvent.business_id == business.id)
+            .filter(
+                ActivityEvent.business_id == business.id,
+                ActivityEvent.created_at >= selected_start,
+                ActivityEvent.created_at <= selected_end,
+            )
             .order_by(ActivityEvent.created_at.desc())
-            .limit(10)
             .all()
         )
+
 
     total_count = len(appointments)
     pending_count = sum(1 for appointment in appointments if appointment.status == "pending")

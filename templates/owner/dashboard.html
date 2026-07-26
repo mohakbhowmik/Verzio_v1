@@ -73,7 +73,7 @@
     <div class="col-lg-8">
         <div class="section-container">
             <div class="section-head d-flex justify-content-between align-items-center">
-                <h2 class="section-title">Recent Appointments</h2>
+                <h2 class="section-title">Today's Schedule</h2>
                 <a href="/owner/appointments" class="text-accent small fw-bold text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
             </div>
 
@@ -88,7 +88,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for appointment in appointments %}
+                        {% for appointment in todays_appointments %}
                         <tr>
                             <td>
                                 <div class="table-entity">

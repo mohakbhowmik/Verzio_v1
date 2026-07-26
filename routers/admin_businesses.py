@@ -16,7 +16,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from database import get_db, Business
+from database import get_db, Business, Owner
+from owner.owner_auth import hash_password
 
 logger = logging.getLogger("VERZIO_ADMIN_BUSINESSES")
 
@@ -169,6 +170,26 @@ async def create_business(request: Request, db: Session = Depends(get_db)):
     try:
         db.add(biz)
         db.commit()
+        db.refresh(biz) # Get the new business ID
+        
+        # --- NEW: Generate the Owner Account ---
+        owner_email = form.get("owner_email", "").strip()
+        owner_password = form.get("owner_password", "").strip()
+        owner_name = form.get("owner_name", "").strip()
+        
+        if owner_email and owner_password:
+            new_owner = Owner(
+                business_id=biz.id,
+                full_name=owner_name,
+                email=owner_email,
+                phone_number=biz.manager_phone_number,
+                password_hash=hash_password(owner_password),
+                is_active=True
+            )
+            db.add(new_owner)
+            db.commit()
+    
+
     except IntegrityError:
         db.rollback()
         logger.warning("Duplicate whatsapp_business_phone_number_id on create: %s",

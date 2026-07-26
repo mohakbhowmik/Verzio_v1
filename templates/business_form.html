@@ -38,13 +38,34 @@
                     <h2 class="section-title">Identity & Connectivity</h2>
                 </div>
                 <div class="p-3">
-                    <div class="mb-3">
+
+                        <div class="mb-3">
                         <label class="form-label small fw-bold">Business Name</label>
                         <input type="text" name="name" class="form-control form-control-sm" value="{{ business.name if business else '' }}" required>
                     </div>
+                    
+                    <!-- NEW: Owner Account Details (Only shows when creating a new business) -->
+                    {% if not business %}
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold">Owner Name</label>
+                            <input type="text" name="owner_name" class="form-control form-control-sm" placeholder="e.g. Rahul Sharma" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold">Login Email</label>
+                            <input type="email" name="owner_email" class="form-control form-control-sm" placeholder="rahul@salon.com" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold">Temporary Password</label>
+                            <input type="text" name="owner_password" class="form-control form-control-sm" placeholder="e.g. Welcome123!" required>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label small fw-bold">WhatsApp Business Phone Number ID</label>
+
                             <input type="text" name="whatsapp_business_phone_number_id" class="form-control form-control-sm mono" value="{{ business.whatsapp_business_phone_number_id if business else '' }}" required>
                         </div>
                         <div class="col-md-6 mb-3">
