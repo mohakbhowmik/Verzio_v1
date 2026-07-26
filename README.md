@@ -1,14 +1,16 @@
 # Verzio Studio
 
-WhatsApp-first SaaS platform for appointment-based businesses.
+WhatsApp-first appointment management platform for appointment-based businesses.
 
-## Tech Stack
+Current stack:
 
 - FastAPI
 - SQLAlchemy
-- SQLite (PostgreSQL later)
-- Meta WhatsApp Cloud API
+- SQLite
+- Jinja2
 
-## Status
+Start here:
 
-Sprint 0 - MVP Development
+1. Read AI_CONTEXT.md
+2. Read CURRENT_STATE.md
+3. Inspect the relevant source code before making changes.

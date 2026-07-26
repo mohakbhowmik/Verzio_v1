@@ -1,11 +1,3 @@
-"""
-reports.py
-================================================================================
-VERZIO STUDIO — EXCEL REPORTS GENERATOR
-================================================================================
-Converts active database tables into formatted Excel sheets for business owners.
-"""
-
 import os
 from datetime import datetime, date, time
 from openpyxl import Workbook
@@ -13,108 +5,100 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from sqlalchemy.orm import Session
 from database import Appointment
 
-def generate_daily_excel_report(business_id: int, business_name: str, db: Session) -> str:
-    """
-    Queries the database for today's bookings for a specific business,
-    generates a beautifully styled Excel sheet, and returns the local file path.
-    """
-    # 1. Fetch today's data window
-    today_start = datetime.combine(date.today(), time.min)
-    today_end = datetime.combine(date.today(), time.max)
+def generate_excel_report(business_id: int, business_name: str, db: Session, from_date: date, to_date: date) -> str:
+    # 1. Fetch data for the custom range
+    start_dt = datetime.combine(from_date, time.min)
+    end_dt = datetime.combine(to_date, time.max)
     
     appointments = db.query(Appointment).filter(
         Appointment.business_id == business_id,
-        Appointment.appointment_time >= today_start,
-        Appointment.appointment_time <= today_end
+        Appointment.appointment_time >= start_dt,
+        Appointment.appointment_time <= end_dt
     ).order_by(Appointment.appointment_time.asc()).all()
 
-    # 2. Initialize openpyxl Workbook
     wb = Workbook()
     ws = wb.active
-    ws.title = "Today's Bookings"
-    
-    # Ensure grid lines are visible
-    ws.views.sheetView[0].showGridLines = True
+    ws.title = "Business Report"
 
-    # 3. Styling Definitions (Professional Minimalist Palette)
-    font_family = "Segoe UI"
-    header_font = Font(name=font_family, size=11, bold=True, color="FFFFFF")
-    title_font = Font(name=font_family, size=16, bold=True, color="1E293B")
-    meta_font = Font(name=font_family, size=10, italic=True, color="64748B")
-    data_font = Font(name=font_family, size=11, color="334155")
-    
-    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid") # Indigo Accent
-    
-    thin_border = Border(
-        left=Side(style='thin', color='E2E8F0'),
-        right=Side(style='thin', color='E2E8F0'),
-        top=Side(style='thin', color='E2E8F0'),
-        bottom=Side(style='thin', color='E2E8F0')
-    )
+    # --- Style Definitions ---
+    header_navy = "1E293B"
+    sub_header_gray = "64748B"
+    border_color = "E2E8F0"
+    zebra_fill = "F8FAFC"
+    white = "FFFFFF"
 
-    # 4. Write Title & Metadata Headers
-    ws['A1'] = f"{business_name.upper()} — DAILY OPERATIONS MANIFEST"
+    title_font = Font(name='Segoe UI', size=16, bold=True, color=header_navy)
+    meta_font = Font(name='Segoe UI', size=10, color=sub_header_gray)
+    col_header_font = Font(name='Segoe UI', size=11, bold=True, color=white)
+    data_font = Font(name='Segoe UI', size=11, color="334155")
+    
+    center_align = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center", indent=1)
+    thin_border = Border(bottom=Side(style='thin', color=border_color))
+
+    # --- Header Section ---
+    ws.merge_cells('A1:E1')
+    ws['A1'] = business_name.upper()
     ws['A1'].font = title_font
-    
-    formatted_date = date.today().strftime("%A, %B %d, %Y")
-    ws['A2'] = f"Generated automatically on {formatted_date} | Verzio Engine"
-    ws['A2'].font = meta_font
 
-    # 5. Write Table Column Headers
-    headers = ["Time Slot", "Customer Name", "Phone Number", "Status"]
+    ws.merge_cells('A2:E2')
+    range_str = f"REPORT PERIOD: {from_date.strftime('%d %b %Y')} to {to_date.strftime('%d %b %Y')}"
+    ws['A2'] = range_str
+    ws['A2'].font = meta_font
+    
+    ws.row_dimensions[1].height = 25
+    ws.row_dimensions[2].height = 18
+
+    # --- Table Column Headers (Added DATE) ---
+    headers = ["DATE", "TIME", "CUSTOMER NAME", "PHONE", "STATUS"]
+    header_fill = PatternFill(start_color=header_navy, end_color=header_navy, fill_type="solid")
+    
     for col_num, header_title in enumerate(headers, 1):
         cell = ws.cell(row=4, column=col_num)
         cell.value = header_title
-        cell.font = header_font
+        cell.font = col_header_font
         cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = thin_border
+        cell.alignment = center_align
     
-    ws.row_dimensions[4].height = 26
+    ws.row_dimensions[4].height = 25
 
-    # 6. Populate Rows from Database Ledger
+    # --- Populate Data ---
     current_row = 5
     for appt in appointments:
-        time_cell = ws.cell(row=current_row, column=1, value=appt.appointment_time.strftime("%I:%M %p"))
-        name_cell = ws.cell(row=current_row, column=2, value=appt.customer_name if appt.customer_name else "Guest Client")
-        phone_cell = ws.cell(row=current_row, column=3, value=appt.customer_phone)
-        status_cell = ws.cell(row=current_row, column=4, value=appt.status.upper())
+        row_data = [
+            appt.appointment_time.strftime("%d-%b-%Y"), # Date
+            appt.appointment_time.strftime("%I:%M %p"), # Time
+            (appt.customer_name or "Guest").title(),
+            appt.customer_phone,
+            appt.status.upper()
+        ]
         
-        # Center align everything except names
-        time_cell.alignment = Alignment(horizontal="center")
-        phone_cell.alignment = Alignment(horizontal="center")
-        status_cell.alignment = Alignment(horizontal="center")
-        name_cell.alignment = Alignment(horizontal="left")
-        
-        # Dynamic subtle coloring for status column
-        if appt.status == "confirmed":
-            status_cell.font = Font(name=font_family, size=11, bold=True, color="16A34A")
-        elif appt.status == "completed":
-            status_cell.font = Font(name=font_family, size=11, bold=True, color="2563EB")
-        elif appt.status == "cancelled":
-            status_cell.font = Font(name=font_family, size=11, bold=True, color="DC2626")
-        else:
-            status_cell.font = Font(name=font_family, size=11, bold=True, color="D97706")
+        fill = PatternFill(start_color=zebra_fill, end_color=zebra_fill, fill_type="solid") if current_row % 2 == 0 else None
 
-        # Apply basic borders and universal data font to all row blocks
-        for col_num in range(1, 5):
-            c = ws.cell(row=current_row, column=col_num)
-            if col_num != 4:  # status column keeps its custom color font
-                c.font = data_font
-            c.border = thin_border
+        for col_num, value in enumerate(row_data, 1):
+            cell = ws.cell(row=current_row, column=col_num, value=value)
+            cell.font = data_font
+            cell.border = thin_border
+            cell.alignment = center_align if col_num != 3 else left_align
+            if fill:
+                cell.fill = fill
             
-        ws.row_dimensions[current_row].height = 20
+            if col_num == 5: # Status coloring
+                colors = {"CONFIRMED": "16A34A", "COMPLETED": "2563EB", "CANCELLED": "DC2626", "PENDING": "D97706"}
+                cell.font = Font(name='Segoe UI', size=10, bold=True, color=colors.get(value, "64748B"))
+
+        ws.row_dimensions[current_row].height = 22
         current_row += 1
 
-    # Auto-adjust column widths cleanly based on contents so nothing gets cut off
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = col[0].column_letter
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+    # --- Column Widths ---
+    widths = [15, 12, 25, 18, 15]
+    for i, width in enumerate(widths, 1):
+        ws.column_dimensions[ws.cell(row=4, column=i).column_letter].width = width
 
-    # 7. Write to static directory safely
+    ws.views.sheetView[0].showGridLines = False
+
+    # Save with range-specific filename
     os.makedirs("exports", exist_ok=True)
-    filename = f"exports/manifest_{business_id}_{date.today().isoformat()}.xlsx"
-    wb.save(filename)
-    
-    return filename
+    fname = f"exports/Report_{business_id}_{from_date.isoformat()}_to_{to_date.isoformat()}.xlsx"
+    wb.save(fname)
+    return fname

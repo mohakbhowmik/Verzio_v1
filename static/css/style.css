@@ -628,3 +628,157 @@ Integrates with existing :root tokens defined above.
     max-width:340px;
     margin:0 auto;
 }
+
+
+
+/* --- Modern Form Styling Fixes --- */
+
+.max-width-700 { 
+    max-width: 700px; 
+    margin: 0 auto; 
+}
+
+.input-group-verzio {
+    display: flex;
+    align-items: center;
+    position: relative; /* Essential for absolute children */
+    width: 100%;
+}
+
+/* Override the 6px margin from line 195 of style.css */
+.input-group-verzio .form-control-verzio {
+    flex: 1;
+    margin-left: 0 !important; 
+    padding-right: 45px; /* Space for 'mins' */
+}
+
+/* Space for ₹ if it exists */
+.input-group-verzio .prefix ~ .form-control-verzio {
+    padding-left: 28px;
+}
+
+.input-group-verzio .unit {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.input-group-verzio .prefix {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* --- Toggle Switch (Missing from your file) --- */
+.vz-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.vz-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.vz-toggle-track {
+    width: 44px;
+    height: 24px;
+    background-color: #cbd5e1;
+    border-radius: 20px;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.vz-toggle-track:after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.vz-toggle input:checked + .vz-toggle-track {
+    background-color: var(--status-green);
+}
+
+.vz-toggle input:checked + .vz-toggle-track:after {
+    transform: translateX(20px);
+}
+
+/* --- Page Layout Refinement --- */
+
+.form-workspace {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+/* Better Breadcrumbs */
+.breadcrumb-verzio {
+    margin-bottom: 24px;
+}
+
+.breadcrumb-verzio a {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.breadcrumb-verzio a:hover {
+    color: var(--accent);
+}
+
+/* Ensure the Toggle and Text are perfectly aligned */
+.visibility-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px !important;
+}
+
+.visibility-text {
+    flex: 1;
+}
+
+.visibility-text .fw-bold {
+    color: var(--text-main);
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+
+/* Action Footer */
+.form-actions-bar {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}

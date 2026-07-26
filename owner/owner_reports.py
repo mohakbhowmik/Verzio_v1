@@ -1,32 +1,19 @@
+import os
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import ActivityEvent, Appointment, Business, get_db
-from reports import generate_daily_excel_report
+from reports import generate_excel_report  # Updated name
+from owner.owner_auth import resolve_owner_and_business
 
 router = APIRouter(prefix="/owner/reports", tags=["owner-reports"])
 templates = Jinja2Templates(directory="templates")
 
 
-def _resolve_business(request: Request, db: Session) -> Business | None:
-    owner_phone = (
-        request.cookies.get("verzio_owner_phone")
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
-
-    if not owner_phone:
-        return None
-
-    return (
-        db.query(Business)
-        .filter(Business.manager_phone_number == owner_phone)
-        .first()
-    )
 
 
 @router.get("")
@@ -36,7 +23,10 @@ async def owner_reports_page(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+        
     selected_from = from_date or date.today()
     selected_to = to_date or selected_from
 
@@ -109,18 +99,28 @@ async def owner_reports_page(
 async def export_owner_daily_report(
     request: Request,
     db: Session = Depends(get_db),
+    from_date: date | None = Query(default=None), # Added
+    to_date: date | None = Query(default=None),   # Added
 ):
-    business = _resolve_business(request, db)
-    if not business:
-        raise HTTPException(status_code=404, detail="Business not found.")
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    report_path = generate_daily_excel_report(
+    # Default to today if no dates provided
+    export_from = from_date or date.today()
+    export_to = to_date or export_from
+
+    # Updated function call with dates
+    report_path = generate_excel_report(
         business_id=business.id,
         business_name=business.name,
         db=db,
+        from_date=export_from,
+        to_date=export_to
     )
+    
     return FileResponse(
         path=report_path,
-        filename=report_path.rsplit("/", 1)[-1],
+        filename=os.path.basename(report_path),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )

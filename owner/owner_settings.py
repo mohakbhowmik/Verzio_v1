@@ -3,6 +3,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from owner.owner_auth import resolve_owner_and_business
+from fastapi.responses import RedirectResponse
 
 from database import Business, get_db
 
@@ -20,21 +22,7 @@ WEEK_DAYS = [
 ]
 
 
-def _resolve_business(request: Request, db: Session) -> Business | None:
-    owner_phone = (
-        request.cookies.get("verzio_owner_phone")
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
 
-    if not owner_phone:
-        return None
-
-    return (
-        db.query(Business)
-        .filter(Business.manager_phone_number == owner_phone)
-        .first()
-    )
 
 
 def _business_hours_rows(business: Business | None) -> list[dict]:
@@ -71,9 +59,12 @@ async def owner_settings_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
 
     return templates.TemplateResponse(
+        
         request=request,
         name="owner/settings.html",
         context={
@@ -91,7 +82,7 @@ async def owner_settings_save(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    business = _resolve_business(request, db)
+    owner, business = resolve_owner_and_business(request, db)
     if not business:
         return templates.TemplateResponse(
             request=request,
