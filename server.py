@@ -469,11 +469,16 @@ async def admin_dashboard(
     request: Request,
     db: Session = Depends(get_db)
 ):
+    active_business_count = db.query(Business).filter(Business.is_active == True).count()
+    total_business_count = db.query(Business).count()
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
             "request": request,
-            "active_page": "dashboard"
+            "active_page": "dashboard",
+            "active_business_count": active_business_count,
+            "total_business_count": total_business_count,
         }
     )
