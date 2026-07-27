@@ -1,9 +1,12 @@
 from datetime import date
+from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 
 from database import (
+    engine,
     SessionLocal,
     Business,
     Appointment,
@@ -16,6 +19,16 @@ router = APIRouter(
 )
 
 templates = Jinja2Templates(directory="templates")
+
+
+def _resolve_database_file() -> Path:
+    db_url = engine.url.database or "verzio_saas.db"
+    db_path = Path(db_url)
+
+    if not db_path.is_absolute():
+        db_path = Path(__file__).resolve().parents[1] / db_path
+
+    return db_path
 
 
 @router.get("")
@@ -53,3 +66,17 @@ def system_page(request: Request):
 
     finally:
         db.close()
+
+
+@router.get("/backup-db")
+def backup_database():
+    db_path = _resolve_database_file()
+
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="Database file not found.")
+
+    return FileResponse(
+        path=str(db_path),
+        filename=db_path.name,
+        media_type="application/x-sqlite3",
+    )
