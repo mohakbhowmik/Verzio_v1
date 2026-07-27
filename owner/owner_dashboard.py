@@ -48,11 +48,14 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
         if today_start <= a.appointment_time < tomorrow_start
     ]
 
+    # Pending looks at ALL appointments (so you never miss an approval)
     pending_count = sum(1 for a in appointments if a.status == "pending")
-    confirmed_count = sum(1 for a in appointments if a.status == "confirmed")
-    completed_count = sum(1 for a in appointments if a.status == "completed")
-    cancelled_count = sum(1 for a in appointments if a.status == "cancelled")
-    no_show_count = sum(1 for a in appointments if a.status == "no_show")
+    
+    # The rest look ONLY at today's appointments
+    confirmed_count = sum(1 for a in todays_appointments if a.status == "confirmed")
+    completed_count = sum(1 for a in todays_appointments if a.status == "completed")
+    cancelled_count = sum(1 for a in todays_appointments if a.status == "cancelled")
+    no_show_count = sum(1 for a in todays_appointments if a.status == "no_show")
     
     service_count = (
         db.query(Service)

@@ -52,6 +52,15 @@
         </td>
         <td class="text-end">
           <div class="d-flex align-items-center justify-content-end gap-2">
+            <form method="post"
+                  action="/admin/businesses/{{ b.id }}/impersonate"
+                  target="_blank"
+                  class="m-0 d-inline-flex">
+              <button type="submit" class="btn btn-sm btn-outline-primary">
+                Log in as Owner
+              </button>
+            </form>
+
             <a href="/admin/businesses/{{ b.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ b.name }}">
               <i class="bi bi-pencil"></i>
             </a>
