@@ -5,12 +5,100 @@
 
 {% block content %}
 <div class="section-container">
-    <div class="section-head">
-        <h2 class="section-title">Subscription Ledger</h2>
+    <div class="section-head d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2 class="section-title mb-0">Subscription Ledger</h2>
+        <span class="cell-muted">Manual plan and expiry management</span>
     </div>
-    <div class="p-5 text-center">
-        <i class="bi bi-receipt cell-muted fs-2 mb-3 d-block"></i>
-        <div class="cell-muted">Subscription management shell established.</div>
+
+    <div class="table-verzio-wrap">
+        <table class="table table-verzio align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Business</th>
+                    <th>Current Plan</th>
+                    <th>Status</th>
+                    <th>Expiry Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in subscription_rows %}
+                <tr>
+                    <td>
+                        <div class="fw-medium">{{ row.business.name }}</div>
+                        <div class="cell-muted mono" style="font-size: 11px;">ID: {{ row.business.id }}</div>
+                    </td>
+                    <td>
+                        <span class="status-badge status-active"><span class="dot"></span>{{ row.plan_type }}</span>
+                    </td>
+                    <td>
+                        {% if row.status_label == 'Expired' %}
+                        <span class="status-badge status-inactive"><span class="dot"></span>{{ row.status_label }}</span>
+                        {% elif row.status_label == 'Suspended' %}
+                        <span class="status-badge status-warning"><span class="dot"></span>{{ row.status_label }}</span>
+                        {% else %}
+                        <span class="status-badge status-active"><span class="dot"></span>{{ row.status_label }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.expiry_date %}
+                            {{ row.expiry_date.strftime('%Y-%m-%d') }}
+                        {% else %}
+                            <span class="cell-muted">No expiry set</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#subscriptionModal{{ row.business.id }}">
+                            Update
+                        </button>
+
+                        <div class="modal fade" id="subscriptionModal{{ row.business.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-sm">
+                                <div class="modal-content">
+                                    <form method="post" action="/admin/subscriptions/{{ row.business.id }}">
+                                        <div class="modal-header py-2">
+                                            <h5 class="modal-title fs-6">Update {{ row.business.name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="mb-3">
+                                                <label class="form-label">Plan Type</label>
+                                                <select class="form-select form-select-sm" name="plan_type" required>
+                                                    {% for plan in plan_options %}
+                                                    <option value="{{ plan }}" {% if plan == row.plan_type %}selected{% endif %}>{{ plan }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="mb-0">
+                                                <label class="form-label">Expiry Date</label>
+                                                <input type="date"
+                                                       class="form-control form-control-sm"
+                                                       name="expiry_date"
+                                                       value="{% if row.expiry_date %}{{ row.expiry_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer py-2">
+                                            <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-sm btn-primary">Save changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center cell-muted py-5">
+                        No businesses found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
