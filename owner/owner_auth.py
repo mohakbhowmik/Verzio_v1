@@ -121,6 +121,12 @@ def verify_session_token(token: str, db: Session) -> Optional[Owner]:
 # Centralized Owner & Business Resolution Helper
 # ------------------------------------------------------------------------
 
+def is_mobile(request: Request) -> bool:
+    """Detect a mobile user-agent for responsive owner-portal templates."""
+    user_agent = (request.headers.get("user-agent") or "").lower()
+    return any(marker in user_agent for marker in ("mobi", "android", "iphone"))
+
+
 def resolve_owner_and_business(request: Request, db: Session) -> Tuple[Optional[Owner], Optional[Business]]:
     """
     Centralized Owner & Business resolution.

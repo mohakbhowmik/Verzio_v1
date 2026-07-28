@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from database import ActivityEvent, Appointment, Business, get_db
 from reports import generate_excel_report  # Updated name
-from owner.owner_auth import resolve_owner_and_business
+from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter(prefix="/owner/reports", tags=["owner-reports"])
 templates = Jinja2Templates(directory="templates")
@@ -79,9 +79,11 @@ async def owner_reports_page(
         if appointment.status in {"confirmed", "completed"} and appointment.service
     )
 
+    template_name = "owner/reports_mobile.html" if is_mobile(request) else "owner/reports.html"
+
     return templates.TemplateResponse(
         request=request,
-        name="owner/reports.html",
+        name=template_name,
         context={
             "active_page": "reports",
             "business": business,

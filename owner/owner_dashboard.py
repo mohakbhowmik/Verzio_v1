@@ -11,7 +11,7 @@ from database import (
     Service,
     get_db,
 )
-from owner.owner_auth import resolve_owner_and_business
+from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter()
 
@@ -74,9 +74,11 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
+    template_name = "owner/dashboard_mobile.html" if is_mobile(request) else "owner/dashboard.html"
+
     return templates.TemplateResponse(
         request=request,
-        name="owner/dashboard.html",
+        name=template_name,
         context={
             "request": request,
             "active_page": "dashboard",

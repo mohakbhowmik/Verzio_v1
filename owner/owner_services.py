@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import Appointment, Business, Service, get_db
-from owner.owner_auth import resolve_owner_and_business
+from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 logger = logging.getLogger("VERZIO_OWNER_SERVICES")
 
@@ -74,9 +74,11 @@ async def owner_services_page(
             .all()
         )
 
+    template_name = "owner/services_mobile.html" if is_mobile(request) else "owner/services.html"
+
     return templates.TemplateResponse(
         request=request,
-        name="owner/services.html",
+        name=template_name,
         context={
             "active_page": "services",
             "business": business,
@@ -88,9 +90,10 @@ async def owner_services_page(
 @router.get("/new")
 async def new_owner_service_form(request: Request, db: Session = Depends(get_db)):
     owner, business = resolve_owner_and_business(request, db)
+    template_name = "service_form_mobile.html" if is_mobile(request) else "service_form.html"
     return templates.TemplateResponse(
         request=request,
-        name="service_form.html",
+        name=template_name,
         context=_form_context(business) | {
             "form_action": "/owner/services",
             "owner_portal": True,
@@ -107,9 +110,10 @@ async def create_owner_service(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     name = (form.get("name") or "").strip()
     if not name:
+        template_name = "service_form_mobile.html" if is_mobile(request) else "service_form.html"
         return templates.TemplateResponse(
             request=request,
-            name="service_form.html",
+            name=template_name,
             context=_form_context(business, error="Service name is required.")
             | {
                 "form_action": "/owner/services",
@@ -142,9 +146,10 @@ async def edit_owner_service_form(
         raise HTTPException(status_code=404, detail="Business not found.")
 
     service = _service_for_business(service_id, business, db)
+    template_name = "service_form_mobile.html" if is_mobile(request) else "service_form.html"
     return templates.TemplateResponse(
         request=request,
-        name="service_form.html",
+        name=template_name,
         context=_form_context(business, service=service)
         | {
             "form_action": f"/owner/services/{service.id}",
@@ -172,9 +177,10 @@ async def update_owner_service(
     form = await request.form()
     name = (form.get("name") or "").strip()
     if not name:
+        template_name = "service_form_mobile.html" if is_mobile(request) else "service_form.html"
         return templates.TemplateResponse(
             request=request,
-            name="service_form.html",
+            name=template_name,
             context=_form_context(
                 business,
                 service=service,

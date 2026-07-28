@@ -1,0 +1,45 @@
+{% extends "owner_base_mobile.html" %}
+
+{% block title %}Reports — Verzio Studio{% endblock %}
+
+{% block content %}
+<section class="owner-mobile-page">
+    <div class="mb-3">
+        <div class="text-uppercase small fw-bold text-muted">Reports</div>
+        <h1 class="h4 fw-bold mb-1">Performance Insights</h1>
+        <p class="text-muted small mb-0">Review booking performance and recent activity.</p>
+    </div>
+
+    <form method="get" action="/owner/reports" class="owner-mobile-card p-3 mb-3">
+        <label class="small text-muted">Date range</label>
+        <div class="d-flex gap-2 mt-2">
+            <input type="date" class="form-control" name="from_date" value="{{ selected_from }}">
+            <input type="date" class="form-control" name="to_date" value="{{ selected_to }}">
+        </div>
+        <button type="submit" class="btn btn-primary w-100 mt-2">Apply</button>
+    </form>
+
+    <div class="d-flex flex-column gap-2 mb-3">
+        <div class="owner-mobile-card p-3">
+            <div class="small text-muted">Total bookings</div>
+            <div class="fs-4 fw-bold">{{ total_count }}</div>
+        </div>
+        <div class="owner-mobile-card p-3">
+            <div class="small text-muted">Revenue</div>
+            <div class="fs-4 fw-bold">₹{{ revenue }}</div>
+        </div>
+    </div>
+
+    <div class="owner-mobile-card p-3">
+        <h2 class="h6 fw-bold mb-2">Recent Activity</h2>
+        {% for event in recent_activity %}
+        <div class="border rounded-3 p-3 mb-2">
+            <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
+            <div class="small text-muted">{{ event.message or 'No log details' }}</div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">No activity found.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

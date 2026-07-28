@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from owner.owner_auth import resolve_owner_and_business
+from owner.owner_auth import is_mobile, resolve_owner_and_business
 from fastapi.responses import RedirectResponse
 
 from database import Business, get_db
@@ -63,10 +63,11 @@ async def owner_settings_page(
     if not owner or not business:
         return RedirectResponse(url="/owner/login", status_code=303)
 
+    template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
+
     return templates.TemplateResponse(
-        
         request=request,
-        name="owner/settings.html",
+        name=template_name,
         context={
             "active_page": "settings",
             "business": business,
@@ -84,9 +85,10 @@ async def owner_settings_save(
 ):
     owner, business = resolve_owner_and_business(request, db)
     if not business:
+        template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
         return templates.TemplateResponse(
             request=request,
-            name="owner/settings.html",
+            name=template_name,
             context={
                 "active_page": "settings",
                 "business": None,
@@ -116,9 +118,11 @@ async def owner_settings_save(
 
     db.commit()
 
+    template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
+
     return templates.TemplateResponse(
         request=request,
-        name="owner/settings.html",
+        name=template_name,
         context={
             "active_page": "settings",
             "business": business,

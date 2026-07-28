@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from owner.owner_auth import resolve_owner_and_business
+from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 from activity_log import log_event
 from database import Appointment, Business, Service, get_db
@@ -62,9 +62,11 @@ async def owner_appointments_page(
             .all()
         )
 
+    template_name = "owner/appointments_mobile.html" if is_mobile(request) else "owner/appointments.html"
+
     return templates.TemplateResponse(
         request=request,
-        name="owner/appointments.html",
+        name=template_name,
         context={
             "active_page": "appointments",
             "business": business,
