@@ -19,7 +19,12 @@
             <label class="small text-muted">Business name</label>
             <input type="text" class="form-control form-control-sm mt-1" name="business_name" value="{{ business.name }}">
             <label class="small text-muted mt-2">Public phone</label>
-            <input type="text" class="form-control form-control-sm mt-1" name="phone_number" value="{{ business.manager_phone_number }}">
+            <div class="input-group">
+    <input type="text" class="form-control opacity-50 bg-light" name="phone_number" value="{{ business.manager_phone_number }}" readonly>
+      </div>
+      <div class="text-muted mt-1" style="font-size: 11px;">
+          <i class="bi bi-lock-fill"></i> Locked. To change your WhatsApp number, contact Verzio Support.
+      </div>
             <label class="small text-muted mt-2">Timezone</label>
             <select class="form-select form-select-sm mt-1" name="timezone">
                 <option value="Asia/Kolkata" {% if business.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata</option>

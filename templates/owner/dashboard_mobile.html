@@ -66,7 +66,7 @@
 
     <div class="owner-mobile-card p-2 mb-2">
         <h2 class="h6 fw-bold mb-2">Latest Activity</h2>
-        {% for event in recent_activity %}
+        {% for event in recent_activity if event.event_type not in ['webhook_received', 'whatsapp_sent', 'webhook_failed'] %}
         <div class="border rounded-3 p-2 mb-2">
             <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
             <div class="small text-muted">{{ event.message or 'No message' }}</div>

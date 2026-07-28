@@ -130,7 +130,7 @@
             </div>
 
             <div class="activity-feed p-2">
-                {% for event in recent_activity %}
+                {% for event in recent_activity if event.event_type not in ['webhook_received', 'whatsapp_sent', 'webhook_failed'] %}
                 <div class="activity-item p-3 mb-2 rounded-3" style="background: #fcfcfd; border: 1px solid var(--border-subtle);">
                     <div class="d-flex justify-content-between align-items-start">
                         <span class="activity-type mono text-accent" style="font-size: 11px;">{{ event.event_type|replace("_", " ")|upper }}</span>
