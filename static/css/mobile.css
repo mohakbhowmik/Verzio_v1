@@ -27,14 +27,20 @@
 	.owner-mobile-page {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 8px;
 	}
 
 	.owner-mobile-card {
 		background: #fff;
 		border: 1px solid var(--border-subtle);
-		border-radius: 14px;
-		box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+		border-radius: 12px;
+		box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+	}
+
+	.owner-mobile-card .form-control,
+	.owner-mobile-card .form-select,
+	.owner-mobile-card .btn {
+		font-size: 0.9rem;
 	}
 
 	.owner-phone-navbar {
@@ -140,10 +146,10 @@
 
 	.owner-mobile-fab {
 		position: fixed;
-		right: 16px;
-		bottom: 16px;
-		width: 56px;
-		height: 56px;
+		right: 12px;
+		bottom: 12px;
+		width: 48px;
+		height: 48px;
 		border-radius: 999px;
 		background: linear-gradient(135deg, #5a4bff, #2f7cff);
 		color: #fff;

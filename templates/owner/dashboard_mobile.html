@@ -4,52 +4,55 @@
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="mb-3">
+    <div class="mb-2">
         <div class="text-uppercase small fw-bold text-muted">Owner Portal</div>
-        <h1 class="h4 fw-bold mb-1">{{ business.name if business else 'Dashboard' }}</h1>
-        <p class="text-muted small mb-0">Live operations and booking activity from your phone.</p>
+        <h1 class="h6 fw-bold mb-1">{{ business.name if business else 'Dashboard' }}</h1>
+        <p class="text-muted small mb-0">Live ops and bookings.</p>
     </div>
 
-    <div class="d-flex flex-column gap-2 mb-3">
-        <div class="owner-mobile-card p-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="small text-muted">Today’s appointments</div>
-                    <div class="fs-4 fw-bold">{{ todays_appointments|length }}</div>
-                </div>
-                <i class="bi bi-calendar-check fs-4 text-accent"></i>
+    <div class="row g-2 mb-2">
+        <div class="col-6">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Today</div>
+                <div class="fw-bold">{{ todays_appointments|length }}</div>
             </div>
         </div>
-        <div class="owner-mobile-card p-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="small text-muted">Pending reviews</div>
-                    <div class="fs-4 fw-bold">{{ pending_count }}</div>
-                </div>
-                <i class="bi bi-hourglass-split fs-4 text-accent"></i>
+        <div class="col-6">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Pending</div>
+                <div class="fw-bold">{{ pending_count }}</div>
             </div>
         </div>
-        <div class="owner-mobile-card p-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="small text-muted">Active services</div>
-                    <div class="fs-4 fw-bold">{{ service_count }}</div>
-                </div>
-                <i class="bi bi-briefcase fs-4 text-accent"></i>
+        <div class="col-6">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Confirmed</div>
+                <div class="fw-bold">{{ confirmed_count }}</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Completed</div>
+                <div class="fw-bold">{{ completed_count }}</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Services</div>
+                <div class="fw-bold">{{ service_count }}</div>
             </div>
         </div>
     </div>
 
-    <div class="owner-mobile-card p-3 mb-3">
+    <div class="owner-mobile-card p-2 mb-2">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h2 class="h6 fw-bold mb-0">Today’s Schedule</h2>
-            <a href="/owner/appointments" class="small text-decoration-none text-accent">View all</a>
+            <a href="/owner/appointments" class="small text-decoration-none text-accent">View</a>
         </div>
         {% for appointment in todays_appointments %}
-        <div class="border rounded-3 p-3 mb-2">
-            <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="border rounded-3 p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start mb-1">
                 <div>
-                    <div class="fw-bold">{{ appointment.customer_name or appointment.customer_phone }}</div>
+                    <div class="fw-bold small">{{ appointment.customer_name or appointment.customer_phone }}</div>
                     <div class="small text-muted">{{ appointment.service.name if appointment.service else 'Service removed' }}</div>
                 </div>
                 <span class="badge rounded-pill bg-light text-dark">{{ appointment.status|replace('_', ' ')|capitalize }}</span>
@@ -57,19 +60,19 @@
             <div class="small text-muted">{{ appointment.appointment_time.strftime('%d %b, %I:%M %p') }}</div>
         </div>
         {% else %}
-        <div class="text-center text-muted py-3">No appointments found.</div>
+        <div class="text-center text-muted small py-2">No appointments found.</div>
         {% endfor %}
     </div>
 
-    <div class="owner-mobile-card p-3 mb-3">
+    <div class="owner-mobile-card p-2 mb-2">
         <h2 class="h6 fw-bold mb-2">Latest Activity</h2>
         {% for event in recent_activity %}
-        <div class="border rounded-3 p-3 mb-2">
+        <div class="border rounded-3 p-2 mb-2">
             <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
             <div class="small text-muted">{{ event.message or 'No message' }}</div>
         </div>
         {% else %}
-        <div class="text-center text-muted py-3">No recent activity logged.</div>
+        <div class="text-center text-muted small py-2">No recent activity logged.</div>
         {% endfor %}
     </div>
 

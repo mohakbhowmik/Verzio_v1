@@ -4,42 +4,77 @@
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="mb-3">
+    <div class="mb-2">
         <div class="text-uppercase small fw-bold text-muted">Reports</div>
-        <h1 class="h4 fw-bold mb-1">Performance Insights</h1>
-        <p class="text-muted small mb-0">Review booking performance and recent activity.</p>
+        <h1 class="h6 fw-bold mb-1">Performance Insights</h1>
+        <p class="text-muted small mb-0">Booking trends and activity.</p>
     </div>
 
-    <form method="get" action="/owner/reports" class="owner-mobile-card p-3 mb-3">
+    <form method="get" action="/owner/reports" class="owner-mobile-card p-2 mb-2">
         <label class="small text-muted">Date range</label>
-        <div class="d-flex gap-2 mt-2">
-            <input type="date" class="form-control" name="from_date" value="{{ selected_from }}">
-            <input type="date" class="form-control" name="to_date" value="{{ selected_to }}">
+        <div class="d-flex gap-2 mt-1">
+            <input type="date" class="form-control form-control-sm" name="from_date" value="{{ selected_from }}">
+            <input type="date" class="form-control form-control-sm" name="to_date" value="{{ selected_to }}">
         </div>
-        <button type="submit" class="btn btn-primary w-100 mt-2">Apply</button>
+        <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">Apply</button>
     </form>
 
-    <div class="d-flex flex-column gap-2 mb-3">
-        <div class="owner-mobile-card p-3">
-            <div class="small text-muted">Total bookings</div>
-            <div class="fs-4 fw-bold">{{ total_count }}</div>
+    <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export to Excel
+    </a>
+
+    <div class="row row-cols-2 g-2 mb-2">
+        <div class="col">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Total</div>
+                <div class="fw-bold">{{ total_count }}</div>
+            </div>
         </div>
-        <div class="owner-mobile-card p-3">
-            <div class="small text-muted">Revenue</div>
-            <div class="fs-4 fw-bold">₹{{ revenue }}</div>
+        <div class="col">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Completed</div>
+                <div class="fw-bold text-success">{{ completed_count }}</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Pending</div>
+                <div class="fw-bold text-warning">{{ pending_count }}</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Confirmed</div>
+                <div class="fw-bold text-accent">{{ confirmed_count }}</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">Cancelled</div>
+                <div class="fw-bold text-danger">{{ cancelled_count }}</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="owner-mobile-card p-2">
+                <div class="small text-muted">No-show</div>
+                <div class="fw-bold text-secondary">{{ no_show_count }}</div>
+            </div>
         </div>
     </div>
 
-    <div class="owner-mobile-card p-3">
+    <div class="owner-mobile-card p-2">
         <h2 class="h6 fw-bold mb-2">Recent Activity</h2>
-        {% for event in recent_activity %}
-        <div class="border rounded-3 p-3 mb-2">
-            <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
-            <div class="small text-muted">{{ event.message or 'No log details' }}</div>
-        </div>
+        {% set visible_activity = recent_activity|selectattr('event_type', 'ne', 'webhook_received')|selectattr('event_type', 'ne', 'whatsapp_sent')|selectattr('event_type', 'ne', 'webhook_failed')|list %}
+        {% if visible_activity %}
+            {% for event in visible_activity %}
+            <div class="border rounded-3 p-2 mb-2">
+                <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
+                <div class="small text-muted">{{ event.message or 'No log details' }}</div>
+            </div>
+            {% endfor %}
         {% else %}
-        <div class="text-center text-muted py-3">No activity found.</div>
-        {% endfor %}
+            <div class="text-center text-muted small py-2">No activity found.</div>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

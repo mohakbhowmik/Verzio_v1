@@ -4,35 +4,48 @@
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="d-flex justify-content-between align-items-start mb-3">
+    <div class="d-flex justify-content-between align-items-start mb-2">
         <div>
             <div class="text-uppercase small fw-bold text-muted">Services</div>
-            <h1 class="h4 fw-bold mb-1">Service Catalog</h1>
-            <p class="text-muted small mb-0">Manage your booked service offerings.</p>
+            <h1 class="h6 fw-bold mb-1">Service Catalog</h1>
+            <p class="text-muted small mb-0">Manage offerings.</p>
         </div>
         <a href="/owner/services/new" class="btn btn-primary btn-sm">+ Add</a>
     </div>
 
     <div class="d-flex flex-column gap-2">
         {% for service in services %}
-        <div class="owner-mobile-card p-3">
-            <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="owner-mobile-card p-2">
+            <div class="d-flex justify-content-between align-items-start mb-1">
                 <div>
-                    <div class="fw-bold">{{ service.name }}</div>
+                    <div class="fw-bold small">{{ service.name }}</div>
                     <div class="small text-muted">{{ service.duration }} mins</div>
                 </div>
                 <span class="badge rounded-pill {% if service.is_active %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">{% if service.is_active %}Active{% else %}Inactive{% endif %}</span>
             </div>
-            <div class="small text-muted mb-3">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}Price not set{% endif %}</div>
-            <div class="d-flex gap-2">
-                <a href="/owner/services/{{ service.id }}/edit" class="btn btn-outline-secondary btn-sm flex-grow-1">Edit</a>
-                <form method="post" action="/owner/services/{{ service.id }}/toggle" class="flex-grow-1">
-                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">{% if service.is_active %}Disable{% else %}Enable{% endif %}</button>
+            <div class="small text-muted mb-2">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}Price not set{% endif %}</div>
+            <div class="d-flex justify-content-end gap-2">
+                <a href="/owner/services/{{ service.id }}/edit" class="btn btn-outline-secondary btn-sm p-0" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;" aria-label="Edit {{ service.name }}">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
+                    <button type="submit" class="btn btn-outline-primary btn-sm p-0" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
+                        {% if service.is_active %}
+                        <i class="bi bi-eye"></i>
+                        {% else %}
+                        <i class="bi bi-eye-slash"></i>
+                        {% endif %}
+                    </button>
+                </form>
+                <form method="post" action="/owner/services/{{ service.id }}/delete" class="m-0 d-inline-flex">
+                    <button type="submit" class="btn btn-outline-danger btn-sm p-0" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;" aria-label="Delete {{ service.name }}" title="Delete" onclick="return confirm('Delete this service?');">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </form>
             </div>
         </div>
         {% else %}
-        <div class="owner-mobile-card p-4 text-center text-muted">No services found.</div>
+        <div class="owner-mobile-card p-2 text-center text-muted small">No services found.</div>
         {% endfor %}
     </div>
 </section>
