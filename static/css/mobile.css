@@ -1,0 +1,152 @@
+@media (max-width: 767.98px) {
+	input,
+	select,
+	textarea {
+		font-size: 16px !important;
+	}
+
+	.sidebar,
+	.topbar {
+		display: none !important;
+	}
+
+	.app-shell {
+		display: block;
+	}
+
+	.main-col {
+		width: 100%;
+		min-height: 100vh;
+	}
+
+	.content-container {
+		padding: 12px;
+		padding-bottom: 88px;
+	}
+
+	.owner-phone-navbar {
+		border-color: var(--border-subtle) !important;
+	}
+
+	.owner-phone-header {
+		background: #ffffff;
+		border: 1px solid var(--border-subtle);
+		border-radius: 12px;
+		padding: 14px;
+	}
+
+	.owner-phone-eyebrow {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		margin-bottom: 4px;
+	}
+
+	.owner-phone-title {
+		font-size: 1.2rem;
+		font-weight: 700;
+		color: var(--text-primary);
+	}
+
+	.owner-phone-subtitle {
+		font-size: 0.88rem;
+		color: var(--text-muted);
+	}
+
+	.owner-phone-kpis {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.owner-phone-kpi-card {
+		background: #fff;
+		border: 1px solid var(--border-subtle);
+		border-radius: 12px;
+		padding: 12px;
+		display: flex;
+		gap: 12px;
+		align-items: center;
+	}
+
+	.owner-phone-kpi-icon {
+		width: 36px;
+		height: 36px;
+		border-radius: 999px;
+		background: #eef5ff;
+		color: var(--accent);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1rem;
+		flex-shrink: 0;
+	}
+
+	.owner-phone-kpi-number {
+		font-size: 1.3rem;
+		font-weight: 700;
+		line-height: 1.2;
+		color: var(--text-primary);
+	}
+
+	.owner-phone-kpi-number span {
+		font-size: 0.86rem;
+		font-weight: 600;
+		color: var(--text-muted);
+	}
+
+	.owner-phone-kpi-label {
+		font-size: 0.85rem;
+		color: var(--text-muted);
+	}
+
+	.owner-phone-section-title {
+		font-size: 1rem;
+		font-weight: 700;
+	}
+
+	.owner-phone-appointment {
+		border: 1px solid var(--border-subtle);
+		border-radius: 12px;
+	}
+
+	.owner-phone-field-label {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: var(--text-muted);
+		margin-bottom: 2px;
+	}
+
+	.owner-phone-field-value {
+		font-size: 0.98rem;
+		color: var(--text-primary);
+		font-weight: 600;
+	}
+
+	.owner-mobile-fab {
+		position: fixed;
+		right: 16px;
+		bottom: 16px;
+		width: 56px;
+		height: 56px;
+		border-radius: 999px;
+		background: linear-gradient(135deg, #5a4bff, #2f7cff);
+		color: #fff;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.25rem;
+		box-shadow: 0 12px 24px rgba(47, 124, 255, 0.32);
+		text-decoration: none;
+		z-index: 1100;
+	}
+
+	.owner-mobile-fab:hover,
+	.owner-mobile-fab:focus,
+	.owner-mobile-fab:active {
+		color: #fff;
+		text-decoration: none;
+	}
+}

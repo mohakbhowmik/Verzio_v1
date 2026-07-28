@@ -2,8 +2,12 @@
 
 {% block title %}Dashboard — Verzio Studio{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}">
+{% endblock %}
 
 {% block content %}
+<div class="d-none d-lg-block">
 <div class="page-header mb-4">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
@@ -140,5 +144,93 @@
             </div>
         </div>
     </div>
+</div>
+</div>
+
+<div class="d-block d-lg-none owner-phone-ui">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border rounded-3 mb-3 owner-phone-navbar">
+        <div class="container-fluid px-3">
+            <span class="navbar-brand mb-0 fw-bold">Owner Portal</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ownerMobileNav" aria-controls="ownerMobileNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="ownerMobileNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/owner">Overview</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'appointments' %}active{% endif %}" href="/owner/appointments">Appointments</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'services' %}active{% endif %}" href="/owner/services">Services</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'reports' %}active{% endif %}" href="/owner/reports">Reports</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/owner/settings">Settings</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <section class="owner-phone-header mb-3">
+        <div class="owner-phone-eyebrow">Owner Portal</div>
+        <h2 class="owner-phone-title mb-1">{{ business.name if business else 'Verzio Parallel Salon' }}</h2>
+        <p class="owner-phone-subtitle mb-0">Phone-optimized live operations dashboard.</p>
+    </section>
+
+    {% set mobile_kpis = [
+        {"count": todays_appointments|length, "unit": "live queue", "label": "Appointments in today's queue", "icon": "bi-calendar-check"},
+        {"count": pending_count, "unit": "pending review", "label": "Awaiting approval", "icon": "bi-hourglass-split"},
+        {"count": confirmed_count, "unit": "scheduled", "label": "Confirmed bookings", "icon": "bi-check-circle"},
+        {"count": completed_count, "unit": "finished", "label": "Completed visits", "icon": "bi-flag"},
+        {"count": service_count, "unit": "active catalog", "label": "Services available", "icon": "bi-list-stars"}
+    ] %}
+
+    <section class="owner-phone-kpis mb-4">
+        {% for metric in mobile_kpis %}
+        <article class="owner-phone-kpi-card">
+            <div class="owner-phone-kpi-icon"><i class="bi {{ metric.icon }}"></i></div>
+            <div class="owner-phone-kpi-content">
+                <div class="owner-phone-kpi-number">{{ metric.count }} <span>{{ metric.unit }}</span></div>
+                <div class="owner-phone-kpi-label">{{ metric.label }}</div>
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="owner-phone-schedule mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="owner-phone-section-title mb-0">Today's Schedule</h3>
+            <a href="/owner/appointments" class="small fw-bold text-decoration-none">View all</a>
+        </div>
+
+        {% for appointment in todays_appointments %}
+        <article class="card owner-phone-appointment mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="owner-phone-field-label">Time</div>
+                        <div class="owner-phone-field-value mono">{{ appointment.appointment_time.strftime("%d %b, %I:%M %p") }}</div>
+                    </div>
+                    <span class="status-badge status-{{ appointment.status }}">
+                        <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
+                    </span>
+                </div>
+
+                <div class="owner-phone-field mb-2">
+                    <div class="owner-phone-field-label">Name</div>
+                    <div class="owner-phone-field-value">{{ appointment.customer_name or appointment.customer_phone }}</div>
+                </div>
+
+                <div class="owner-phone-field mb-3">
+                    <div class="owner-phone-field-label">Service</div>
+                    <div class="owner-phone-field-value">{{ appointment.service.name if appointment.service else 'Service removed' }}</div>
+                </div>
+
+                <a href="/owner/appointments" class="btn btn-sm btn-outline-primary w-100">Manage Booking</a>
+            </div>
+        </article>
+        {% else %}
+        <div class="text-center cell-muted py-4 border rounded-3 bg-white">No appointments found.</div>
+        {% endfor %}
+    </section>
+
+    <a href="/owner/appointments" class="owner-mobile-fab" aria-label="New Booking">
+        <i class="bi bi-plus-lg"></i>
+    </a>
 </div>
 {% endblock %}
