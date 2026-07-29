@@ -3,7 +3,7 @@
 {% block title %}Appointments — Verzio Studio{% endblock %}
 
 {% block content %}
-<section class="owner-mobile-page">
+<section class="owner-mobile-page" style="padding-bottom: 85px;">
     <div class="mb-2">
         <div class="text-uppercase small fw-bold text-muted">Appointments</div>
         <h1 class="h6 fw-bold mb-1">Manage Bookings</h1>
@@ -12,19 +12,23 @@
 
     <form method="get" action="/owner/appointments" class="owner-mobile-card p-2 mb-2">
         <input type="search" class="form-control form-control-sm mb-2" name="search" placeholder="Search customer" value="{{ search }}">
-        <div class="d-flex gap-2">
-            <select class="form-select form-select-sm" name="status">
-                <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
-                <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
-                <option value="confirmed" {% if status == 'confirmed' %}selected{% endif %}>Confirmed</option>
-                <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
-                <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                <option value="no_show" {% if status == 'no_show' %}selected{% endif %}>No show</option>
-            </select>
-            <select class="form-select form-select-sm" name="sort">
-                <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
-                <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
-            </select>
+        <div class="row g-2">
+            <div class="col-6">
+                <select class="form-select form-select-sm" name="status">
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="confirmed" {% if status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="no_show" {% if status == 'no_show' %}selected{% endif %}>No show</option>
+                </select>
+            </div>
+            <div class="col-6">
+                <select class="form-select form-select-sm" name="sort">
+                    <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                </select>
+            </div>
         </div>
         <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">Apply</button>
     </form>
@@ -37,7 +41,7 @@
                     <div class="fw-bold small">{{ appointment.customer_name or appointment.customer_phone }}</div>
                     <div class="small text-muted">{{ appointment.service.name if appointment.service else 'Service removed' }}</div>
                 </div>
-                <span class="badge rounded-pill bg-light text-dark">{{ appointment.status|replace('_', ' ')|capitalize }}</span>
+                <span class="status-badge status-{{ appointment.status }}"><span class="dot"></span>{{ appointment.status|replace('_', ' ')|capitalize }}</span>
             </div>
             <div class="small text-muted mb-2">{{ appointment.appointment_time.strftime('%d %b %Y, %I:%M %p') }}</div>
             <div class="d-flex gap-2">
@@ -56,7 +60,6 @@
                     <button type="submit" class="btn btn-outline-danger btn-sm w-100">Cancel</button>
                 </form>
                 {% else %}
-                <span class="text-muted small">No actions available</span>
                 {% endif %}
             </div>
         </div>
