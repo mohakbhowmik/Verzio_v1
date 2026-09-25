@@ -61,6 +61,8 @@
                 <option value="30" {% if business.slot_interval == 30 or not business.slot_interval %}selected{% endif %}>30 mins</option>
                 <option value="45" {% if business.slot_interval == 45 %}selected{% endif %}>45 mins</option>
                 <option value="60" {% if business.slot_interval == 60 %}selected{% endif %}>1 hour</option>
+                <option value="90" {% if business.slot_interval == 90 %}selected{% endif %}>1 hr 30 mins</option>
+                <option value="120" {% if business.slot_interval == 120 %}selected{% endif %}>2 hours</option>
             </select>
             <label class="small text-muted">Advance window (days)</label>
             <input type="number" class="form-control form-control-sm mt-1 mb-2" name="advance_booking_days" value="{{ business.advance_booking_days }}">
