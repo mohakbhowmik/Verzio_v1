@@ -1,6 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
 httpx
 python-dotenv
 openpyxl
+pytz
+jinja2
+python-multipart

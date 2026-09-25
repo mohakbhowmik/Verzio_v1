@@ -79,7 +79,10 @@ async def dispatch_whatsapp(
     business_id: int = None
 ):
     access_token = os.getenv("META_ACCESS_TOKEN")
-    phone_number_id = os.getenv("PHONE_NUMBER_ID")
+    phone_number_id = (tenant_id or "").strip() or os.getenv("PHONE_NUMBER_ID")
+    if not phone_number_id:
+        logger.error(f"Cannot dispatch WhatsApp message to {to}: Missing tenant phone number ID.")
+        return
     api_version = os.getenv("GRAPH_API_VERSION", "v23.0")
 
     url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
@@ -399,13 +402,17 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                 await dispatch_whatsapp(
                     phone,
                     tenant_id,
-                    resp["customer"]
+                    resp["customer"],
+                    db=db,
+                    business_id=business_id
                 )
 
                 await dispatch_whatsapp(
                     resp["owner"]["recipient"],
                     tenant_id,
-                    resp["owner"]["payload"]
+                    resp["owner"]["payload"],
+                    db=db,
+                    business_id=business_id
                 )
 
             else:
@@ -413,7 +420,9 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
                 await dispatch_whatsapp(
                     phone,
                     tenant_id,
-                    resp
+                    resp,
+                    db=db,
+                    business_id=business_id
                 )
 
             print("✅ dispatch_whatsapp completed")
