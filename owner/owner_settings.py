@@ -106,7 +106,12 @@ async def owner_settings_save(
     business.accepting_bookings = form.get("accept_online_bookings") == "on"
     business.enable_service_selection = form.get("show_services_during_booking") == "on"
     business.max_parallel_bookings = int(form.get("max_parallel_bookings") or business.max_parallel_bookings or 1)
-    business.slot_interval = int(form.get("slot_duration") or business.slot_interval or 30)
+    allowed_intervals = {5, 10, 15, 30, 45, 60, 90, 120}
+    try:
+        submitted_interval = int(form.get("slot_duration") or 30)
+        business.slot_interval = submitted_interval if submitted_interval in allowed_intervals else 30
+    except (ValueError, TypeError):
+        business.slot_interval = 30
     business.advance_booking_days = int(form.get("advance_booking_days") or business.advance_booking_days or 14)
     business.approval_mode = "manual" if form.get("require_owner_approval") == "on" else "automatic"
     business.operational_hours = _build_operational_hours(form)
