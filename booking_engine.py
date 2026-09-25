@@ -75,6 +75,7 @@ class VerzioSaaSEngine:
         limit = datetime.combine(target_date.date(), end_time)
         
         # 2. Logic: Loop through slots and validate against "Now"
+        interval = max(int(biz.slot_interval or 30), 5)
         while curr < limit:
             s_str = curr.strftime("%H:%M")
             
@@ -82,14 +83,14 @@ class VerzioSaaSEngine:
             if target_date.date() == now_in_tz.date():
                 slot_time = datetime.strptime(s_str, "%H:%M").time()
                 if slot_time <= now_in_tz.time():
-                    curr += timedelta(minutes=biz.slot_interval)
+                    curr += timedelta(minutes=interval)
                     continue
 
             # Only show if capacity remains
             if occupancy_map.get(s_str, 0) < biz.max_parallel_bookings:
                 slots.append(s_str)
             
-            curr += timedelta(minutes=biz.slot_interval)
+            curr += timedelta(minutes=interval)
             
         return slots
 
