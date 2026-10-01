@@ -1,7 +1,17 @@
-from fastapi import Request
+import hashlib
+import hmac
+import json
+import logging
+import os
+from datetime import datetime, timedelta
+
+from fastapi import BackgroundTasks, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from incident_service import create_incident
 
 from routers.admin_businesses import router as business_router
@@ -18,21 +28,18 @@ from owner.owner_settings import router as owner_settings_router
 from owner.owner_reports import router as owner_reports_router
 
 from activity_log import log_event
-
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
+META_APP_SECRET = os.getenv("META_APP_SECRET", "")
 
 print("META TOKEN:", os.getenv("META_ACCESS_TOKEN"))
 print("PHONE NUMBER ID:", os.getenv("PHONE_NUMBER_ID"))
 
 
-import logging
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from database import Business, init_db, get_db, Appointment
+from fastapi import Depends, FastAPI, HTTPException, Query
+from database import Appointment, Business, SessionLocal, engine, get_db, init_db
 from booking_runtime import BookingRuntime
 
 print("ACCESS TOKEN:", os.getenv("META_ACCESS_TOKEN"))
@@ -62,6 +69,50 @@ logger = logging.getLogger("VERZIO_SERVER")
 @app.on_event("startup")
 def startup():
     init_db()
+    if not META_APP_SECRET:
+        logger.error("META_APP_SECRET not set — all webhooks will be rejected.")
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS processed_messages (
+                wamid TEXT PRIMARY KEY,
+                received_at TIMESTAMP NOT NULL
+            )
+        """))
+        conn.execute(
+            text("DELETE FROM processed_messages WHERE received_at < :cutoff"),
+            {"cutoff": datetime.utcnow() - timedelta(days=7)}
+        )
+
+
+def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
+    if not META_APP_SECRET or not signature_header:
+        return False
+    if not signature_header.startswith("sha256="):
+        return False
+
+    received = signature_header.split("=", 1)[1].strip()
+    expected = hmac.new(
+        META_APP_SECRET.encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, received)
+
+
+def claim_message(wamid: str) -> bool:
+    if not wamid:
+        logger.warning("Webhook message has no wamid; processing without deduplication.")
+        return True
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text(
+                "INSERT OR IGNORE INTO processed_messages "
+                "(wamid, received_at) VALUES (:wamid, :ts)"
+            ),
+            {"wamid": wamid, "ts": datetime.utcnow()}
+        )
+    return result.rowcount == 1
 
 
 @app.get("/health")
