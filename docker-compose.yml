@@ -3,18 +3,28 @@ services:
     build: .
     container_name: verzio_saas
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     env_file:
       - .env
     volumes:
-      # Persist SQLite database file across container builds
-      - sqlite_data:/app/data
-      # Mount exports folder so generated Excel reports persist on host
-      - ./exports:/app/exports
-    environment:
-      # Tell SQLAlchemy to store the database in the mounted volume directory
-      - DATABASE_URL=sqlite:////app/data/verzio_saas.db
+      - verzio_sqlite_data:/app/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:latest
+    container_name: verzio_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
 
 volumes:
-  sqlite_data:
+  verzio_sqlite_data:
+  caddy_data:
+  caddy_config:
