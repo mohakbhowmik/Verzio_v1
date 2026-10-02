@@ -1,8 +1,11 @@
+import logging
 from sqlalchemy.orm import Session
 from runtime_state import RuntimeStateManager
 from booking_engine import VerzioSaaSEngine, BookingEngineException
 from database import Business, Service
 from datetime import datetime
+
+logger = logging.getLogger("VERZIO_RUNTIME")
 
 class BookingRuntime:
     def __init__(self, db: Session):
@@ -11,39 +14,63 @@ class BookingRuntime:
         self.engine = VerzioSaaSEngine()
 
     async def process_interaction(self, phone: str, tenant_id: str, interaction_id: str):
-        session = self.state_mgr.get_or_create_session(phone, tenant_id)
+        # Resolve the tenant FIRST; the session is always scoped to biz.id.
         biz = self.engine.get_tenant_config(self.db, tenant_id)
+        session = self.state_mgr.get_or_create_session(phone, business_id=biz.id)
 
         if interaction_id == "action_start":
-            # FIX 1: Pass the phone number to advance state
             return self._render_services(phone, biz)
 
         elif session.step == "SELECT_SERVICE":
-            svc_id = int(interaction_id.split("_")[1])
-            self.state_mgr.update_session(phone, "SELECT_DATE", selected_service_id=svc_id)
+            svc = self._resolve_service_selection(biz, interaction_id)
+            if svc is None:
+                logger.warning(
+                    "Rejected service selection %r for business_id=%s phone=%s",
+                    interaction_id, biz.id, phone,
+                )
+                return self._render_services(
+                    phone, biz,
+                    notice="That service isn't available here. Please choose from our menu:",
+                )
+            self.state_mgr.update_session(
+                phone, business_id=biz.id, step="SELECT_DATE", selected_service_id=svc.id
+            )
             dates = self.engine.get_available_dates(self.db, biz)
-            return self._render_dates(dates, phone)
+            return self._render_dates(dates, phone, biz)
 
         elif session.step == "SELECT_DATE":
             date_str = interaction_id.split("_")[1]
-            self.state_mgr.update_session(phone, "SELECT_TIME", selected_date=date_str)
+            self.state_mgr.update_session(
+                phone, business_id=biz.id, step="SELECT_TIME", selected_date=date_str
+            )
             target_date = datetime.strptime(date_str, "%Y-%m-%d")
             slots = self.engine.get_available_slots(self.db, biz, target_date)
-            return self._render_slots(slots, phone)
+            return self._render_slots(slots, phone, biz)
 
         elif session.step == "SELECT_TIME":
             time_str = interaction_id.split("_")[1]
-            self.state_mgr.update_session(phone, "CONFIRM", selected_time=time_str)
-            return self._render_confirmation(session, phone)
+            self.state_mgr.update_session(
+                phone, business_id=biz.id, step="CONFIRM", selected_time=time_str
+            )
+            return self._render_confirmation(session, phone, biz)
 
         elif session.step == "CONFIRM":
             if interaction_id == "action_confirm":
-                return self._finalize(phone, tenant_id, session)
-            self.state_mgr.clear_session(phone)
+                return self._finalize(phone, tenant_id, session, biz)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "Cancelled."}
 
-    def _render_services(self, phone, biz):
-        # FIX 3: Filter by is_active == True
+    def _resolve_service_selection(self, biz, interaction_id):
+        """Parse 'svc_<id>' and return the Service only if it belongs to biz."""
+        if not isinstance(interaction_id, str) or not interaction_id.startswith("svc_"):
+            return None
+        try:
+            svc_id = int(interaction_id[len("svc_"):])
+        except ValueError:
+            return None
+        return self.engine.get_service_for_business(self.db, biz.id, svc_id)
+
+    def _render_services(self, phone, biz, notice=None):
         svcs = self.db.query(Service).filter(
             Service.business_id == biz.id,
             Service.is_active == True,
@@ -51,7 +78,7 @@ class BookingRuntime:
         ).limit(10).all()
 
         if not svcs:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "Sorry, this business currently has no active services available."}
         
         rows = [{
@@ -60,38 +87,36 @@ class BookingRuntime:
             "description": f"₹{s.price:.0f}" if s.price is not None else f"{s.duration} mins"
         } for s in svcs]
         
-        # FIX 1: Use customer phone to advance step
-        self.state_mgr.update_session(phone, "SELECT_SERVICE")
+        self.state_mgr.update_session(phone, business_id=biz.id, step="SELECT_SERVICE")
         
         return {
             "type": "list", 
             "header": "Services", 
-            "body": "Pick a service:", 
+            "body": f"{notice}\n\nPick a service:" if notice else "Pick a service:",
             "button": "Services", 
             "sections": [{"title": "Our Menu", "rows": rows}]
         }
 
-    def _render_dates(self, dates, phone):
+    def _render_dates(self, dates, phone, biz):
         if not dates:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "No booking dates are currently available. Please check back soon."}
 
         btns = [{"id": f"date_{d.isoformat()}", "title": d.strftime("%a %d %b")} for d in dates[:3]]
         return {"type": "buttons", "body": "Pick a date:", "buttons": btns}
 
-    def _render_slots(self, slots, phone):
+    def _render_slots(self, slots, phone, biz):
         if not slots:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "All slots for this date are fully booked or unavailable. Please message again to choose another date."}
 
         rows = [{"id": f"time_{s}", "title": s} for s in slots[:10]]
         return {"type": "list", "header": "Times", "body": "Pick a time:", "button": "Times", "sections": [{"title": "Slots", "rows": rows}]}
 
-    def _render_confirmation(self, session, phone):
-        # FIX 2: Modern SQLAlchemy session.get()
-        svc = self.db.get(Service, session.selected_service_id)
+    def _render_confirmation(self, session, phone, biz):
+        svc = self.engine.get_service_for_business(self.db, biz.id, session.selected_service_id)
         if svc is None:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "Sorry, the selected service is no longer available. Please start again."}
 
         body = f"Confirm: {svc.name} on {session.selected_date} at {session.selected_time}?"
@@ -104,7 +129,7 @@ class BookingRuntime:
             ]
         }
 
-    def _finalize(self, phone, tenant_id, session):
+    def _finalize(self, phone, tenant_id, session, biz):
         try:
             dt = datetime.strptime(
                 f"{session.selected_date} {session.selected_time}",
@@ -119,7 +144,6 @@ class BookingRuntime:
                 session.selected_service_id
             )
 
-            biz = self.db.get(Business, appt.business_id)
             svc = self.db.get(Service, appt.service_id)
 
             dt_str = appt.appointment_time.strftime("%A, %b %d")
@@ -147,7 +171,7 @@ class BookingRuntime:
                 ]
             }
 
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
 
             return {
                 "customer": {
@@ -177,10 +201,13 @@ class BookingRuntime:
             elif e.error_code == "ERR_INVALID_CONFIG":
                 message = "The business configuration is currently unavailable."
 
+            elif e.error_code == "ERR_INVALID_SERVICE":
+                message = "Sorry, that service is no longer available. Please message us again to start over."
+
             else:
                 message = "Unable to complete your booking."
 
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
 
             return {
                 "type": "text",
