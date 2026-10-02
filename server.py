@@ -1,18 +1,43 @@
+"""
+server.py
+================================================================================
+VERZIO STUDIO — APPLICATION ENTRY POINT
+================================================================================
+- W1:  HMAC-SHA256 webhook signature verification (fail-closed in production).
+- W2:  Fast ACK. Meta gets 200 immediately; work runs in BackgroundTasks.
+- W2:  Idempotency on the WhatsApp message id (wamid) via processed_messages.
+- W8:  Every entry / change / message in a webhook batch is processed.
+- T5:  Manager approve/reject/no-show buttons are tenant-scoped, sender-checked
+       and only allow valid status transitions.
+- T1:  /admin guarded by Basic Auth middleware; API docs off in production.
+"""
 import hashlib
 import hmac
+import inspect
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 
-from fastapi import BackgroundTasks, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
-from incident_service import create_incident
+from settings import IS_PRODUCTION
+from admin_auth import admin_auth_middleware
+from activity_log import log_event
+from booking_engine import BookingEngineException
+from booking_runtime import BookingRuntime
+from database import ActivityEvent, Appointment, Business, SessionLocal, engine, get_db, init_db
+from whatsapp_client import build_status_message, is_real_phone, mask_phone, normalize_phone, send_whatsapp
 
 from routers.admin_businesses import router as business_router
 from routers.admin_services import router as services_router
@@ -27,18 +52,28 @@ from owner.owner_services import router as owner_services_router
 from owner.owner_settings import router as owner_settings_router
 from owner.owner_reports import router as owner_reports_router
 
-from activity_log import log_event
-from dotenv import load_dotenv
-from settings import IS_PRODUCTION
-from admin_auth import admin_auth_middleware
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("VERZIO_SERVER")
 
-load_dotenv()
-META_APP_SECRET = os.getenv("META_APP_SECRET", "")
+META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
+VERIFY_TOKEN = os.getenv("VERZIO_VERIFY_TOKEN", "")
 
-import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query
-from database import Appointment, Business, SessionLocal, engine, get_db, init_db
-from booking_runtime import BookingRuntime
+# Media and other message types we reply to with a short "please type" hint.
+# Reactions and system events are ignored silently.
+NON_TEXT_REPLY_TYPES = {"image", "audio", "video", "document", "sticker", "location", "contacts"}
+
+MANAGER_ACTION_RE = re.compile(r"(confirm|cancel|noshow)_(\d+)")
+MANAGER_TRANSITIONS = {
+    #  action     allowed from              new status     event type             event status
+    "confirm": ({"pending"},              "confirmed", "booking_confirmed",   "success"),
+    "cancel":  ({"pending", "confirmed"}, "cancelled", "booking_cancelled",   "warning"),
+    "noshow":  ({"confirmed"},            "no_show",   "appointment_no_show", "warning"),
+}
+
+
+# ------------------------------------------------------------------------
+# App setup
+# ------------------------------------------------------------------------
 
 app = FastAPI(
     title="Verzio Studio API",
@@ -47,7 +82,7 @@ app = FastAPI(
     openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
-# Zero-trust: every /admin path requires admin credentials
+# Zero-trust: every /admin path requires admin credentials, including future routes.
 app.middleware("http")(admin_auth_middleware)
 
 app.include_router(business_router)
@@ -64,503 +99,356 @@ app.include_router(owner_settings_router)
 app.include_router(owner_reports_router)
 
 templates = Jinja2Templates(directory="templates")
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Setup Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("VERZIO_SERVER")
 
 @app.on_event("startup")
-def startup():
+def startup() -> None:
     init_db()
-    if not META_APP_SECRET:
-        logger.error("META_APP_SECRET not set — all webhooks will be rejected.")
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS processed_messages (
-                wamid TEXT PRIMARY KEY,
-                received_at TIMESTAMP NOT NULL
-            )
-        """))
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS processed_messages ("
+            "  wamid TEXT PRIMARY KEY,"
+            "  received_at TIMESTAMP NOT NULL"
+            ")"
+        ))
         conn.execute(
             text("DELETE FROM processed_messages WHERE received_at < :cutoff"),
-            {"cutoff": datetime.utcnow() - timedelta(days=7)}
+            {"cutoff": datetime.utcnow() - timedelta(days=7)},
         )
 
+    if not META_APP_SECRET:
+        if IS_PRODUCTION:
+            logger.critical("META_APP_SECRET is not set: every webhook will be rejected with 403.")
+        else:
+            logger.warning("META_APP_SECRET is not set: webhook signature checks are DISABLED (development only).")
+
+
+# ------------------------------------------------------------------------
+# W1 — Signature verification
+# ------------------------------------------------------------------------
 
 def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
-    if not META_APP_SECRET or not signature_header:
+    """Validate X-Hub-Signature-256 against META_APP_SECRET.
+    Development without a secret: allowed (with a startup warning).
+    Production without a secret: always rejected."""
+    if not META_APP_SECRET:
+        return not IS_PRODUCTION
+    if not signature_header or not signature_header.startswith("sha256="):
         return False
-    if not signature_header.startswith("sha256="):
-        return False
-
     received = signature_header.split("=", 1)[1].strip()
-    expected = hmac.new(
-        META_APP_SECRET.encode("utf-8"),
-        raw_body,
-        hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(META_APP_SECRET.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, received)
 
 
-def claim_message(wamid: str) -> bool:
+# ------------------------------------------------------------------------
+# W2 — Idempotency
+# ------------------------------------------------------------------------
+
+def claim_message(wamid: str | None) -> bool:
+    """Atomically record a wamid. True = first delivery, False = duplicate."""
     if not wamid:
-        logger.warning("Webhook message has no wamid; processing without deduplication.")
+        logger.warning("Webhook message has no id; processing without deduplication.")
         return True
 
+    if engine.dialect.name == "sqlite":
+        sql = "INSERT OR IGNORE INTO processed_messages (wamid, received_at) VALUES (:wamid, :ts)"
+    else:
+        sql = ("INSERT INTO processed_messages (wamid, received_at) VALUES (:wamid, :ts) "
+               "ON CONFLICT (wamid) DO NOTHING")
+
     with engine.begin() as conn:
-        result = conn.execute(
-            text(
-                "INSERT OR IGNORE INTO processed_messages "
-                "(wamid, received_at) VALUES (:wamid, :ts)"
-            ),
-            {"wamid": wamid, "ts": datetime.utcnow()}
-        )
+        result = conn.execute(text(sql), {"wamid": wamid, "ts": datetime.utcnow()})
     return result.rowcount == 1
 
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy",
-        "version": "1.2.0"
-    }
+# ------------------------------------------------------------------------
+# Runtime compatibility: pass the WhatsApp profile name if the runtime accepts it
+# ------------------------------------------------------------------------
 
-async def dispatch_whatsapp(
-    to: str,
-    tenant_id: str,
-    payload: dict,
-    db: Session = None,
-    business_id: int = None
-):
-    access_token = os.getenv("META_ACCESS_TOKEN")
-    phone_number_id = (tenant_id or "").strip() or os.getenv("PHONE_NUMBER_ID")
-    if not phone_number_id:
-        logger.error(f"Cannot dispatch WhatsApp message to {to}: Missing tenant phone number ID.")
-        return
-    api_version = os.getenv("GRAPH_API_VERSION", "v23.0")
+def _detect_runtime_name_kwarg() -> str | None:
+    params = inspect.signature(BookingRuntime.process_interaction).parameters
+    for candidate in ("customer_name", "profile_name"):
+        if candidate in params:
+            return candidate
+    return None
 
-    url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
+RUNTIME_NAME_KWARG = _detect_runtime_name_kwarg()
 
-    # Base Meta Payload
-    body = {
-        "messaging_product": "whatsapp",
-        "to": to
-    }
 
-    # Mapping Runtime response types to Meta Cloud API format
-    msg_type = payload.get("type")
+def _profile_name(val: dict, wa_id: str) -> str | None:
+    contacts = val.get("contacts") or []
+    for contact in contacts:
+        if contact.get("wa_id") == wa_id:
+            return (contact.get("profile") or {}).get("name")
+    if len(contacts) == 1:
+        return (contacts[0].get("profile") or {}).get("name")
+    return None
 
-    if msg_type == "text":
-        body["type"] = "text"
-        body["text"] = {"body": payload["body"]}
 
-    elif msg_type == "list":
-        body["type"] = "interactive"
-        body["interactive"] = {
-            "type": "list",
-            "header": {"type": "text", "text": payload.get("header", "")},
-            "body": {"text": payload.get("body", "")},
-            "action": {
-                "button": payload.get("button", "Select"),
-                "sections": payload.get("sections", [])
+def _interaction_id(msg: dict) -> str | None:
+    interactive = msg.get("interactive") or {}
+    itype = interactive.get("type")
+    if itype == "button_reply":
+        return (interactive.get("button_reply") or {}).get("id")
+    if itype == "list_reply":
+        return (interactive.get("list_reply") or {}).get("id")
+    return None
+
+
+# ------------------------------------------------------------------------
+# Background processing
+# ------------------------------------------------------------------------
+
+async def _run_customer_flow(
+    db: Session, biz: Business, tenant_id: str, phone: str, interaction_id: str, val: dict
+) -> None:
+    runtime = BookingRuntime(db)
+
+    kwargs = {}
+    name = _profile_name(val, phone)
+    if RUNTIME_NAME_KWARG and name:
+        kwargs[RUNTIME_NAME_KWARG] = name
+
+    try:
+        resp = await runtime.process_interaction(phone, tenant_id, interaction_id, **kwargs)
+    except BookingEngineException as exc:
+        db.rollback()
+        if exc.error_code == "ERR_TENANT_LOCKED":
+            resp = {
+                "type": "text",
+                "body": f"Sorry, {biz.name} isn't taking WhatsApp bookings right now. "
+                        f"Please contact the business directly.",
             }
-        }
+        else:
+            logger.warning("Booking engine error %s for business_id=%s", exc.error_code, biz.id)
+            resp = {"type": "text", "body": "Sorry, something went wrong. Send \"Hi\" to start again."}
 
-    elif msg_type == "buttons":
-        body["type"] = "interactive"
-        body["interactive"] = {
-            "type": "button",
-            "body": {"text": payload.get("body", "")},
-            "action": {
-                "buttons": [
-                    {
-                        "type": "reply",
-                        "reply": {"id": b["id"], "title": b["title"]}
-                    } for b in payload.get("buttons", [])
-                ]
-            }
-        }
+    if not resp:
+        logger.warning("Runtime returned no response for business_id=%s phone=%s", biz.id, mask_phone(phone))
+        resp = {"type": "text", "body": "Sorry, I didn't catch that. Send \"Hi\" to start a new booking."}
+
+    if isinstance(resp, dict) and "customer" in resp:
+        await send_whatsapp(phone, tenant_id, resp["customer"], biz.id)
+        owner = resp.get("owner") or {}
+        if owner.get("recipient") and owner.get("payload"):
+            await send_whatsapp(owner["recipient"], tenant_id, owner["payload"], biz.id)
     else:
-        raise ValueError(f"Unsupported WhatsApp payload type: {msg_type}")
+        await send_whatsapp(phone, tenant_id, resp, biz.id)
 
-    print(f"\n========== OUTGOING {msg_type.upper()} REQUEST ==========")
-    print(body)
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(
-            url,
-            headers=headers,
-            json=body
+async def _handle_manager_action(
+    db: Session, biz: Business, tenant_id: str, sender: str, action: str, appointment_id: int
+) -> None:
+    # T5.2 — only this business's manager may act. Checked first so a stranger
+    # learns nothing about which booking ids exist.
+    if normalize_phone(sender) != normalize_phone(biz.manager_phone_number):
+        logger.warning(
+            "Blocked manager action %s_%s from non-manager %s for business_id=%s",
+            action, appointment_id, mask_phone(sender), biz.id,
         )
+        log_event(
+            db=db,
+            event_type="manager_action_blocked",
+            status="warning",
+            message=f"Action '{action}' on #{appointment_id} from unauthorised number {mask_phone(sender)}",
+            business_id=biz.id,
+        )
+        return
 
-# ---- Activity Logging ----
-        if db:
-            if response.status_code == 200:
-                log_event(
-                    db=db,
-                    event_type="whatsapp_sent",
-                    status="success",
-                    message=f"Sent {payload.get('type')} message to {to}",
-                    business_id=business_id
-                )
+    # T5.1 — the appointment must exist AND belong to the tenant that received the webhook.
+    appt = (
+        db.query(Appointment)
+        .filter(Appointment.id == appointment_id, Appointment.business_id == biz.id)
+        .first()
+    )
+    if appt is None:
+        await send_whatsapp(sender, tenant_id, {"type": "text", "body": f"Booking #{appointment_id} wasn't found."}, biz.id)
+        return
+
+    # T5.3 — valid transitions only.
+    allowed_from, next_status, event_type, event_status = MANAGER_TRANSITIONS[action]
+    previous_status = appt.status
+    if previous_status not in allowed_from:
+        await send_whatsapp(
+            sender, tenant_id,
+            {"type": "text", "body": f"Booking #{appt.id} is already {previous_status.replace('_', ' ')}. No change made."},
+            biz.id,
+        )
+        return
+
+    appt.status = next_status
+    db.commit()
+    log_event(
+        db=db,
+        event_type=event_type,
+        status=event_status,
+        message=f"Appointment #{appt.id} {previous_status} -> {next_status} (via WhatsApp)",
+        business_id=biz.id,
+    )
+
+    # T5.4 — tell the customer immediately.
+    customer_text = build_status_message(appt, biz, previous_status, next_status)
+    note = ""
+    if customer_text:
+        delivered = False
+        if is_real_phone(appt.customer_phone):
+            delivered = await send_whatsapp(appt.customer_phone, tenant_id, {"type": "text", "body": customer_text}, biz.id)
+        note = " Customer notified." if delivered else " We couldn't message the customer, please contact them directly."
+
+    await send_whatsapp(
+        sender, tenant_id,
+        {"type": "text", "body": f"Booking #{appt.id} marked {next_status.replace('_', ' ')}.{note}"},
+        biz.id,
+    )
+
+
+async def process_message(val: dict, msg: dict) -> None:
+    """Handle one inbound message. Owns its own DB session; never raises."""
+    db = SessionLocal()
+    business_id = None
+    try:
+        tenant_id = (val.get("metadata") or {}).get("phone_number_id")
+        sender = msg.get("from")
+        msg_type = msg.get("type")
+
+        if not tenant_id or not sender:
+            logger.warning("Webhook message missing tenant or sender; ignored.")
+            return
+
+        biz = db.query(Business).filter(Business.whatsapp_business_phone_number_id == tenant_id).first()
+        if biz is None:
+            logger.warning("Webhook for unknown phone_number_id %s; ignored.", tenant_id)
+            return
+        business_id = biz.id
+
+        log_event(db=db, event_type="webhook_received", status="info",
+                  message=f"Incoming {msg_type} message", business_id=business_id)
+
+        if msg_type == "interactive":
+            iid = _interaction_id(msg)
+            if not iid:
+                logger.info("Unsupported interactive message for business_id=%s", business_id)
+                return
+            match = MANAGER_ACTION_RE.fullmatch(iid)
+            if match:
+                await _handle_manager_action(db, biz, tenant_id, sender, match.group(1), int(match.group(2)))
             else:
-                log_event(
-                    db=db,
-                    event_type="whatsapp_failed",
-                    status="error",
-                    message=f"Meta API Error {response.status_code}: {response.text[:200]}",
-                    business_id=business_id
-                )
+                await _run_customer_flow(db, biz, tenant_id, sender, iid, val)
 
-                
+        elif msg_type == "text":
+            await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
 
-                create_incident(
-                    severity="error",
-                    module="WhatsApp",
-                    title="Meta API Error",
-                    message=response.text,
-                    business_id=business_id,
-                    phone_number=to,
-                )
+        elif msg_type in NON_TEXT_REPLY_TYPES:
+            await send_whatsapp(
+                sender, tenant_id,
+                {"type": "text", "body": f"Hi! To book at {biz.name}, just send us a text message like \"Hi\"."},
+                business_id,
+            )
 
-        
+    except Exception as exc:
+        logger.exception("Webhook processing error for business_id=%s", business_id)
+        try:
+            db.rollback()
+            log_event(db=db, event_type="webhook_failed", status="error",
+                      message=str(exc)[:500], business_id=business_id)
+        except Exception:
+            pass
+    finally:
+        db.close()
 
-    print("\n========== META RESPONSE ==========")
-    print(response.status_code)
-    if response.status_code != 200:
-        print(response.text)
+
+# ------------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------------
 
 @app.post("/webhook")
-async def webhook(request: Request, db: Session = Depends(get_db)):
+async def webhook(request: Request, background_tasks: BackgroundTasks):
     raw_body = await request.body()
-    signature_header = request.headers.get("X-Hub-Signature-256")
-    expected_signature = hmac.new(
-        os.getenv("META_APP_SECRET", "").encode("utf-8"),
-        raw_body,
-        hashlib.sha256
-    ).hexdigest()
-    if (
-        not signature_header
-        or not signature_header.startswith("sha256=")
-        or not hmac.compare_digest(
-            expected_signature,
-            signature_header.split("=", 1)[1].strip()
-        )
-    ):
+
+    if not verify_meta_signature(raw_body, request.headers.get("x-hub-signature-256")):
+        logger.warning("Rejected webhook: invalid or missing signature")
         raise HTTPException(status_code=403, detail="Invalid signature")
 
     try:
-        print("\n" + "=" * 80)
-        print("🚀 WEBHOOK RECEIVED")
-        print("=" * 80)
-
         data = json.loads(raw_body)
+    except ValueError:
+        return {"status": "received"}
+    if not isinstance(data, dict):
+        return {"status": "received"}
 
-        logger.info(f"Received webhook: {data}")
-        print("Raw Payload:")
-        print(data)
+    for entry in data.get("entry") or []:
+        for change in entry.get("changes") or []:
+            val = change.get("value") or {}
+            for msg in val.get("messages") or []:
+                if claim_message(msg.get("id")):
+                    background_tasks.add_task(process_message, val, msg)
+                else:
+                    logger.info("Duplicate webhook message ignored: %s", msg.get("id"))
 
-        # ---------------------------------------------------------------------
-        # Extract payload safely
-        # ---------------------------------------------------------------------
-        entries = data.get("entry", [])
-        if not entries:
-            print("❌ No entries found")
-            return {"status": "ok"}
+    return {"status": "received"}
 
-        changes = entries[0].get("changes", [])
-        if not changes:
-            print("❌ No changes found")
-            return {"status": "ok"}
-
-        val = changes[0].get("value", {})
-        if "messages" not in val:
-            print("❌ No messages in payload")
-            return {"status": "ok"}
-
-        msg = val["messages"][0]
-
-        phone = msg.get("from")
-        tenant_id = val.get("metadata", {}).get("phone_number_id")
-
-        biz = db.query(Business).filter(
-            Business.whatsapp_business_phone_number_id == tenant_id
-        ).first()
-
-        business_id = biz.id if biz else None
-
-        log_event(
-            db=db,
-            event_type="webhook_received",
-            status="info",
-            message=f"Incoming {msg.get('type')} message",
-            business_id=business_id
-        )
-
-        print(f"📞 Phone: {phone}")
-        print(f"🏢 Tenant ID: {tenant_id}")
-        print(f"📩 Message Type: {msg.get('type')}")
-
-        if msg.get("type") == "text":
-            print(f"💬 Text: {msg['text']['body']}")
-
-        if not tenant_id:
-            print("❌ Tenant ID missing")
-            return {"status": "ok"}
-
-        runtime = BookingRuntime(db)
-
-        print("✅ BookingRuntime initialized")
-
-        # ---------------------------------------------------------------------
-        # INTERACTIVE
-        # ---------------------------------------------------------------------
-        if msg.get("type") == "interactive":
-
-            print("➡ Processing Interactive Message")
-
-            interactive = msg["interactive"]
-            itype = interactive.get("type")
-
-            print(f"Interactive Type: {itype}")
-
-            if itype == "button_reply":
-                iid = interactive["button_reply"]["id"]
-
-            elif itype == "list_reply":
-                iid = interactive["list_reply"]["id"]
-
-            else:
-                print("❌ Unsupported interactive type")
-                return {"status": "unsupported_interactive_type"}
-
-            print(f"Interaction ID: {iid}")
-
-            # Manager buttons
-            if iid.startswith(("confirm_", "cancel_", "noshow_")):
-
-                print("➡ Manager Action")
-
-                act, aid = iid.split("_")
-
-                # Use modern SQLAlchemy get
-                appt = db.get(Appointment, int(aid))
-
-                if appt:
-                    # 1. Update status in database & determine event/message
-                    if act == "confirm":
-                        appt.status = "confirmed"
-                        log_event(
-                            db=db,
-                            event_type="booking_confirmed",
-                            status="success",
-                            message=f"Appointment #{appt.id} confirmed",
-                            business_id=appt.business_id
-                        )
-                        msg_text = "✅ Your appointment has been confirmed."
-                    elif act == "noshow":
-                        appt.status = "no_show"
-                        log_event(
-                            db=db,
-                            event_type="appointment_no_show",
-                            status="warning",
-                            message=f"Appointment #{appt.id} marked as no-show",
-                            business_id=appt.business_id
-                        )
-                        msg_text = "⚠️ Your appointment has been recorded as a No Show."
-                    else:
-                        appt.status = "cancelled"
-                        log_event(
-                            db=db,
-                            event_type="booking_cancelled",
-                            status="warning",
-                            message=f"Appointment #{appt.id} cancelled",
-                            business_id=appt.business_id
-                        )
-                        msg_text = "❌ Unfortunately your booking could not be approved."
-
-                    db.commit()
-                    
-                    print(f"✅ Appointment {aid} updated")
-
-                    # 2. Dispatch notification to the CUSTOMER
-                    # We use the customer_phone from the appt record and the current tenant_id
-                    await dispatch_whatsapp(
-                        to=appt.customer_phone,
-                        tenant_id=tenant_id,
-                        payload={
-                            "type": "text",
-                            "body": msg_text
-                        },
-                        db=db,
-                        business_id=appt.business_id
-                    )
-                return {"status": "ok"}
-
-            print("➡ Calling process_interaction()")
-
-            resp = await runtime.process_interaction(
-                phone,
-                tenant_id,
-                iid
-            )
-
-            print("✅ process_interaction() completed")
-            print(resp)
-
-            print("➡ Calling dispatch_whatsapp()")
-
-            if isinstance(resp, dict) and "customer" in resp and "owner" in resp:
-
-                # Send customer message
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp["customer"],
-                    db=db,
-                    business_id=business_id
-                )
-
-                # Send owner message
-                await dispatch_whatsapp(
-                    resp["owner"]["recipient"],
-                    tenant_id,
-                    resp["owner"]["payload"],
-                    db=db,
-                    business_id=business_id
-                )
-
-            else:
-
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp,
-                    db=db,
-                    business_id=business_id
-                )
-
-            print("✅ dispatch_whatsapp() completed")
-
-        # ---------------------------------------------------------------------
-        # TEXT
-        # ---------------------------------------------------------------------
-        elif msg.get("type") == "text":
-
-            print("➡ Text flow started")
-
-            print("Calling process_interaction(action_start)...")
-
-            resp = await runtime.process_interaction(
-                phone,
-                tenant_id,
-                "action_start"
-            )
-
-            print("✅ process_interaction returned")
-            print("Response:")
-            print(resp)
-
-            print("Calling dispatch_whatsapp...")
-
-            if isinstance(resp, dict) and "customer" in resp and "owner" in resp:
-
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp["customer"],
-                    db=db,
-                    business_id=business_id
-                )
-
-                await dispatch_whatsapp(
-                    resp["owner"]["recipient"],
-                    tenant_id,
-                    resp["owner"]["payload"],
-                    db=db,
-                    business_id=business_id
-                )
-
-            else:
-
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp,
-                    db=db,
-                    business_id=business_id
-                )
-
-            print("✅ dispatch_whatsapp completed")
-        else:
-            print(f"⚠ Unsupported message type: {msg.get('type')}")
-
-        print("=" * 80)
-        print("🎉 WEBHOOK FINISHED SUCCESSFULLY")
-        print("=" * 80)
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        print("\n" + "=" * 80)
-        print("🔥 WEBHOOK EXCEPTION")
-        print("=" * 80)
-
-        import traceback
-        traceback.print_exc()
-
-        logger.error(
-            f"Webhook Processing Error: {e}",
-            exc_info=True
-        )
-        try:
-            log_event(
-                db,
-                "webhook_failed",
-                status="error",
-                message=str(e)[:500]
-            )
-        except Exception:
-            pass
-
-        return {"status": "error"}
 
 @app.get("/webhook")
 async def verify(
-    mode: str = Query(None, alias="hub.mode"), 
-    token: str = Query(None, alias="hub.verify_token"), 
-    challenge: str = Query(None, alias="hub.challenge")
+    mode: str = Query(None, alias="hub.mode"),
+    token: str = Query(None, alias="hub.verify_token"),
+    challenge: str = Query(None, alias="hub.challenge"),
 ):
-    """Handle Meta's Webhook verification handshake."""
-    verify_token = os.getenv("VERZIO_VERIFY_TOKEN")
-    if mode == "subscribe" and token == verify_token:
-        return int(challenge)
+    """Meta's webhook verification handshake."""
+    if mode == "subscribe" and VERIFY_TOKEN and hmac.compare_digest(token or "", VERIFY_TOKEN):
+        return PlainTextResponse(challenge or "")
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
+@app.get("/health")
+def health():
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "ok"}
+    except Exception:
+        logger.exception("Health check: database unreachable")
+        return JSONResponse({"status": "degraded", "database": "error"}, status_code=503)
+
+
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     active_business_count = db.query(Business).filter(Business.is_active == True).count()
     total_business_count = db.query(Business).count()
+
+    needing_attention = (
+        db.query(Business)
+        .filter(or_(Business.is_active == False, Business.accepting_bookings == False))
+        .order_by(Business.name.asc())
+        .all()
+    )
+
+    since = datetime.utcnow() - timedelta(hours=24)
+    failed_events = (
+        db.query(ActivityEvent)
+        .filter(ActivityEvent.status == "error", ActivityEvent.created_at >= since)
+        .all()
+    )
+
+    recent_activity = (
+        db.query(ActivityEvent)
+        .filter(ActivityEvent.message.isnot(None))
+        .order_by(ActivityEvent.created_at.desc())
+        .limit(20)
+        .all()
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
-            "request": request,
             "active_page": "dashboard",
             "active_business_count": active_business_count,
             "total_business_count": total_business_count,
-        }
+            "needing_attention": needing_attention,
+            "failed_events": failed_events,
+            "recent_activity": recent_activity,
+        },
     )

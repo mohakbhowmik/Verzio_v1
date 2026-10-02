@@ -1,10 +1,10 @@
-This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
 
 <file_summary>
 This section contains a summary of this file.
 
 <purpose>
-This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+This file contains a packed representation of the entire repository's contents.
 It is designed to be easily consumable by AI systems for analysis, code review,
 or other automated processes.
 </purpose>
@@ -32,7 +32,6 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: node_modules/**, .git/**, dist/**, build/**, venv/**, __pycache__/**, *.lock, *.log, *.env
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -46,6 +45,12 @@ docs/
   DEBUGGING.md
   ENGINEERING.md
   RELATIONSHIPS.md
+exports/
+  manifest_1_2026-07-05.xlsx
+  manifest_1_2026-07-25.xlsx
+  Report_1_2026-07-14_to_2026-07-27.xlsx
+  Report_1_2026-07-14_to_2026-07-28.xlsx
+  Report_1_2026-07-25_to_2026-07-25.xlsx
 owner/
   owner_appointments.py
   owner_auth.py
@@ -81,7 +86,6 @@ templates/
     services.html
     settings_mobile.html
     settings.html
-  │   └── settings.html
   appointments.html
   base.html
   business_form.html
@@ -94,11 +98,14 @@ templates/
   subscriptions.html
   system.html
 .dockerignore
+.env.save
 .gitignore
 activity_log.py
+admin_auth.py
 AI_CONTEXT.md
 booking_engine.py
 booking_runtime.py
+Caddyfile
 CURRENT_STATE.md
 database.py
 docker-compose.yml
@@ -115,203 +122,12 @@ seed_demo_data.py
 seed_mission2.py
 seed.py
 server.py
+settings.py
+test_isolation.py
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="templates/│   └── settings.html">
-{% extends "base.html" %}
-
-{% block title %}Settings — Verzio Studio{% endblock %}
-
-{% block content %}
-<div class="page-header">
-  <div>
-    <div class="page-eyebrow">Configuration</div>
-    <h1 class="page-title">Settings</h1>
-    <div class="page-subtitle">Booking rules for Verzio Parallel Salon.</div>
-  </div>
-  <button class="btn-verzio-primary" data-action="save-settings"><i class="bi bi-check2 me-1"></i> Save changes</button>
-</div>
-
-<div class="row g-3">
-  <div class="col-lg-8">
-
-    <!-- ---- Operational hours ---- -->
-    <div class="settings-panel">
-      <div class="settings-panel-head">
-        <h3>Operational hours</h3>
-        <p>When customers can book appointments through WhatsApp.</p>
-      </div>
-      <div class="settings-panel-body">
-        <div class="d-flex flex-column gap-2">
-          {% set hours = [
-            {"day": "Monday", "open": "09:00", "close": "18:00", "enabled": true},
-            {"day": "Tuesday", "open": "09:00", "close": "18:00", "enabled": true},
-            {"day": "Wednesday", "open": "09:00", "close": "18:00", "enabled": true},
-            {"day": "Thursday", "open": "09:00", "close": "18:00", "enabled": true},
-            {"day": "Friday", "open": "09:00", "close": "18:00", "enabled": true},
-            {"day": "Saturday", "open": "10:00", "close": "15:00", "enabled": true},
-            {"day": "Sunday", "open": "—", "close": "—", "enabled": false},
-          ] %}
-          {% for h in hours %}
-          <div class="hours-grid pb-2 {% if not loop.last %}border-bottom{% endif %}" style="border-color: var(--border) !important;">
-            <span class="day-label">{{ h.day }}</span>
-            {% if h.enabled %}
-            <input type="time" class="form-control-verzio" value="{{ h.open }}">
-            <input type="time" class="form-control-verzio" value="{{ h.close }}">
-            {% else %}
-            <span class="cell-muted" style="grid-column: span 2;">Closed</span>
-            {% endif %}
-            <div class="form-check form-switch m-0">
-              <input class="form-check-input" type="checkbox" role="switch" {% if h.enabled %}checked{% endif %} aria-label="Toggle {{ h.day }}">
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    <!-- ---- Booking rules ---- -->
-    <div class="settings-panel">
-      <div class="settings-panel-head">
-        <h3>Booking rules</h3>
-        <p>Slot sizing, advance windows, and how far ahead customers can book.</p>
-      </div>
-      <div class="settings-panel-body">
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Slot interval</div>
-            <div class="settings-row-sub">Time between consecutive bookable slots</div>
-          </div>
-          <select class="form-select-verzio" style="width:140px;">
-            <option>30 minutes</option>
-            <option selected>60 minutes</option>
-            <option>90 minutes</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Advance booking window</div>
-            <div class="settings-row-sub">How many days ahead customers can see availability</div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <input type="number" class="form-control-verzio mono" style="width:90px;" value="14">
-            <span class="cell-muted">days</span>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Max parallel bookings</div>
-            <div class="settings-row-sub">Concurrent appointments allowed per slot</div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <input type="number" class="form-control-verzio mono" style="width:90px;" value="2">
-            <span class="cell-muted">slots</span>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Let customers pick a service</div>
-            <div class="settings-row-sub">If off, customers skip straight to choosing a time</div>
-          </div>
-          <div class="form-check form-switch m-0">
-            <input class="form-check-input" type="checkbox" role="switch" checked>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ---- Approval mode ---- -->
-    <div class="settings-panel">
-      <div class="settings-panel-head">
-        <h3>Approval mode</h3>
-        <p>Decide whether new bookings need your confirmation before they're final.</p>
-      </div>
-      <div class="settings-panel-body">
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Manual approval</div>
-            <div class="settings-row-sub">Every booking is held as "pending" until you approve it on WhatsApp</div>
-          </div>
-          <div class="form-check form-switch m-0">
-            <input class="form-check-input" type="checkbox" role="switch" checked>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Accepting new bookings</div>
-            <div class="settings-row-sub">Turn off to pause the WhatsApp booking flow entirely</div>
-          </div>
-          <div class="form-check form-switch m-0">
-            <input class="form-check-input" type="checkbox" role="switch" checked>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="col-lg-4">
-    <!-- ---- Notifications ---- -->
-    <div class="settings-panel">
-      <div class="settings-panel-head">
-        <h3>Notifications</h3>
-        <p>Who gets pinged on WhatsApp, and when.</p>
-      </div>
-      <div class="settings-panel-body">
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Notify owner</div>
-            <div class="settings-row-sub">New booking requests</div>
-          </div>
-          <div class="form-check form-switch m-0">
-            <input class="form-check-input" type="checkbox" role="switch" checked>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Notify customer</div>
-            <div class="settings-row-sub">Confirmation &amp; rejection updates</div>
-          </div>
-          <div class="form-check form-switch m-0">
-            <input class="form-check-input" type="checkbox" role="switch" checked>
-          </div>
-        </div>
-        <div class="settings-row">
-          <div>
-            <div class="settings-row-label">Morning pulse</div>
-            <div class="settings-row-sub">Daily digest of today's confirmed bookings</div>
-          </div>
-          <div class="form-check form-switch m-0">
-            <input class="form-check-input" type="checkbox" role="switch" checked>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ---- Holidays ---- -->
-    <div class="settings-panel">
-      <div class="settings-panel-head">
-        <h3>Holidays</h3>
-        <p>Dates the business is closed, regardless of weekly hours.</p>
-      </div>
-      <div class="settings-panel-body">
-        <div class="d-flex flex-wrap gap-2 mb-3">
-          <span class="status-badge status-inactive">Aug 15, 2026 <i class="bi bi-x ms-1"></i></span>
-          <span class="status-badge status-inactive">Oct 02, 2026 <i class="bi bi-x ms-1"></i></span>
-        </div>
-        <div class="d-flex gap-2">
-          <input type="date" class="form-control-verzio flex-grow-1">
-          <button class="btn-verzio-outline"><i class="bi bi-plus-lg"></i></button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-</file>
 
 <file path="docs/DATABASE.md">
 # Verzio Database
@@ -1061,16 +877,56 @@ exports/
 *.db
 </file>
 
-<file path=".gitignore">
-__pycache__/
-*.py[cod]
-*$py.class
-.env
-.venv
-env/
-venv/
-*.db
-exports/
+<file path="admin_auth.py">
+"""
+admin_auth.py — HTTP Basic Auth guard for every /admin path.
+Applied as middleware so new admin routes are protected by default.
+"""
+import base64
+import binascii
+import hmac
+import logging
+
+from fastapi import Request
+from fastapi.responses import Response
+
+from settings import ADMIN_USERNAME, ADMIN_PASSWORD
+
+logger = logging.getLogger("VERZIO_ADMIN_AUTH")
+
+
+def _is_admin_path(path: str) -> bool:
+    return path == "/admin" or path.startswith("/admin/")
+
+
+def _credentials_valid(auth_header: str | None) -> bool:
+    if not auth_header or not auth_header.lower().startswith("basic "):
+        return False
+    try:
+        decoded = base64.b64decode(auth_header[6:].strip(), validate=True).decode("utf-8")
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return False
+    username, sep, password = decoded.partition(":")
+    if not sep:
+        return False
+    user_ok = hmac.compare_digest(username.encode("utf-8"), ADMIN_USERNAME.encode("utf-8"))
+    pass_ok = hmac.compare_digest(password.encode("utf-8"), ADMIN_PASSWORD.encode("utf-8"))
+    return user_ok and pass_ok
+
+
+async def admin_auth_middleware(request: Request, call_next):
+    if _is_admin_path(request.url.path):
+        auth_header = request.headers.get("authorization")
+        if not _credentials_valid(auth_header):
+            if auth_header:
+                client = request.client.host if request.client else "unknown"
+                logger.warning("Admin auth failed: %s %s from %s", request.method, request.url.path, client)
+            return Response(
+                status_code=401,
+                content="Authentication required",
+                headers={"WWW-Authenticate": 'Basic realm="Verzio Admin", charset="UTF-8"'},
+            )
+    return await call_next(request)
 </file>
 
 <file path="AI_CONTEXT.md">
@@ -1317,6 +1173,12 @@ Be implementation-focused.
 Recommend the fastest reasonable path to a paying customer.
 </file>
 
+<file path="Caddyfile">
+verzio.codes, www.verzio.codes {
+    reverse_proxy app:8000
+}
+</file>
+
 <file path="CURRENT_STATE.md">
 # Current Development State
 
@@ -1411,29 +1273,6 @@ Deployment has not started.
 Pilot customers have not been onboarded.
 </file>
 
-<file path="docker-compose.yml">
-services:
-  app:
-    build: .
-    container_name: verzio_saas
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    volumes:
-      # Persist SQLite database file across container builds
-      - sqlite_data:/app/data
-      # Mount exports folder so generated Excel reports persist on host
-      - ./exports:/app/exports
-    environment:
-      # Tell SQLAlchemy to store the database in the mounted volume directory
-      - DATABASE_URL=sqlite:////app/data/verzio_saas.db
-
-volumes:
-  sqlite_data:
-</file>
-
 <file path="Dockerfile">
 FROM python:3.12-slim
 
@@ -1500,118 +1339,6 @@ def create_incident(
         db.close()
 </file>
 
-<file path="morning_pulse.py">
-"""
-morning_pulse.py
-================================================================================
-VERZIO STUDIO — DAILY DISPATCHER & AUTHENTICATION TESTS
-================================================================================
-Queries the local SQLite database for pending slots and dispatches the live
-approved Meta interactive template card to the target testing device.
-"""
-import os
-import httpx
-import asyncio
-from datetime import datetime, date, time
-from database import SessionLocal, Business, Appointment
-
-# Your permanent Meta app access token
-META_ACCESS_TOKEN = "EAAZAdv3p7VSQBRyZBDJ1DSo1HTPmNz1kHtgQwF7ZBHUTyqJzZCZB8GBwTuex9Ql3Wy6ZC7pn1rCpxNZBcQrnbUt7VmyKL0RVKRHMmZCWfp21XmHGQub6YZAnpMAvEVgoInRRVxDwSJIQpuzltEup3UIbZA6UEdgg2Js64ORzzlb5dWWO7ZCrjqguVCthUI4FdEjQrFE4QZDZD"
-
-async def dispatch_interactive_confirmation(recipient_phone: str, appointment: Appointment, business_name: str, business_phone_id: str):
-    url = f"https://graph.facebook.com/v17.0/{business_phone_id}/messages"
-    headers = {
-        "Authorization": f"Bearer {META_ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
-    # 🌟 FIXED: Points to your active approved template 'appointment_confirmation'
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": recipient_phone,
-        "type": "template",
-        "template": {
-            "name": "appointment_confirmation",
-            "language": {
-                "code": "en_US"
-            },
-"components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        {
-                            "type": "text",
-                            "text": appointment.customer_name or "Client"
-                        },
-                        {
-                            "type": "text",
-                            "text": appointment.appointment_time.strftime("%I:%M %p")
-                        }
-                    ]
-                }
-            ]
-        }
-    }
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(url, headers=headers, json=payload)
-            print(f"📡 API Dispatch Code for {recipient_phone}: {response.status_code}")
-            if response.status_code != 200:
-                print(f"⚠️ Meta Rejection Response Details: {response.text}")
-            else:
-                print(f"🚀 Template successfully pushed to handset!")
-            return response.json()
-        except Exception as api_err:
-            print(f"❌ Failed connecting to Meta HTTP Network endpoints: {str(api_err)}")
-
-async def run_morning_validation_routine():
-    print("⚡ Starting Verzio Dispatch Engine Subsystem...")
-    db = SessionLocal()
-    try:
-        # Pull everything pending for the current day window window
-        today_start = datetime.combine(date.today(), time.min)
-        today_end = datetime.combine(date.today(), time.max)
-        
-        todays_pending = db.query(Appointment).filter(
-            Appointment.appointment_time >= today_start,
-            Appointment.appointment_time <= today_end,
-            Appointment.status == "pending"
-        ).all()
-        
-        if not todays_pending:
-            print("🍃 No pending appointments found for today in the database. Run seed.py first!")
-            return
-
-        print(f"🔍 Found {len(todays_pending)} pending slots requiring live authentication.")
-        
-        tasks = []
-        for appt in todays_pending:
-            business = db.query(Business).filter(Business.id == appt.business_id).first()
-            if not business or not business.whatsapp_business_phone_number_id:
-                print(f"⚠️ Skipping appointment {appt.id}: Missing Business metadata mapping link.")
-                continue
-                
-            tasks.append(
-                dispatch_interactive_confirmation(
-                    recipient_phone=appt.customer_phone,
-                    appointment=appt,
-                    business_name=business.name,
-                    business_phone_id=business.whatsapp_business_phone_number_id
-                )
-            )
-            
-        await asyncio.gather(*tasks)
-        print("✅ Dispatch process loop ended.")
-    except Exception as e:
-        print(f"❌ Error during routine execution: {str(e)}")
-    finally:
-        db.close()
-
-if __name__ == "__main__":
-    asyncio.run(run_morning_validation_routine())
-</file>
-
 <file path="project.md">
 # Verzio Studio
 
@@ -1672,39 +1399,6 @@ SQLAlchemy
 SQLite (Postgres later)
 
 Meta Cloud API
-</file>
-
-<file path="runtime_state.py">
-from sqlalchemy.orm import Session
-from database import UserSession
-from datetime import datetime
-
-class RuntimeStateManager:
-    def __init__(self, db: Session):
-        self.db = db
-
-    def get_or_create_session(self, phone: str, tenant_id: str) -> UserSession:
-        session = self.db.query(UserSession).filter(UserSession.phone_number == phone).first()
-        if not session:
-            session = UserSession(phone_number=phone, tenant_id=tenant_id, step="START")
-            self.db.add(session)
-            self.db.commit()
-            self.db.refresh(session)
-        return session
-
-    def update_session(self, phone: str, step: str, **kwargs):
-        session = self.db.query(UserSession).filter(UserSession.phone_number == phone).first()
-        if session:
-            session.step = step
-            session.updated_at = datetime.utcnow()
-            for key, value in kwargs.items():
-                if hasattr(session, key):
-                    setattr(session, key, value)
-            self.db.commit()
-
-    def clear_session(self, phone: str):
-        self.db.query(UserSession).filter(UserSession.phone_number == phone).delete()
-        self.db.commit()
 </file>
 
 <file path="seed_demo_data.py">
@@ -1850,6 +1544,121 @@ def run_test():
 
 if __name__ == "__main__":
     run_test()
+</file>
+
+<file path="settings.py">
+"""
+settings.py — single source of truth for security-sensitive configuration.
+In production (VERZIO_ENV=production) the app refuses to start with missing or weak secrets.
+"""
+import logging
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = logging.getLogger("VERZIO_SETTINGS")
+
+VERZIO_ENV = os.getenv("VERZIO_ENV", "development").strip().lower()
+IS_PRODUCTION = VERZIO_ENV == "production"
+
+_LEGACY_DEFAULT_SECRET = "verzio-studio-secret-key-v1"   # previously hardcoded; must never be accepted
+_DEV_SECRET = "dev-only-insecure-secret-do-not-use-in-production"
+_DEV_ADMIN_PASSWORD = "verzio-dev-admin"
+
+
+def _load_secret_key() -> str:
+    value = os.getenv("VERZIO_SECRET_KEY", "").strip()
+    if IS_PRODUCTION:
+        if not value or value == _LEGACY_DEFAULT_SECRET or len(value) < 32:
+            raise RuntimeError(
+                "VERZIO_SECRET_KEY must be a random value of at least 32 characters in production."
+            )
+        return value
+    if not value:
+        logger.warning("VERZIO_SECRET_KEY not set; using an insecure development key.")
+        return _DEV_SECRET
+    return value
+
+
+def _load_admin_password() -> str:
+    value = os.getenv("ADMIN_PASSWORD", "")
+    if IS_PRODUCTION:
+        if len(value) < 16:
+            raise RuntimeError("ADMIN_PASSWORD must be set (16+ characters) in production.")
+        return value
+    if not value:
+        logger.warning("ADMIN_PASSWORD not set; using development default '%s'.", _DEV_ADMIN_PASSWORD)
+        return _DEV_ADMIN_PASSWORD
+    return value
+
+
+SECRET_KEY = _load_secret_key()
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin").strip() or "admin"
+ADMIN_PASSWORD = _load_admin_password()
+
+# Optional explicit override for the cookie Secure flag: "true" / "false" / "" (auto).
+COOKIE_SECURE_OVERRIDE = os.getenv("COOKIE_SECURE", "").strip().lower()
+</file>
+
+<file path="test_isolation.py">
+import hmac
+import hashlib
+import json
+import uuid
+import os
+import requests
+from dotenv import load_dotenv
+
+# Load the matching environment variables from .env
+load_dotenv()
+
+APP_SECRET = os.getenv("META_APP_SECRET", "")
+URL = "http://localhost:8000/webhook"
+PHONE = "919999999999"
+
+TENANT_A_ID = os.getenv("PHONE_NUMBER_ID", "1265387899980753")
+TENANT_B_ID = "TENANT_B"
+
+def send(phone_number_id: str, text: str):
+    wamid = f"wamid.TEST_{uuid.uuid4().hex[:10]}"
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [{
+            "id": "123456789",
+            "changes": [{
+                "value": {
+                    "messaging_product": "whatsapp",
+                    "metadata": {"phone_number_id": str(phone_number_id)},
+                    "contacts": [{"profile": {"name": "Test User"}, "wa_id": PHONE}],
+                    "messages": [{
+                        "from": PHONE,
+                        "id": wamid,
+                        "timestamp": "1720000000",
+                        "type": "text",
+                        "text": {"body": text}
+                    }]
+                },
+                "field": "messages"
+            }]
+        }]
+    }
+    raw_body = json.dumps(payload).encode("utf-8")
+    sig = "sha256=" + hmac.new(APP_SECRET.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    
+    res = requests.post(URL, data=raw_body, headers={
+        "Content-Type": "application/json",
+        "X-Hub-Signature-256": sig
+    })
+    print(f"[{phone_number_id}] Status: {res.status_code} | Body: {res.text}")
+
+print(f"Using APP_SECRET: {APP_SECRET[:6]}... (len: {len(APP_SECRET)})")
+print("--- Sending message to Tenant A ---")
+send(TENANT_A_ID, "hi")
+
+print("\n--- Sending message to Tenant B with the SAME user phone ---")
+send(TENANT_B_ID, "hi")
 </file>
 
 <file path="routers/admin_appointments.py">
@@ -2609,6 +2418,18 @@ def update_subscription(
 {% endblock %}
 </file>
 
+<file path=".gitignore">
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+*.db
+exports/".env.save"
+</file>
+
 <file path="activity_log.py">
 import logging
 from typing import Optional
@@ -2643,6 +2464,157 @@ def log_event(
         # We rollback to clean the session, but we do NOT raise the error.
         db.rollback()
         logger.warning(f"Observability Failure: Could not log event '{event_type}': {e}")
+</file>
+
+<file path="docker-compose.yml">
+services:
+  app:
+    build: .
+    container_name: verzio_saas
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - verzio_sqlite_data:/app/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:latest
+    container_name: verzio_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  verzio_sqlite_data:
+  caddy_data:
+  caddy_config:
+</file>
+
+<file path="morning_pulse.py">
+"""
+morning_pulse.py
+================================================================================
+VERZIO STUDIO — DAILY DISPATCHER & AUTHENTICATION TESTS
+================================================================================
+Queries the local SQLite database for pending slots and dispatches the live
+approved Meta interactive template card to the target testing device.
+"""
+import os
+import httpx
+import asyncio
+from datetime import datetime, date, time
+from database import SessionLocal, Business, Appointment
+
+# Your permanent Meta app access token
+from dotenv import load_dotenv
+
+load_dotenv()
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "")
+
+async def dispatch_interactive_confirmation(recipient_phone: str, appointment: Appointment, business_name: str, business_phone_id: str):
+    url = f"https://graph.facebook.com/v17.0/{business_phone_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {META_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    # 🌟 FIXED: Points to your active approved template 'appointment_confirmation'
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": recipient_phone,
+        "type": "template",
+        "template": {
+            "name": "appointment_confirmation",
+            "language": {
+                "code": "en_US"
+            },
+"components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {
+                            "type": "text",
+                            "text": appointment.customer_name or "Client"
+                        },
+                        {
+                            "type": "text",
+                            "text": appointment.appointment_time.strftime("%I:%M %p")
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            print(f"📡 API Dispatch Code for {recipient_phone}: {response.status_code}")
+            if response.status_code != 200:
+                print(f"⚠️ Meta Rejection Response Details: {response.text}")
+            else:
+                print(f"🚀 Template successfully pushed to handset!")
+            return response.json()
+        except Exception as api_err:
+            print(f"❌ Failed connecting to Meta HTTP Network endpoints: {str(api_err)}")
+
+async def run_morning_validation_routine():
+    print("⚡ Starting Verzio Dispatch Engine Subsystem...")
+    if not META_ACCESS_TOKEN:
+        print("❌ META_ACCESS_TOKEN is not set. Aborting.")
+        return
+    db = SessionLocal()
+    try:
+        # Pull everything pending for the current day window window
+        today_start = datetime.combine(date.today(), time.min)
+        today_end = datetime.combine(date.today(), time.max)
+        
+        todays_pending = db.query(Appointment).filter(
+            Appointment.appointment_time >= today_start,
+            Appointment.appointment_time <= today_end,
+            Appointment.status == "pending"
+        ).all()
+        
+        if not todays_pending:
+            print("🍃 No pending appointments found for today in the database. Run seed.py first!")
+            return
+
+        print(f"🔍 Found {len(todays_pending)} pending slots requiring live authentication.")
+        
+        tasks = []
+        for appt in todays_pending:
+            business = db.query(Business).filter(Business.id == appt.business_id).first()
+            if not business or not business.whatsapp_business_phone_number_id:
+                print(f"⚠️ Skipping appointment {appt.id}: Missing Business metadata mapping link.")
+                continue
+                
+            tasks.append(
+                dispatch_interactive_confirmation(
+                    recipient_phone=appt.customer_phone,
+                    appointment=appt,
+                    business_name=business.name,
+                    business_phone_id=business.whatsapp_business_phone_number_id
+                )
+            )
+            
+        await asyncio.gather(*tasks)
+        print("✅ Dispatch process loop ended.")
+    except Exception as e:
+        print(f"❌ Error during routine execution: {str(e)}")
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    asyncio.run(run_morning_validation_routine())
 </file>
 
 <file path="NEXT_TASK.md">
@@ -2708,261 +2680,94 @@ jinja2
 python-multipart
 </file>
 
-<file path="owner/owner_auth.py">
-import os
-import hmac
-import hashlib
-import secrets
-import time
+<file path="runtime_state.py">
 import logging
-from typing import Optional, Tuple
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
-from database import get_db, Owner, Business
+from database import UserSession
 
-logger = logging.getLogger("VERZIO_OWNER_AUTH")
+logger = logging.getLogger("VERZIO_RUNTIME_STATE")
 
-router = APIRouter(prefix="/owner", tags=["owner-auth"])
-templates = Jinja2Templates(directory="templates")
-
-SECRET_KEY = os.getenv("VERZIO_SECRET_KEY", "verzio-studio-secret-key-v1")
-SESSION_COOKIE_NAME = "verzio_owner_session"
-LEGACY_COOKIE_NAME = "verzio_owner_phone"
+# Fields that define the tenant boundary and must never be changed via update_session.
+PROTECTED_FIELDS = {"phone_number", "business_id"}
 
 
-# ------------------------------------------------------------------------
-# Password Hashing Strategy (PBKDF2-HMAC-SHA256)
-# ------------------------------------------------------------------------
-
-def hash_password(password: str) -> str:
-    """Hash password using PBKDF2-HMAC-SHA256 with a random salt."""
-    salt = secrets.token_hex(16)
-    iterations = 260000
-    derived = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt.encode("utf-8"),
-        iterations
-    )
-    return f"pbkdf2:sha256:{iterations}${salt}${derived.hex()}"
+def _require_business_id(business_id) -> None:
+    if not isinstance(business_id, int) or isinstance(business_id, bool) or business_id <= 0:
+        raise ValueError(f"business_id must be a positive int, got {business_id!r}")
 
 
-def verify_password(password: str, stored_hash: str) -> bool:
-    """Verify password against stored PBKDF2-HMAC-SHA256 hash."""
-    try:
-        parts = stored_hash.split("$")
-        if len(parts) != 3:
+class RuntimeStateManager:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _get(self, phone: str, business_id: int) -> UserSession | None:
+        return (
+            self.db.query(UserSession)
+            .filter(
+                UserSession.phone_number == phone,
+                UserSession.business_id == business_id,
+            )
+            .first()
+        )
+
+    def get_or_create_session(self, phone: str, *, business_id: int) -> UserSession:
+        _require_business_id(business_id)
+        session = self._get(phone, business_id)
+        if session:
+            return session
+
+        session = UserSession(phone_number=phone, business_id=business_id, step="START")
+        self.db.add(session)
+        try:
+            self.db.commit()
+        except IntegrityError:
+            # Two messages from the same phone to the same business raced; reuse the winner.
+            self.db.rollback()
+            session = self._get(phone, business_id)
+            if session is None:
+                raise
+            return session
+        self.db.refresh(session)
+        return session
+
+    def update_session(self, phone: str, *, business_id: int, step: str, **kwargs) -> bool:
+        _require_business_id(business_id)
+        session = self._get(phone, business_id)
+        if not session:
+            logger.warning(
+                "update_session: no session for phone=%s business_id=%s (step=%s)",
+                phone, business_id, step,
+            )
             return False
-        header, salt, expected_hex = parts
-        _, algo, iterations_str = header.split(":")
-        iterations = int(iterations_str)
-        derived = hashlib.pbkdf2_hmac(
-            algo,
-            password.encode("utf-8"),
-            salt.encode("utf-8"),
-            iterations
+
+        for key in kwargs:
+            if key in PROTECTED_FIELDS:
+                raise ValueError(f"update_session cannot modify protected field '{key}'")
+            if not hasattr(session, key):
+                raise ValueError(f"update_session: unknown field '{key}'")
+
+        session.step = step
+        session.updated_at = datetime.utcnow()
+        for key, value in kwargs.items():
+            setattr(session, key, value)
+        self.db.commit()
+        return True
+
+    def clear_session(self, phone: str, *, business_id: int) -> None:
+        _require_business_id(business_id)
+        (
+            self.db.query(UserSession)
+            .filter(
+                UserSession.phone_number == phone,
+                UserSession.business_id == business_id,
+            )
+            .delete()
         )
-        return hmac.compare_digest(derived.hex(), expected_hex)
-    except Exception as e:
-        logger.warning(f"Password verification error: {e}")
-        return False
-
-
-# ------------------------------------------------------------------------
-# Session Token Utilities (HMAC Signed Tokens)
-# ------------------------------------------------------------------------
-
-def create_session_token(owner_id: int, remember_me: bool = False) -> Tuple[str, Optional[int]]:
-    """
-    Generate an HMAC-signed session token string.
-    Returns (token, max_age_in_seconds).
-    """
-    duration = 30 * 86400 if remember_me else 86400
-    exp = int(time.time()) + duration
-    payload = f"{owner_id}:{exp}"
-    signature = hmac.new(
-        SECRET_KEY.encode("utf-8"),
-        payload.encode("utf-8"),
-        hashlib.sha256
-    ).hexdigest()
-    token = f"{payload}:{signature}"
-    max_age = duration if remember_me else None
-    return token, max_age
-
-
-def verify_session_token(token: str, db: Session) -> Optional[Owner]:
-    """Verify signed session token and return active Owner object."""
-    try:
-        parts = token.split(":")
-        if len(parts) != 3:
-            return None
-        owner_id_str, exp_str, signature = parts
-        owner_id = int(owner_id_str)
-        exp = int(exp_str)
-
-        if time.time() > exp:
-            return None
-
-        payload = f"{owner_id}:{exp}"
-        expected_sig = hmac.new(
-            SECRET_KEY.encode("utf-8"),
-            payload.encode("utf-8"),
-            hashlib.sha256
-        ).hexdigest()
-
-        if not hmac.compare_digest(signature, expected_sig):
-            return None
-
-        owner = db.get(Owner, owner_id)
-        if owner and owner.is_active:
-            return owner
-        return None
-    except Exception as e:
-        logger.debug(f"Session token verification error: {e}")
-        return None
-
-
-# ------------------------------------------------------------------------
-# Centralized Owner & Business Resolution Helper
-# ------------------------------------------------------------------------
-
-def is_mobile(request: Request) -> bool:
-    """Detect a mobile user-agent for responsive owner-portal templates."""
-    user_agent = (request.headers.get("user-agent") or "").lower()
-    return any(marker in user_agent for marker in ("mobi", "android", "iphone"))
-
-
-def resolve_owner_and_business(request: Request, db: Session) -> Tuple[Optional[Owner], Optional[Business]]:
-    """
-    Centralized Owner & Business resolution.
-    1. Reads verzio_owner_session cookie / header.
-    2. Fallback to legacy verzio_owner_phone matching Business.manager_phone_number.
-    Returns (Owner | None, Business | None).
-    """
-    session_token = (
-        request.cookies.get(SESSION_COOKIE_NAME)
-        or request.headers.get("x-verzio-owner-session")
-        or ""
-    ).strip()
-
-    if session_token:
-        owner = verify_session_token(session_token, db)
-        if owner and owner.business:
-            return owner, owner.business
-
-    # Backwards compatibility legacy fallback
-    legacy_phone = (
-        request.cookies.get(LEGACY_COOKIE_NAME)
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
-
-    if legacy_phone:
-        biz = db.query(Business).filter(Business.manager_phone_number == legacy_phone).first()
-        if biz:
-            # Resolve or create temporary owner mapping if missing
-            owner = db.query(Owner).filter(Owner.business_id == biz.id).first()
-            return owner, biz
-
-    return None, None
-
-
-def get_current_business_or_redirect(request: Request, db: Session) -> Tuple[Optional[Owner], Optional[Business], Optional[RedirectResponse]]:
-    """
-    Helper for owner routes. Returns (owner, business, None) if authenticated,
-    or (None, None, RedirectResponse) if unauthenticated.
-    """
-    owner, business = resolve_owner_and_business(request, db)
-    if not owner or not business:
-        redirect = RedirectResponse(url="/owner/login", status_code=303)
-        return None, None, redirect
-    return owner, business, None
-
-
-# ------------------------------------------------------------------------
-# Authentication Routes (/owner/login & /owner/logout)
-# ------------------------------------------------------------------------
-
-@router.get("/login")
-async def login_page(request: Request, db: Session = Depends(get_db)):
-    """Render Owner Login Page."""
-    owner, business = resolve_owner_and_business(request, db)
-    if owner and business:
-        return RedirectResponse(url="/owner/dashboard", status_code=303)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="owner/login.html",
-        context={"request": request, "error": None}
-    )
-
-
-@router.post("/login")
-async def login_action(
-    request: Request,
-    db: Session = Depends(get_db),
-    identifier: str = Form(""),
-    password: str = Form(""),
-    remember_me: Optional[str] = Form(None)
-):
-    """Authenticate Owner and create session."""
-    clean_identifier = identifier.strip()
-    clean_password = password.strip()
-    is_remember = remember_me in ("on", "true", "1")
-
-    if not clean_identifier or not clean_password:
-        return templates.TemplateResponse(
-            request=request,
-            name="owner/login.html",
-            context={"request": request, "error": "Please provide your email/phone and password."}
-        )
-
-    # Lookup Owner by email or phone
-    owner = db.query(Owner).filter(
-        or_(
-            Owner.email == clean_identifier,
-            Owner.phone_number == clean_identifier
-        )
-    ).first()
-
-    if not owner or not owner.is_active or not verify_password(clean_password, owner.password_hash):
-        logger.warning(f"Failed login attempt for identifier '{clean_identifier}'")
-        return templates.TemplateResponse(
-            request=request,
-            name="owner/login.html",
-            context={"request": request, "error": "Invalid email/phone or password."}
-        )
-
-    # Generate session token
-    token, max_age = create_session_token(owner.id, remember_me=is_remember)
-
-    response = RedirectResponse(url="/owner/dashboard", status_code=303)
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        max_age=max_age,
-        httponly=True,
-        samesite="lax",
-        secure=False  # Set True in production with HTTPS
-    )
-
-    logger.info(f"Owner #{owner.id} ('{owner.full_name}') logged in successfully.")
-    return response
-
-
-@router.post("/logout")
-async def logout_action():
-    """Destroy session and redirect to login."""
-    response = RedirectResponse(url="/owner/login", status_code=303)
-    response.delete_cookie(SESSION_COOKIE_NAME)
-    response.delete_cookie(LEGACY_COOKIE_NAME)
-    return response
+        self.db.commit()
 </file>
 
 <file path="routers/admin_system.py">
@@ -3927,6 +3732,17 @@ Latest Activity
 {% endblock %}
 </file>
 
+<file path=".env.save">
+DATABASE_URL=sqlite:////app/data/verzio_saas.db
+META_API_VERSION=v20.0
+WHATSAPP_TOKEN=EAAZAdv3p7VSQBSlAFqd4ZA2aSE8ZBw8yR7c7Dpa7jJS7IeOj5zq0eCu3YwVNXr5mrZCRCNVtmS836ECaEXDXbAzsZBs0gkS3Ko8sI7GTP8c6CtpeVwYXbn5ixO2SKIK8sqo9L0fgz1uDyVQFHG4wZBIppFaSFRPDDcnAVk9VBUu6Tk3THU37fs9OTdhwqiZBV5tvWu6UDYuzOcwjXPZALjupsqIzXQfUDxOT486TSYEeOkR5tHZBoa9bo04dCbfrd0JQpzn079bjbO4Y1s799ZAshe8PLhbendD0oUZCnPEKAZDZD
+PHONE_NUMBER_ID=1265387899980753
+WEBHOOK_VERIFY_TOKEN=verzio_secure_handshake_2026
+APP_DOMAIN=verzio.codes
+VERZIO_VERIFY_TOKEN=verzio_secure_handshake_2026
+META_APP_SECRET=dda84dd28e99360be19c87c6934fd091
+</file>
+
 <file path="reports.py">
 import os
 from datetime import datetime, date, time
@@ -4032,6 +3848,243 @@ def generate_excel_report(business_id: int, business_name: str, db: Session, fro
     fname = f"exports/Report_{business_id}_{from_date.isoformat()}_to_{to_date.isoformat()}.xlsx"
     wb.save(fname)
     return fname
+</file>
+
+<file path="owner/owner_auth.py">
+import hmac
+import hashlib
+import secrets
+import time
+import logging
+from typing import Optional, Tuple
+from datetime import datetime
+from fastapi import APIRouter, Depends, Request, Form, HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from database import get_db, Owner, Business
+from settings import SECRET_KEY, IS_PRODUCTION, COOKIE_SECURE_OVERRIDE
+
+logger = logging.getLogger("VERZIO_OWNER_AUTH")
+router = APIRouter(prefix="/owner", tags=["owner-auth"])
+templates = Jinja2Templates(directory="templates")
+SESSION_COOKIE_NAME = "verzio_owner_session"
+LEGACY_COOKIE_NAME = "verzio_owner_phone"
+
+
+# ------------------------------------------------------------------------
+# Password Hashing Strategy (PBKDF2-HMAC-SHA256)
+# ------------------------------------------------------------------------
+
+def hash_password(password: str) -> str:
+    """Hash password using PBKDF2-HMAC-SHA256 with a random salt."""
+    salt = secrets.token_hex(16)
+    iterations = 260000
+    derived = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        iterations
+    )
+    return f"pbkdf2:sha256:{iterations}${salt}${derived.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify password against stored PBKDF2-HMAC-SHA256 hash."""
+    try:
+        parts = stored_hash.split("$")
+        if len(parts) != 3:
+            return False
+        header, salt, expected_hex = parts
+        _, algo, iterations_str = header.split(":")
+        iterations = int(iterations_str)
+        derived = hashlib.pbkdf2_hmac(
+            algo,
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations
+        )
+        return hmac.compare_digest(derived.hex(), expected_hex)
+    except Exception as e:
+        logger.warning(f"Password verification error: {e}")
+        return False
+
+
+# ------------------------------------------------------------------------
+# Session Token Utilities (HMAC Signed Tokens)
+# ------------------------------------------------------------------------
+
+def create_session_token(owner_id: int, remember_me: bool = False) -> Tuple[str, Optional[int]]:
+    """
+    Generate an HMAC-signed session token string.
+    Returns (token, max_age_in_seconds).
+    """
+    duration = 30 * 86400 if remember_me else 86400
+    exp = int(time.time()) + duration
+    payload = f"{owner_id}:{exp}"
+    signature = hmac.new(
+        SECRET_KEY.encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest()
+    token = f"{payload}:{signature}"
+    max_age = duration if remember_me else None
+    return token, max_age
+
+
+def _cookie_secure(request: Request) -> bool:
+    if COOKIE_SECURE_OVERRIDE in ("true", "1"):
+        return True
+    if COOKIE_SECURE_OVERRIDE in ("false", "0"):
+        return False
+    return IS_PRODUCTION or request.url.scheme == "https"
+
+
+def set_session_cookie(response, request: Request, token: str, max_age: Optional[int]) -> None:
+    """The only place an owner session cookie is ever set."""
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        max_age=max_age,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_secure(request),
+        path="/",
+    )
+
+
+def verify_session_token(token: str, db: Session) -> Optional[Owner]:
+    """Verify signed session token and return active Owner object."""
+    try:
+        parts = token.split(":")
+        if len(parts) != 3:
+            return None
+        owner_id_str, exp_str, signature = parts
+        owner_id = int(owner_id_str)
+        exp = int(exp_str)
+
+        if time.time() > exp:
+            return None
+
+        payload = f"{owner_id}:{exp}"
+        expected_sig = hmac.new(
+            SECRET_KEY.encode("utf-8"),
+            payload.encode("utf-8"),
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(signature, expected_sig):
+            return None
+
+        owner = db.get(Owner, owner_id)
+        if owner and owner.is_active:
+            return owner
+        return None
+    except Exception as e:
+        logger.debug(f"Session token verification error: {e}")
+        return None
+
+
+# ------------------------------------------------------------------------
+# Centralized Owner & Business Resolution Helper
+# ------------------------------------------------------------------------
+
+def is_mobile(request: Request) -> bool:
+    """Detect a mobile user-agent for responsive owner-portal templates."""
+    user_agent = (request.headers.get("user-agent") or "").lower()
+    return any(marker in user_agent for marker in ("mobi", "android", "iphone"))
+
+
+def resolve_owner_and_business(request: Request, db: Session) -> Tuple[Optional[Owner], Optional[Business]]:
+    """Resolve the owner strictly from the signed session cookie. No fallbacks."""
+    token = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
+    if not token:
+        return None, None
+    owner = verify_session_token(token, db)
+    if owner and owner.business:
+        return owner, owner.business
+    return None, None
+
+
+def get_current_business_or_redirect(request: Request, db: Session) -> Tuple[Optional[Owner], Optional[Business], Optional[RedirectResponse]]:
+    """
+    Helper for owner routes. Returns (owner, business, None) if authenticated,
+    or (None, None, RedirectResponse) if unauthenticated.
+    """
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        redirect = RedirectResponse(url="/owner/login", status_code=303)
+        return None, None, redirect
+    return owner, business, None
+
+
+# ------------------------------------------------------------------------
+# Authentication Routes (/owner/login & /owner/logout)
+# ------------------------------------------------------------------------
+
+@router.get("/login")
+async def login_page(request: Request, db: Session = Depends(get_db)):
+    """Render Owner Login Page."""
+    owner, business = resolve_owner_and_business(request, db)
+    if owner and business:
+        return RedirectResponse(url="/owner/dashboard", status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="owner/login.html",
+        context={"request": request, "error": None}
+    )
+
+
+@router.post("/login")
+async def login_action(
+    request: Request,
+    db: Session = Depends(get_db),
+    identifier: str = Form(""),
+    password: str = Form(""),
+    remember_me: Optional[str] = Form(None),
+):
+    """Authenticate Owner and create session."""
+    clean_identifier = identifier.strip()
+    clean_password = password.strip()
+    is_remember = remember_me in ("on", "true", "1")
+
+    if not clean_identifier or not clean_password:
+        return templates.TemplateResponse(
+            request=request,
+            name="owner/login.html",
+            context={"request": request, "error": "Please provide your email/phone and password."},
+        )
+
+    owner = db.query(Owner).filter(
+        or_(
+            Owner.email == clean_identifier,
+            Owner.phone_number == clean_identifier,
+        )
+    ).first()
+
+    if not owner or not owner.is_active or not verify_password(clean_password, owner.password_hash):
+        logger.warning(f"Failed login attempt for identifier '{clean_identifier}'")
+        return templates.TemplateResponse(
+            request=request,
+            name="owner/login.html",
+            context={"request": request, "error": "Invalid email/phone or password."},
+        )
+
+    token, max_age = create_session_token(owner.id, remember_me=is_remember)
+    response = RedirectResponse(url="/owner/dashboard", status_code=303)
+    set_session_cookie(response, request, token, max_age)
+    logger.info(f"Owner #{owner.id} ('{owner.full_name}') logged in successfully.")
+    return response
+
+
+@router.post("/logout")
+async def logout_action():
+    """Destroy session and redirect to login."""
+    response = RedirectResponse(url="/owner/login", status_code=303)
+    response.delete_cookie(SESSION_COOKIE_NAME)
+    return response
 </file>
 
 <file path="templates/owner/appointments.html">
@@ -4360,6 +4413,404 @@ def generate_excel_report(business_id: int, business_name: str, db: Session, fro
 </html>
 </file>
 
+<file path="templates/owner/base.html">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Verzio Studio{% endblock %}</title>
+
+    <!-- Bootstrap 5 (Utility & Grid only) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- Fonts: Inter for readability, JetBrains Mono for ID/Phone data -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+    <!-- Design System: White Background / Thin Borders / Accent Only -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <div class="app-shell">
+
+        <!-- ==================== SIDEBAR ==================== -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                Verzio Studio
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/owner" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-compass"></i>
+                    <span>Overview</span>
+                </a>
+
+                <a href="/owner/appointments" class="nav-item {% if active_page == 'appointments' %}active{% endif %}">
+                    <i class="bi bi-calendar3"></i>
+                    <span>Appointments</span>
+                </a>
+
+                <a href="/owner/services" class="nav-item {% if active_page == 'services' %}active{% endif %}">
+                    <i class="bi bi-briefcase"></i>
+                    <span>Services</span>
+                </a>
+
+                <a href="/owner/reports" class="nav-item {% if active_page == 'reports' %}active{% endif %}">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <a href="/owner/settings" class="nav-item {% if active_page == 'settings' %}active{% endif %}">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- ==================== MAIN COLUMN ==================== -->
+        <div class="main-col">
+
+            <!-- ---- Top Bar ---- -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <h1 class="page-current-title">{% block page_title %}Overview{% endblock %}</h1>
+                </div>
+
+            
+
+                <div class="topbar-right">
+                    <details class="profile-menu">
+                        <summary class="profile-trigger">
+                            <span class="mono fw-bold text-accent">{{ owner.full_name if owner else 'OWNER' }}</span>
+                            <i class="bi bi-chevron-down ms-1" style="font-size: 10px;"></i>
+                        </summary>
+
+                        <div class="profile-dropdown">
+                            <!-- You can add other links here later, like "Account Settings" -->
+                            <form action="/owner/logout" method="post">
+                                <button type="submit" class="dropdown-item logout">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                    <span>Sign Out</span>
+                                </button>
+                            </form>
+                        </div>
+                    </details>
+                </div>
+
+            </header>
+
+            <!-- ---- Main Content Area ---- -->
+            <main class="content-container">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Minimum Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', path='js/script.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+</file>
+
+<file path="templates/owner/services.html">
+{% extends "owner/base.html" %}
+
+{% block title %}Services — Verzio Studio{% endblock %}
+{% block page_title %}Services{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Services</h1>
+    <div class="page-subtitle">Service catalog for your current tenant only.</div>
+  </div>
+  <a href="/owner/services/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
+</div>
+
+<div class="filter-bar">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search services…" data-table-search="#services-table">
+</div>
+
+<div class="table-verzio-wrap" id="services-table">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Duration</th>
+        <th>Price</th>
+        <th>Status</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for service in services %}
+      <tr>
+        <td>
+          <div class="table-entity">
+            <div class="table-avatar">{{ service.name[:2]|upper }}</div>
+            <div class="cell-primary">{{ service.name }}</div>
+          </div>
+        </td>
+        <td class="cell-secondary">{{ service.duration }} mins</td>
+        <td class="cell-secondary">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if service.is_active %}
+            <span class="status-badge status-active"><span class="dot"></span>Active</span>
+          {% else %}
+            <span class="status-badge status-inactive"><span class="dot"></span>Inactive</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <a href="/owner/services/{{ service.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ service.name }}">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
+              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
+                {% if service.is_active %}
+                <i class="bi bi-eye"></i>
+                {% else %}
+                <i class="bi bi-eye-slash"></i>
+                {% endif %}
+              </button>
+            </form>
+            <form method="post"
+                  action="/owner/services/{{ service.id }}/delete"
+                  class="m-0 d-inline-flex">
+              <button
+                  type="submit"
+                  class="icon-btn"
+                  style="width:30px;height:30px;"
+                  aria-label="Delete {{ service.name }}"
+                  title="Delete"
+                  onclick="return confirm('Delete this service?');">
+                  <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="text-center cell-muted py-5">
+          No services found for this tenant.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+</file>
+
+<file path="templates/appointments.html">
+{% extends "base.html" %}
+
+{% block title %}Appointments — Verzio Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow"></div>
+    <h1 class="page-title">APPOINTMENTS</h1>
+    <div class="page-subtitle">All bookings across every business, synced live from WhatsApp.</div>
+  </div>
+  <a href="#" class="btn-verzio-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export manifest (.xlsx)</a>
+</div>
+
+<div class="filter-bar">
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search by phone number..." data-table-search="#appointments-table">
+  <div class="d-flex gap-2" data-filter-group="#appointments-table">
+    <button class="filter-pill active" data-filter-value="all">All</button>
+    <button class="filter-pill" data-filter-value="pending">Pending</button>
+    <button class="filter-pill" data-filter-value="confirmed">Confirmed</button>
+    <button class="filter-pill" data-filter-value="completed">Completed</button>
+    <button class="filter-pill" data-filter-value="cancelled">Cancelled</button>
+  </div>
+</div>
+
+<div class="table-verzio-wrap" id="appointments-table">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Customer</th>
+        <th>Business</th>
+        <th>Service</th>
+        <th>Date &amp; time</th>
+        <th>Status</th>
+        <th class="text-end">Booking ID</th>
+      </tr>
+    </thead>
+    <tbody>
+     
+      {% for a in appointments %}
+      <tr data-status="{{ a.status }}">
+        <td>
+          <div class="table-entity">
+            <div class="table-avatar">
+                <i class="bi bi-telephone"></i>
+            </div>
+
+            <div>
+                <div class="cell-primary mono">
+                    {{ a.customer_phone }}
+                </div>
+            </div>
+          </div>
+        </td>
+        <td class="cell-secondary">{{ a.business.name }}</td>
+        <td class="cell-secondary">{{ a.service.name }}</td>
+        <td class="mono cell-secondary">{{ a.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
+        <td>
+            <span class="status-badge status-{{ a.status }}">
+                <span class="dot"></span>{{ a.status|replace("_", " ")|capitalize }}
+            </span>
+        </td>
+        <td class="text-end mono cell-muted">#{{ a.id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+</file>
+
+<file path="seed.py">
+from database import (
+    SessionLocal,
+    Business,
+    Service,
+    Appointment,
+    UserSession,
+    Owner,
+    init_db,
+)
+from datetime import datetime
+from owner.owner_auth import hash_password
+
+init_db()
+db = SessionLocal()
+
+try:
+    print("🧹 Purging old data...")
+
+    db.query(Appointment).delete()
+    db.query(UserSession).delete()
+    db.query(Service).delete()
+    db.query(Owner).delete()
+    db.query(Business).delete()
+    db.commit()
+
+    print("🌱 Seeding Verzio Business...")
+
+    biz_config = {
+        # Business Hours
+        "operational_hours": {
+            "mon": ["09:00", "18:00"],
+            "tue": ["09:00", "18:00"],
+            "wed": ["09:00", "18:00"],
+            "thu": ["09:00", "18:00"],
+            "fri": ["09:00", "18:00"],
+            "sat": ["10:00", "15:00"]
+        },
+        "holidays": [],
+
+        # Booking Settings
+        "slot_interval": 60,
+        "advance_booking_days": 14,
+        "enable_service_selection": True,
+        "approval_mode": "manual",
+        "accepting_bookings": True,
+        "max_parallel_bookings": 2,
+
+        # Notifications
+        "notification_preferences": {
+            "whatsapp_owner": True,
+            "whatsapp_customer": True
+        }
+    }
+
+    new_business = Business(
+        name="Verzio Parallel Salon",
+        whatsapp_business_phone_number_id="1265387899980753",
+        manager_phone_number="918208559570",
+        timezone="Asia/Kolkata",
+        is_active=True,
+        **biz_config
+    )
+
+    db.add(new_business)
+    db.commit()
+    db.refresh(new_business)
+
+
+    owner = Owner(
+        business_id=new_business.id,
+        full_name="Mohak Bhowmik",
+        email="admin@verzio.test",
+        phone_number="918208559570",
+        password_hash=hash_password("admin123"),
+        is_active=True,
+    )
+
+    db.add(owner)
+    db.commit()
+
+    services = [
+        Service(
+            business_id=new_business.id,
+            name="Haircut",
+            duration=60,
+            price=300.0,
+            is_active=True
+        ),
+        Service(
+            business_id=new_business.id,
+            name="Beard Trim",
+            duration=60,
+            price=150.0,
+            is_active=True
+        ),
+        Service(
+            business_id=new_business.id,
+            name="Hair Spa",
+            duration=60,
+            price=800.0,
+            is_active=True
+        )
+    ]
+
+    db.add_all(services)
+    db.commit()
+
+    print(f"✅ Seeded '{new_business.name}' successfully.")
+    print(f"📅 Slot Interval: {biz_config['slot_interval']} minutes")
+    print(f"👥 Online Capacity: {biz_config['max_parallel_bookings']} concurrent bookings")
+    print(f"📆 Advance Booking Window: {biz_config['advance_booking_days']} days")
+
+
+
+
+finally:
+    db.close()
+
+
+print()
+print("========== OWNER LOGIN ==========")
+print("Email    : admin@verzio.test")
+print("Password : admin123")
+print("=================================")
+</file>
+
 <file path="routers/admin_businesses.py">
 """
 admin_businesses.py
@@ -4380,7 +4831,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db, Business, Owner
-from owner.owner_auth import SESSION_COOKIE_NAME, create_session_token, hash_password
+from owner.owner_auth import create_session_token, hash_password, set_session_cookie
+from activity_log import log_event
 
 logger = logging.getLogger("VERZIO_ADMIN_BUSINESSES")
 
@@ -4662,221 +5114,142 @@ def toggle_business_active(
 @router.post("/{business_id}/impersonate")
 def impersonate_business_owner(
     business_id: int,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     owner = db.query(Owner).filter(Owner.business_id == business_id).first()
-
     if not owner:
         raise HTTPException(status_code=404, detail="Owner not found for this business.")
 
+    log_event(
+        db=db,
+        event_type="admin_impersonation",
+        status="warning",
+        message=f"Admin opened owner session for owner #{owner.id}",
+        business_id=business_id,
+    )
+
     token, max_age = create_session_token(owner.id)
     response = RedirectResponse(url="/owner/dashboard", status_code=303)
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        max_age=max_age,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-    )
+    set_session_cookie(response, request, token, max_age)
     return response
 </file>
 
-<file path="templates/owner/base.html">
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Verzio Studio{% endblock %}</title>
-
-    <!-- Bootstrap 5 (Utility & Grid only) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-
-    <!-- Fonts: Inter for readability, JetBrains Mono for ID/Phone data -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
-
-    <!-- Design System: White Background / Thin Borders / Accent Only -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
-
-    {% block extra_head %}{% endblock %}
-</head>
-<body>
-
-    <div class="app-shell">
-
-        <!-- ==================== SIDEBAR ==================== -->
-        <aside class="sidebar">
-            <div class="sidebar-brand">
-                Verzio Studio
-            </div>
-
-            <nav class="sidebar-nav">
-                <a href="/owner" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
-                    <i class="bi bi-compass"></i>
-                    <span>Overview</span>
-                </a>
-
-                <a href="/owner/appointments" class="nav-item {% if active_page == 'appointments' %}active{% endif %}">
-                    <i class="bi bi-calendar3"></i>
-                    <span>Appointments</span>
-                </a>
-
-                <a href="/owner/services" class="nav-item {% if active_page == 'services' %}active{% endif %}">
-                    <i class="bi bi-briefcase"></i>
-                    <span>Services</span>
-                </a>
-
-                <a href="/owner/reports" class="nav-item {% if active_page == 'reports' %}active{% endif %}">
-                    <i class="bi bi-bar-chart"></i>
-                    <span>Reports</span>
-                </a>
-
-                <a href="/owner/settings" class="nav-item {% if active_page == 'settings' %}active{% endif %}">
-                    <i class="bi bi-gear"></i>
-                    <span>Settings</span>
-                </a>
-            </nav>
-        </aside>
-
-        <!-- ==================== MAIN COLUMN ==================== -->
-        <div class="main-col">
-
-            <!-- ---- Top Bar ---- -->
-            <header class="topbar">
-                <div class="topbar-left">
-                    <h1 class="page-current-title">{% block page_title %}Overview{% endblock %}</h1>
-                </div>
-
-            
-
-                <div class="topbar-right">
-                    <details class="profile-menu">
-                        <summary class="profile-trigger">
-                            <span class="mono fw-bold text-accent">{{ owner.full_name if owner else 'OWNER' }}</span>
-                            <i class="bi bi-chevron-down ms-1" style="font-size: 10px;"></i>
-                        </summary>
-
-                        <div class="profile-dropdown">
-                            <!-- You can add other links here later, like "Account Settings" -->
-                            <form action="/owner/logout" method="post">
-                                <button type="submit" class="dropdown-item logout">
-                                    <i class="bi bi-box-arrow-right"></i>
-                                    <span>Sign Out</span>
-                                </button>
-                            </form>
-                        </div>
-                    </details>
-                </div>
-
-            </header>
-
-            <!-- ---- Main Content Area ---- -->
-            <main class="content-container">
-                {% block content %}{% endblock %}
-            </main>
-        </div>
-    </div>
-
-    <!-- Minimum Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', path='js/script.js') }}"></script>
-    {% block extra_scripts %}{% endblock %}
-</body>
-</html>
-</file>
-
-<file path="templates/owner/services.html">
+<file path="templates/owner/reports.html">
 {% extends "owner/base.html" %}
 
-{% block title %}Services — Verzio Studio{% endblock %}
-{% block page_title %}Services{% endblock %}
+{% block title %}Reports — Verzio Studio{% endblock %}
+{% block page_title %}Reports{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Services</h1>
-    <div class="page-subtitle">Service catalog for your current tenant only.</div>
-  </div>
-  <a href="/owner/services/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
+<div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-end w-100">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">PERFORMANCE INSIGHTS</span>
+            </div>
+            <h1 class="page-title" style="margin:0;">Business Reports</h1>
+            <p class="page-subtitle" style="margin-top:4px;">Analyze booking trends and operational efficiency.</p>
+        </div>
+        <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn-verzio-primary">
+            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export Manifest
+        </a>
+    </div>
 </div>
 
-<div class="filter-bar">
-  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search services…" data-table-search="#services-table">
+<!-- Filter Toolbar -->
+<div class="section-container mb-4">
+    <form method="get" action="/owner/reports" class="p-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <span class="text-muted small fw-bold text-uppercase">Date Range:</span>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="date" name="from_date" class="form-control-verzio" value="{{ selected_from }}">
+                    <span class="text-muted">to</span>
+                    <input type="date" name="to_date" class="form-control-verzio" value="{{ selected_to }}">
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn-verzio-outline">
+                    <i class="bi bi-filter me-1"></i> Apply Filter
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
 
-<div class="table-verzio-wrap" id="services-table">
-  <table class="table table-verzio align-middle mb-0">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Duration</th>
-        <th>Price</th>
-        <th>Status</th>
-        <th class="text-end">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for service in services %}
-      <tr>
-        <td>
-          <div class="table-entity">
-            <div class="table-avatar">{{ service.name[:2]|upper }}</div>
-            <div class="cell-primary">{{ service.name }}</div>
-          </div>
-        </td>
-        <td class="cell-secondary">{{ service.duration }} mins</td>
-        <td class="cell-secondary">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}—{% endif %}</td>
-        <td>
-          {% if service.is_active %}
-            <span class="status-badge status-active"><span class="dot"></span>Active</span>
-          {% else %}
-            <span class="status-badge status-inactive"><span class="dot"></span>Inactive</span>
-          {% endif %}
-        </td>
-        <td class="text-end">
-          <div class="d-flex align-items-center justify-content-end gap-2">
-            <a href="/owner/services/{{ service.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ service.name }}">
-              <i class="bi bi-pencil"></i>
-            </a>
-            <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
-              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
-                {% if service.is_active %}
-                <i class="bi bi-eye"></i>
-                {% else %}
-                <i class="bi bi-eye-slash"></i>
-                {% endif %}
-              </button>
-            </form>
-            <form method="post"
-                  action="/owner/services/{{ service.id }}/delete"
-                  class="m-0 d-inline-flex">
-              <button
-                  type="submit"
-                  class="icon-btn"
-                  style="width:30px;height:30px;"
-                  aria-label="Delete {{ service.name }}"
-                  title="Delete"
-                  onclick="return confirm('Delete this service?');">
-                  <i class="bi bi-trash"></i>
-              </button>
-            </form>
-          </div>
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="5" class="text-center cell-muted py-5">
-          No services found for this tenant.
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+
+
+<!-- 6-Column Metric Grid -->
+<div class="row row-cols-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Total Bookings</span>
+            <div class="metric-value">{{ total_count }}</div>
+            <span class="cell-muted">in period</span>
+        </div>
+    </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Completed</span>
+            <div class="metric-value text-success">{{ completed_count }}</div>
+            <span class="cell-muted">finished</span>
+        </div>
+    </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Pending</span>
+            <div class="metric-value text-amber">{{ pending_count }}</div>
+            <span class="cell-muted">needs action</span>
+        </div>
+    </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Confirmed</span>
+            <div class="metric-value text-accent">{{ confirmed_count }}</div>
+            <span class="cell-muted">scheduled</span>
+        </div>
+    </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">Cancelled</span>
+            <div class="metric-value text-danger">{{ cancelled_count }}</div>
+            <span class="cell-muted">drop-offs</span>
+        </div>
+    </div>
+    <div class="col">
+        <div class="metric-card">
+            <span class="metric-label">No-Show</span>
+            <div class="metric-value" style="color: #64748b;">{{ no_show_count }}</div>
+            <span class="cell-muted">missed slots</span>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="section-container">
+    <div class="section-head">
+        <h2 class="section-title">Timeline of Activity</h2>
+    </div>
+    <div class="activity-feed p-2">
+        {% for event in recent_activity %}
+        <div class="activity-item p-3 mb-2 rounded-3" style="background: #fcfcfd; border: 1px solid var(--border-subtle);">
+            <div class="d-flex justify-content-between align-items-start">
+                <span class="activity-type mono text-accent" style="font-size: 11px;">{{ event.event_type|replace("_", " ")|upper }}</span>
+                <span class="activity-time mono">{{ event.created_at.strftime("%d %b, %H:%M") }}</span>
+            </div>
+            <div class="activity-msg mt-1">{{ event.message[:120] if event.message else 'No log details' }}</div>
+        </div>
+        {% else %}
+        <div class="text-center cell-muted py-5">
+            <i class="bi bi-info-circle d-block fs-3 mb-2"></i>
+            No activity found for this date range.
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}
 </file>
@@ -4927,7 +5300,7 @@ def impersonate_business_owner(
                                 <label class="form-label small fw-bold text-muted text-uppercase">Owner Name</label>
                                 <span class="coming-soon-pill">Locked</span>
                             </div>
-                            <input type="text" class="form-control-verzio opacity-50" value="Mohak Bhowmik" disabled>
+                            <input type="text" class="form-control-verzio opacity-50" value="{{ owner.full_name if owner else 'Owner' }}" disabled>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small fw-bold text-muted text-uppercase">Public Phone</label>
@@ -5132,84 +5505,15 @@ def impersonate_business_owner(
 {% endblock %}
 </file>
 
-<file path="templates/appointments.html">
-{% extends "base.html" %}
-
-{% block title %}Appointments — Verzio Studio{% endblock %}
-
-{% block content %}
-<div class="page-header">
-  <div>
-    <div class="page-eyebrow"></div>
-    <h1 class="page-title">APPOINTMENTS</h1>
-    <div class="page-subtitle">All bookings across every business, synced live from WhatsApp.</div>
-  </div>
-  <a href="#" class="btn-verzio-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export manifest (.xlsx)</a>
-</div>
-
-<div class="filter-bar">
-  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search by phone number..." data-table-search="#appointments-table">
-  <div class="d-flex gap-2" data-filter-group="#appointments-table">
-    <button class="filter-pill active" data-filter-value="all">All</button>
-    <button class="filter-pill" data-filter-value="pending">Pending</button>
-    <button class="filter-pill" data-filter-value="confirmed">Confirmed</button>
-    <button class="filter-pill" data-filter-value="completed">Completed</button>
-    <button class="filter-pill" data-filter-value="cancelled">Cancelled</button>
-  </div>
-</div>
-
-<div class="table-verzio-wrap" id="appointments-table">
-  <table class="table table-verzio align-middle mb-0">
-    <thead>
-      <tr>
-        <th>Customer</th>
-        <th>Business</th>
-        <th>Service</th>
-        <th>Date &amp; time</th>
-        <th>Status</th>
-        <th class="text-end">Booking ID</th>
-      </tr>
-    </thead>
-    <tbody>
-     
-      {% for a in appointments %}
-      <tr data-status="{{ a.status }}">
-        <td>
-          <div class="table-entity">
-            <div class="table-avatar">
-                <i class="bi bi-telephone"></i>
-            </div>
-
-            <div>
-                <div class="cell-primary mono">
-                    {{ a.customer_phone }}
-                </div>
-            </div>
-          </div>
-        </td>
-        <td class="cell-secondary">{{ a.business.name }}</td>
-        <td class="cell-secondary">{{ a.service.name }}</td>
-        <td class="mono cell-secondary">{{ a.appointment_time.strftime("%d %b %Y, %I:%M %p") }}</td>
-        <td>
-            <span class="status-badge status-{{ a.status }}">
-                <span class="dot"></span>{{ a.status|replace("_", " ")|capitalize }}
-            </span>
-        </td>
-        <td class="text-end mono cell-muted">#{{ a.id }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endblock %}
-</file>
-
 <file path="booking_runtime.py">
+import logging
 from sqlalchemy.orm import Session
 from runtime_state import RuntimeStateManager
 from booking_engine import VerzioSaaSEngine, BookingEngineException
 from database import Business, Service
 from datetime import datetime
+
+logger = logging.getLogger("VERZIO_RUNTIME")
 
 class BookingRuntime:
     def __init__(self, db: Session):
@@ -5218,39 +5522,63 @@ class BookingRuntime:
         self.engine = VerzioSaaSEngine()
 
     async def process_interaction(self, phone: str, tenant_id: str, interaction_id: str):
-        session = self.state_mgr.get_or_create_session(phone, tenant_id)
+        # Resolve the tenant FIRST; the session is always scoped to biz.id.
         biz = self.engine.get_tenant_config(self.db, tenant_id)
+        session = self.state_mgr.get_or_create_session(phone, business_id=biz.id)
 
         if interaction_id == "action_start":
-            # FIX 1: Pass the phone number to advance state
             return self._render_services(phone, biz)
 
         elif session.step == "SELECT_SERVICE":
-            svc_id = int(interaction_id.split("_")[1])
-            self.state_mgr.update_session(phone, "SELECT_DATE", selected_service_id=svc_id)
+            svc = self._resolve_service_selection(biz, interaction_id)
+            if svc is None:
+                logger.warning(
+                    "Rejected service selection %r for business_id=%s phone=%s",
+                    interaction_id, biz.id, phone,
+                )
+                return self._render_services(
+                    phone, biz,
+                    notice="That service isn't available here. Please choose from our menu:",
+                )
+            self.state_mgr.update_session(
+                phone, business_id=biz.id, step="SELECT_DATE", selected_service_id=svc.id
+            )
             dates = self.engine.get_available_dates(self.db, biz)
-            return self._render_dates(dates, phone)
+            return self._render_dates(dates, phone, biz)
 
         elif session.step == "SELECT_DATE":
             date_str = interaction_id.split("_")[1]
-            self.state_mgr.update_session(phone, "SELECT_TIME", selected_date=date_str)
+            self.state_mgr.update_session(
+                phone, business_id=biz.id, step="SELECT_TIME", selected_date=date_str
+            )
             target_date = datetime.strptime(date_str, "%Y-%m-%d")
             slots = self.engine.get_available_slots(self.db, biz, target_date)
-            return self._render_slots(slots, phone)
+            return self._render_slots(slots, phone, biz)
 
         elif session.step == "SELECT_TIME":
             time_str = interaction_id.split("_")[1]
-            self.state_mgr.update_session(phone, "CONFIRM", selected_time=time_str)
-            return self._render_confirmation(session, phone)
+            self.state_mgr.update_session(
+                phone, business_id=biz.id, step="CONFIRM", selected_time=time_str
+            )
+            return self._render_confirmation(session, phone, biz)
 
         elif session.step == "CONFIRM":
             if interaction_id == "action_confirm":
-                return self._finalize(phone, tenant_id, session)
-            self.state_mgr.clear_session(phone)
+                return self._finalize(phone, tenant_id, session, biz)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "Cancelled."}
 
-    def _render_services(self, phone, biz):
-        # FIX 3: Filter by is_active == True
+    def _resolve_service_selection(self, biz, interaction_id):
+        """Parse 'svc_<id>' and return the Service only if it belongs to biz."""
+        if not isinstance(interaction_id, str) or not interaction_id.startswith("svc_"):
+            return None
+        try:
+            svc_id = int(interaction_id[len("svc_"):])
+        except ValueError:
+            return None
+        return self.engine.get_service_for_business(self.db, biz.id, svc_id)
+
+    def _render_services(self, phone, biz, notice=None):
         svcs = self.db.query(Service).filter(
             Service.business_id == biz.id,
             Service.is_active == True,
@@ -5258,7 +5586,7 @@ class BookingRuntime:
         ).limit(10).all()
 
         if not svcs:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "Sorry, this business currently has no active services available."}
         
         rows = [{
@@ -5267,38 +5595,36 @@ class BookingRuntime:
             "description": f"₹{s.price:.0f}" if s.price is not None else f"{s.duration} mins"
         } for s in svcs]
         
-        # FIX 1: Use customer phone to advance step
-        self.state_mgr.update_session(phone, "SELECT_SERVICE")
+        self.state_mgr.update_session(phone, business_id=biz.id, step="SELECT_SERVICE")
         
         return {
             "type": "list", 
             "header": "Services", 
-            "body": "Pick a service:", 
+            "body": f"{notice}\n\nPick a service:" if notice else "Pick a service:",
             "button": "Services", 
             "sections": [{"title": "Our Menu", "rows": rows}]
         }
 
-    def _render_dates(self, dates, phone):
+    def _render_dates(self, dates, phone, biz):
         if not dates:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "No booking dates are currently available. Please check back soon."}
 
         btns = [{"id": f"date_{d.isoformat()}", "title": d.strftime("%a %d %b")} for d in dates[:3]]
         return {"type": "buttons", "body": "Pick a date:", "buttons": btns}
 
-    def _render_slots(self, slots, phone):
+    def _render_slots(self, slots, phone, biz):
         if not slots:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "All slots for this date are fully booked or unavailable. Please message again to choose another date."}
 
         rows = [{"id": f"time_{s}", "title": s} for s in slots[:10]]
         return {"type": "list", "header": "Times", "body": "Pick a time:", "button": "Times", "sections": [{"title": "Slots", "rows": rows}]}
 
-    def _render_confirmation(self, session, phone):
-        # FIX 2: Modern SQLAlchemy session.get()
-        svc = self.db.get(Service, session.selected_service_id)
+    def _render_confirmation(self, session, phone, biz):
+        svc = self.engine.get_service_for_business(self.db, biz.id, session.selected_service_id)
         if svc is None:
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
             return {"type": "text", "body": "Sorry, the selected service is no longer available. Please start again."}
 
         body = f"Confirm: {svc.name} on {session.selected_date} at {session.selected_time}?"
@@ -5311,7 +5637,7 @@ class BookingRuntime:
             ]
         }
 
-    def _finalize(self, phone, tenant_id, session):
+    def _finalize(self, phone, tenant_id, session, biz):
         try:
             dt = datetime.strptime(
                 f"{session.selected_date} {session.selected_time}",
@@ -5326,7 +5652,6 @@ class BookingRuntime:
                 session.selected_service_id
             )
 
-            biz = self.db.get(Business, appt.business_id)
             svc = self.db.get(Service, appt.service_id)
 
             dt_str = appt.appointment_time.strftime("%A, %b %d")
@@ -5354,7 +5679,7 @@ class BookingRuntime:
                 ]
             }
 
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
 
             return {
                 "customer": {
@@ -5384,402 +5709,18 @@ class BookingRuntime:
             elif e.error_code == "ERR_INVALID_CONFIG":
                 message = "The business configuration is currently unavailable."
 
+            elif e.error_code == "ERR_INVALID_SERVICE":
+                message = "Sorry, that service is no longer available. Please message us again to start over."
+
             else:
                 message = "Unable to complete your booking."
 
-            self.state_mgr.clear_session(phone)
+            self.state_mgr.clear_session(phone, business_id=biz.id)
 
             return {
                 "type": "text",
                 "body": message
             }
-</file>
-
-<file path="seed.py">
-from database import (
-    SessionLocal,
-    Business,
-    Service,
-    Appointment,
-    UserSession,
-    Owner,
-    init_db,
-)
-from datetime import datetime
-from owner.owner_auth import hash_password
-
-init_db()
-db = SessionLocal()
-
-try:
-    print("🧹 Purging old data...")
-
-    db.query(Appointment).delete()
-    db.query(UserSession).delete()
-    db.query(Service).delete()
-    db.query(Owner).delete()
-    db.query(Business).delete()
-    db.commit()
-
-    print("🌱 Seeding Verzio Business...")
-
-    biz_config = {
-        # Business Hours
-        "operational_hours": {
-            "mon": ["09:00", "18:00"],
-            "tue": ["09:00", "18:00"],
-            "wed": ["09:00", "18:00"],
-            "thu": ["09:00", "18:00"],
-            "fri": ["09:00", "18:00"],
-            "sat": ["10:00", "15:00"]
-        },
-        "holidays": [],
-
-        # Booking Settings
-        "slot_interval": 60,
-        "advance_booking_days": 14,
-        "enable_service_selection": True,
-        "approval_mode": "manual",
-        "accepting_bookings": True,
-        "max_parallel_bookings": 2,
-
-        # Notifications
-        "notification_preferences": {
-            "whatsapp_owner": True,
-            "whatsapp_customer": True
-        }
-    }
-
-    new_business = Business(
-        name="Verzio Parallel Salon",
-        whatsapp_business_phone_number_id="1265387899980753",
-        manager_phone_number="918208559570",
-        timezone="Asia/Kolkata",
-        is_active=True,
-        **biz_config
-    )
-
-    db.add(new_business)
-    db.commit()
-    db.refresh(new_business)
-
-
-    owner = Owner(
-        business_id=new_business.id,
-        full_name="Mohak Bhowmik",
-        email="admin@verzio.test",
-        phone_number="918208559570",
-        password_hash=hash_password("admin123"),
-        is_active=True,
-    )
-
-    db.add(owner)
-    db.commit()
-
-    services = [
-        Service(
-            business_id=new_business.id,
-            name="Haircut",
-            duration=60,
-            price=300.0,
-            is_active=True
-        ),
-        Service(
-            business_id=new_business.id,
-            name="Beard Trim",
-            duration=60,
-            price=150.0,
-            is_active=True
-        ),
-        Service(
-            business_id=new_business.id,
-            name="Hair Spa",
-            duration=60,
-            price=800.0,
-            is_active=True
-        )
-    ]
-
-    db.add_all(services)
-    db.commit()
-
-    print(f"✅ Seeded '{new_business.name}' successfully.")
-    print(f"📅 Slot Interval: {biz_config['slot_interval']} minutes")
-    print(f"👥 Online Capacity: {biz_config['max_parallel_bookings']} concurrent bookings")
-    print(f"📆 Advance Booking Window: {biz_config['advance_booking_days']} days")
-
-
-
-
-finally:
-    db.close()
-
-
-print()
-print("========== OWNER LOGIN ==========")
-print("Email    : admin@verzio.test")
-print("Password : admin123")
-print("=================================")
-</file>
-
-<file path="owner/owner_settings.py">
-from datetime import datetime
-
-from fastapi import APIRouter, Depends, Request
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from owner.owner_auth import is_mobile, resolve_owner_and_business
-from fastapi.responses import RedirectResponse
-
-from database import Business, get_db
-
-router = APIRouter(prefix="/owner/settings", tags=["owner-settings"])
-templates = Jinja2Templates(directory="templates")
-
-WEEK_DAYS = [
-    ("mon", "Monday"),
-    ("tue", "Tuesday"),
-    ("wed", "Wednesday"),
-    ("thu", "Thursday"),
-    ("fri", "Friday"),
-    ("sat", "Saturday"),
-    ("sun", "Sunday"),
-]
-
-
-
-
-
-def _business_hours_rows(business: Business | None) -> list[dict]:
-    existing = (business.operational_hours if business and business.operational_hours else {}) or {}
-    rows = []
-
-    for key, label in WEEK_DAYS:
-        pair = existing.get(key)
-        rows.append(
-            {
-                "key": key,
-                "label": label,
-                "open": pair[0] if pair else "09:00",
-                "close": pair[1] if pair else "18:00",
-                "closed": pair is None,
-            }
-        )
-
-    return rows
-
-
-def _build_operational_hours(form) -> dict:
-    hours = {}
-    for key, _label in WEEK_DAYS:
-        if form.get(f"hours_{key}_enabled") == "on":
-            open_time = form.get(f"hours_{key}_open") or "09:00"
-            close_time = form.get(f"hours_{key}_close") or "18:00"
-            hours[key] = [open_time, close_time]
-    return hours
-
-
-@router.get("")
-async def owner_settings_page(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    owner, business = resolve_owner_and_business(request, db)
-    if not owner or not business:
-        return RedirectResponse(url="/owner/login", status_code=303)
-
-    template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
-
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "active_page": "settings",
-            "business": business,
-            "hours_rows": _business_hours_rows(business),
-            "message": None,
-            "error": None,
-        },
-    )
-
-
-@router.post("")
-async def owner_settings_save(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    owner, business = resolve_owner_and_business(request, db)
-    if not business:
-        template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
-        return templates.TemplateResponse(
-            request=request,
-            name=template_name,
-            context={
-                "active_page": "settings",
-                "business": None,
-                "hours_rows": [],
-                "message": None,
-                "error": "Unable to resolve the authenticated owner tenant.",
-            },
-        )
-
-    form = await request.form()
-
-    business.name = (form.get("business_name") or "").strip() or business.name
-    business.manager_phone_number = (form.get("phone_number") or "").strip() or business.manager_phone_number
-    business.timezone = (form.get("timezone") or "UTC").strip() or "UTC"
-    business.accepting_bookings = form.get("accept_online_bookings") == "on"
-    business.enable_service_selection = form.get("show_services_during_booking") == "on"
-    business.max_parallel_bookings = int(form.get("max_parallel_bookings") or business.max_parallel_bookings or 1)
-    allowed_intervals = {5, 10, 15, 30, 45, 60, 90, 120}
-    try:
-        submitted_interval = int(form.get("slot_duration") or 30)
-        business.slot_interval = submitted_interval if submitted_interval in allowed_intervals else 30
-    except (ValueError, TypeError):
-        business.slot_interval = 30
-    business.advance_booking_days = int(form.get("advance_booking_days") or business.advance_booking_days or 14)
-    business.approval_mode = "manual" if form.get("require_owner_approval") == "on" else "automatic"
-    business.operational_hours = _build_operational_hours(form)
-
-    notification_preferences = business.notification_preferences or {}
-    notification_preferences["whatsapp_owner"] = bool(notification_preferences.get("whatsapp_owner"))
-    notification_preferences["whatsapp_customer"] = form.get("send_booking_confirmation") == "on"
-    business.notification_preferences = notification_preferences
-
-    db.commit()
-
-    template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
-
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "active_page": "settings",
-            "business": business,
-            "hours_rows": _business_hours_rows(business),
-            "message": "Settings saved successfully.",
-            "error": None,
-        },
-    )
-</file>
-
-<file path="templates/owner/reports.html">
-{% extends "owner/base.html" %}
-
-{% block title %}Reports — Verzio Studio{% endblock %}
-{% block page_title %}Reports{% endblock %}
-
-{% block content %}
-<div class="page-header mb-4">
-    <div class="d-flex justify-content-between align-items-end w-100">
-        <div>
-            <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">PERFORMANCE INSIGHTS</span>
-            </div>
-            <h1 class="page-title" style="margin:0;">Business Reports</h1>
-            <p class="page-subtitle" style="margin-top:4px;">Analyze booking trends and operational efficiency.</p>
-        </div>
-        <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn-verzio-primary">
-            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export Manifest
-        </a>
-    </div>
-</div>
-
-<!-- Filter Toolbar -->
-<div class="section-container mb-4">
-    <form method="get" action="/owner/reports" class="p-3">
-        <div class="row g-3 align-items-center">
-            <div class="col-auto">
-                <span class="text-muted small fw-bold text-uppercase">Date Range:</span>
-            </div>
-            <div class="col-auto">
-                <div class="d-flex align-items-center gap-2">
-                    <input type="date" name="from_date" class="form-control-verzio" value="{{ selected_from }}">
-                    <span class="text-muted">to</span>
-                    <input type="date" name="to_date" class="form-control-verzio" value="{{ selected_to }}">
-                </div>
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn-verzio-outline">
-                    <i class="bi bi-filter me-1"></i> Apply Filter
-                </button>
-            </div>
-        </div>
-    </form>
-</div>
-
-
-
-<!-- 6-Column Metric Grid -->
-<div class="row row-cols-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
-    <div class="col">
-        <div class="metric-card">
-            <span class="metric-label">Total Bookings</span>
-            <div class="metric-value">{{ total_count }}</div>
-            <span class="cell-muted">in period</span>
-        </div>
-    </div>
-    <div class="col">
-        <div class="metric-card">
-            <span class="metric-label">Completed</span>
-            <div class="metric-value text-success">{{ completed_count }}</div>
-            <span class="cell-muted">finished</span>
-        </div>
-    </div>
-    <div class="col">
-        <div class="metric-card">
-            <span class="metric-label">Pending</span>
-            <div class="metric-value text-amber">{{ pending_count }}</div>
-            <span class="cell-muted">needs action</span>
-        </div>
-    </div>
-    <div class="col">
-        <div class="metric-card">
-            <span class="metric-label">Confirmed</span>
-            <div class="metric-value text-accent">{{ confirmed_count }}</div>
-            <span class="cell-muted">scheduled</span>
-        </div>
-    </div>
-    <div class="col">
-        <div class="metric-card">
-            <span class="metric-label">Cancelled</span>
-            <div class="metric-value text-danger">{{ cancelled_count }}</div>
-            <span class="cell-muted">drop-offs</span>
-        </div>
-    </div>
-    <div class="col">
-        <div class="metric-card">
-            <span class="metric-label">No-Show</span>
-            <div class="metric-value" style="color: #64748b;">{{ no_show_count }}</div>
-            <span class="cell-muted">missed slots</span>
-        </div>
-    </div>
-</div>
-
-
-
-<div class="section-container">
-    <div class="section-head">
-        <h2 class="section-title">Timeline of Activity</h2>
-    </div>
-    <div class="activity-feed p-2">
-        {% for event in recent_activity %}
-        <div class="activity-item p-3 mb-2 rounded-3" style="background: #fcfcfd; border: 1px solid var(--border-subtle);">
-            <div class="d-flex justify-content-between align-items-start">
-                <span class="activity-type mono text-accent" style="font-size: 11px;">{{ event.event_type|replace("_", " ")|upper }}</span>
-                <span class="activity-time mono">{{ event.created_at.strftime("%d %b, %H:%M") }}</span>
-            </div>
-            <div class="activity-msg mt-1">{{ event.message[:120] if event.message else 'No log details' }}</div>
-        </div>
-        {% else %}
-        <div class="text-center cell-muted py-5">
-            <i class="bi bi-info-circle d-block fs-3 mb-2"></i>
-            No activity found for this date range.
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endblock %}
 </file>
 
 <file path="owner/owner_appointments.py">
@@ -5920,6 +5861,150 @@ async def update_owner_appointment(
     if query:
         redirect_url = f"{redirect_url}?{query}"
     return RedirectResponse(url=redirect_url, status_code=303)
+</file>
+
+<file path="owner/owner_settings.py">
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from owner.owner_auth import is_mobile, resolve_owner_and_business
+from fastapi.responses import RedirectResponse
+
+from database import Business, get_db
+
+router = APIRouter(prefix="/owner/settings", tags=["owner-settings"])
+templates = Jinja2Templates(directory="templates")
+
+WEEK_DAYS = [
+    ("mon", "Monday"),
+    ("tue", "Tuesday"),
+    ("wed", "Wednesday"),
+    ("thu", "Thursday"),
+    ("fri", "Friday"),
+    ("sat", "Saturday"),
+    ("sun", "Sunday"),
+]
+
+
+
+
+
+def _business_hours_rows(business: Business | None) -> list[dict]:
+    existing = (business.operational_hours if business and business.operational_hours else {}) or {}
+    rows = []
+
+    for key, label in WEEK_DAYS:
+        pair = existing.get(key)
+        rows.append(
+            {
+                "key": key,
+                "label": label,
+                "open": pair[0] if pair else "09:00",
+                "close": pair[1] if pair else "18:00",
+                "closed": pair is None,
+            }
+        )
+
+    return rows
+
+
+def _build_operational_hours(form) -> dict:
+    hours = {}
+    for key, _label in WEEK_DAYS:
+        if form.get(f"hours_{key}_enabled") == "on":
+            open_time = form.get(f"hours_{key}_open") or "09:00"
+            close_time = form.get(f"hours_{key}_close") or "18:00"
+            hours[key] = [open_time, close_time]
+    return hours
+
+
+@router.get("")
+async def owner_settings_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+
+    template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
+
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "active_page": "settings",
+            "owner": owner,
+            "business": business,
+            "hours_rows": _business_hours_rows(business),
+            "message": None,
+            "error": None,
+        },
+    )
+
+
+@router.post("")
+async def owner_settings_save(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    owner, business = resolve_owner_and_business(request, db)
+    if not business:
+        template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
+        return templates.TemplateResponse(
+            request=request,
+            name=template_name,
+            context={
+                "active_page": "settings",
+                "owner": owner,
+                "business": None,
+                "hours_rows": [],
+                "message": None,
+                "error": "Unable to resolve the authenticated owner tenant.",
+            },
+        )
+
+    form = await request.form()
+
+    business.name = (form.get("business_name") or "").strip() or business.name
+    business.manager_phone_number = (form.get("phone_number") or "").strip() or business.manager_phone_number
+    business.timezone = (form.get("timezone") or "UTC").strip() or "UTC"
+    business.accepting_bookings = form.get("accept_online_bookings") == "on"
+    business.enable_service_selection = form.get("show_services_during_booking") == "on"
+    business.max_parallel_bookings = int(form.get("max_parallel_bookings") or business.max_parallel_bookings or 1)
+    allowed_intervals = {5, 10, 15, 30, 45, 60, 90, 120}
+    try:
+        submitted_interval = int(form.get("slot_duration") or 30)
+        business.slot_interval = submitted_interval if submitted_interval in allowed_intervals else 30
+    except (ValueError, TypeError):
+        business.slot_interval = 30
+    business.advance_booking_days = int(form.get("advance_booking_days") or business.advance_booking_days or 14)
+    business.approval_mode = "manual" if form.get("require_owner_approval") == "on" else "automatic"
+    business.operational_hours = _build_operational_hours(form)
+
+    notification_preferences = business.notification_preferences or {}
+    notification_preferences["whatsapp_owner"] = bool(notification_preferences.get("whatsapp_owner"))
+    notification_preferences["whatsapp_customer"] = form.get("send_booking_confirmation") == "on"
+    business.notification_preferences = notification_preferences
+
+    db.commit()
+
+    template_name = "owner/settings_mobile.html" if is_mobile(request) else "owner/settings.html"
+
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "active_page": "settings",
+            "owner": owner,
+            "business": business,
+            "hours_rows": _business_hours_rows(business),
+            "message": "Settings saved successfully.",
+            "error": None,
+        },
+    )
 </file>
 
 <file path="static/css/style.css">
@@ -7362,8 +7447,33 @@ class VerzioSaaSEngine:
             
         return slots
 
+    def get_service_for_business(self, db: Session, business_id: int, service_id) -> Service | None:
+        """Return the service only if it belongs to this business and is bookable."""
+        if not isinstance(service_id, int):
+            return None
+        return (
+            db.query(Service)
+            .filter(
+                Service.id == service_id,
+                Service.business_id == business_id,
+                Service.is_active == True,
+                Service.is_deleted == False,
+            )
+            .first()
+        )
+
     def validate_and_book(self, db: Session, tenant_id: str, target_dt: datetime, customer_phone: str, service_id: int) -> Appointment:
         biz = self.get_tenant_config(db, tenant_id)
+
+        if self.get_service_for_business(db, biz.id, service_id) is None:
+            logger.warning(
+                "Rejected booking: service_id=%s not bookable for business_id=%s",
+                service_id, biz.id,
+            )
+            raise BookingEngineException(
+                "Selected service is not available for this business.",
+                "ERR_INVALID_SERVICE",
+            )
         
         # Holiday Check
         if target_dt.date().isoformat() in (biz.holidays or []):
@@ -7659,191 +7769,6 @@ async def delete_owner_service(
     )
 </file>
 
-<file path="database.py">
-import os
-from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, ForeignKey, Float, Text
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
-from dotenv import load_dotenv
-
-
-
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./verzio_saas.db")
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-class Business(Base):
-    __tablename__ = "businesses"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    whatsapp_business_phone_number_id = Column(String, unique=True, index=True, nullable=False)
-    manager_phone_number = Column(String, nullable=False)
-    timezone = Column(String, default="UTC")
-    is_active = Column(Boolean, default=True)
-    
-    # MISSION 4: Capacity Management
-    accepting_bookings = Column(Boolean, default=True)
-    max_parallel_bookings = Column(Integer, default=1)
-    
-    # Configuration
-    operational_hours = Column(JSON, nullable=False) 
-    holidays = Column(JSON, default=list) 
-    slot_interval = Column(Integer, default=30) 
-    advance_booking_days = Column(Integer, default=14)
-    enable_service_selection = Column(
-    Boolean,
-    default=True,
-    server_default="true",
-    nullable=False
-    )
-    approval_mode = Column(String, default="manual") 
-    notification_preferences = Column(JSON, default=dict) 
-
-    appointments = relationship("Appointment", back_populates="business")
-    services = relationship("Service", back_populates="business")
-    staff_members = relationship("Staff", back_populates="business")
-    owners = relationship("Owner", back_populates="business")
-
-class Owner(Base):
-    __tablename__ = "owners"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
-    full_name = Column(String, nullable=False)
-    email = Column(String, unique=True, index=True, nullable=False)
-    phone_number = Column(String, unique=True, index=True, nullable=True)
-    password_hash = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    business = relationship("Business", back_populates="owners")
-
-class UserSession(Base):
-    __tablename__ = "user_sessions"
-    phone_number = Column(String, primary_key=True)
-    tenant_id = Column(String, nullable=False)
-    step = Column(String, default="START") 
-    selected_service_id = Column(Integer, nullable=True)
-    selected_date = Column(String, nullable=True)
-    selected_time = Column(String, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class Incident(Base):
-    __tablename__ = "incidents"
-
-    id = Column(Integer, primary_key=True, index=True)
-
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    severity = Column(String, nullable=False)      # warning | error | critical
-    module = Column(String, nullable=False)
-
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
-
-    phone_number = Column(String, nullable=True)
-
-    title = Column(String, nullable=False)
-
-    message = Column(Text, nullable=False)
-
-    stack_trace = Column(Text, nullable=True)
-
-    resolved = Column(Boolean, default=False)
-
-    resolved_at = Column(DateTime, nullable=True)
-
-
-class Service(Base):
-    __tablename__ = "services"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
-    name = Column(String, nullable=False)
-    duration = Column(Integer, default=30)
-    price = Column(Float, nullable=True)
-    is_active = Column(Boolean, default=True)
-    is_deleted = Column(Boolean, default=False, nullable=False)
-    business = relationship("Business", back_populates="services")
-    appointments = relationship("Appointment", back_populates="service")
-
-class Staff(Base):
-    __tablename__ = "staff"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
-    name = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
-    working_days = Column(JSON, default=list)
-    business = relationship("Business", back_populates="staff_members")
-    appointments = relationship("Appointment", back_populates="staff")
-
-class Appointment(Base):
-    __tablename__ = "appointments"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
-    service_id = Column(Integer, ForeignKey("services.id"), nullable=True)
-    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
-    customer_phone = Column(String, nullable=False)
-    customer_name = Column(String, nullable=True)
-    appointment_time = Column(DateTime, nullable=False)
-    status = Column(String, default="pending")  # Valid: pending, confirmed, completed, cancelled, no_show
-    created_at = Column(DateTime, default=datetime.utcnow)
-    business = relationship("Business", back_populates="appointments")
-    service = relationship("Service", back_populates="appointments")
-    staff = relationship("Staff", back_populates="appointments")
-
-def init_db():
-    Base.metadata.create_all(bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# --- APPEND TO database.py ---
-
-class Subscription(Base):
-    __tablename__ = "subscriptions"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), unique=True, nullable=False)
-    plan = Column(String, default="trial") 
-    status = Column(String, default="active") 
-    monthly_amount = Column(Float, nullable=True)
-    next_billing_date = Column(String, nullable=True) 
-    notes = Column(String, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    business = relationship("Business", backref="subscription", uselist=False)
-
-class PaymentRecord(Base):
-    __tablename__ = "payment_records"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
-    amount = Column(Float, nullable=False)
-    currency = Column(String, default="INR")
-    paid_on = Column(String, nullable=False)
-    status = Column(String, default="paid")
-    note = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    business = relationship("Business", backref="payment_records")
-
-class ActivityEvent(Base):
-    __tablename__ = "activity_events"
-    id = Column(Integer, primary_key=True, index=True)
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True, index=True)
-    event_type = Column(String, nullable=False, index=True)
-    status = Column(String, default="info") 
-    message = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    business = relationship("Business", backref="activity_events")
-
-
-Base.metadata.create_all(bind=engine)
-</file>
-
 <file path="owner/owner_reports.py">
 import os
 from datetime import date, datetime, timedelta
@@ -7979,6 +7904,207 @@ async def export_owner_daily_report(
     )
 </file>
 
+<file path="database.py">
+import os
+from datetime import datetime
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, ForeignKey, Float, Text, inspect
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from dotenv import load_dotenv
+
+
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./verzio_saas.db")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Business(Base):
+    __tablename__ = "businesses"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    whatsapp_business_phone_number_id = Column(String, unique=True, index=True, nullable=False)
+    manager_phone_number = Column(String, nullable=False)
+    timezone = Column(String, default="UTC")
+    is_active = Column(Boolean, default=True)
+    
+    # MISSION 4: Capacity Management
+    accepting_bookings = Column(Boolean, default=True)
+    max_parallel_bookings = Column(Integer, default=1)
+    
+    # Configuration
+    operational_hours = Column(JSON, nullable=False) 
+    holidays = Column(JSON, default=list) 
+    slot_interval = Column(Integer, default=30) 
+    advance_booking_days = Column(Integer, default=14)
+    enable_service_selection = Column(
+    Boolean,
+    default=True,
+    server_default="true",
+    nullable=False
+    )
+    approval_mode = Column(String, default="manual") 
+    notification_preferences = Column(JSON, default=dict) 
+
+    appointments = relationship("Appointment", back_populates="business")
+    services = relationship("Service", back_populates="business")
+    staff_members = relationship("Staff", back_populates="business")
+    owners = relationship("Owner", back_populates="business")
+
+class Owner(Base):
+    __tablename__ = "owners"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    phone_number = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    business = relationship("Business", back_populates="owners")
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    # Composite primary key: a phone number has one independent session PER business.
+    phone_number = Column(String, primary_key=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), primary_key=True, index=True)
+    step = Column(String, default="START") 
+    selected_service_id = Column(Integer, nullable=True)
+    selected_date = Column(String, nullable=True)
+    selected_time = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    severity = Column(String, nullable=False)      # warning | error | critical
+    module = Column(String, nullable=False)
+
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
+
+    phone_number = Column(String, nullable=True)
+
+    title = Column(String, nullable=False)
+
+    message = Column(Text, nullable=False)
+
+    stack_trace = Column(Text, nullable=True)
+
+    resolved = Column(Boolean, default=False)
+
+    resolved_at = Column(DateTime, nullable=True)
+
+
+class Service(Base):
+    __tablename__ = "services"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    name = Column(String, nullable=False)
+    duration = Column(Integer, default=30)
+    price = Column(Float, nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    business = relationship("Business", back_populates="services")
+    appointments = relationship("Appointment", back_populates="service")
+
+class Staff(Base):
+    __tablename__ = "staff"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    name = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    working_days = Column(JSON, default=list)
+    business = relationship("Business", back_populates="staff_members")
+    appointments = relationship("Appointment", back_populates="staff")
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    service_id = Column(Integer, ForeignKey("services.id"), nullable=True)
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
+    customer_phone = Column(String, nullable=False)
+    customer_name = Column(String, nullable=True)
+    appointment_time = Column(DateTime, nullable=False)
+    status = Column(String, default="pending")  # Valid: pending, confirmed, completed, cancelled, no_show
+    created_at = Column(DateTime, default=datetime.utcnow)
+    business = relationship("Business", back_populates="appointments")
+    service = relationship("Service", back_populates="appointments")
+    staff = relationship("Staff", back_populates="appointments")
+
+def init_db():
+    _reset_legacy_user_sessions()
+    Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- APPEND TO database.py ---
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), unique=True, nullable=False)
+    plan = Column(String, default="trial") 
+    status = Column(String, default="active") 
+    monthly_amount = Column(Float, nullable=True)
+    next_billing_date = Column(String, nullable=True) 
+    notes = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    business = relationship("Business", backref="subscription", uselist=False)
+
+class PaymentRecord(Base):
+    __tablename__ = "payment_records"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="INR")
+    paid_on = Column(String, nullable=False)
+    status = Column(String, default="paid")
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    business = relationship("Business", backref="payment_records")
+
+class ActivityEvent(Base):
+    __tablename__ = "activity_events"
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True, index=True)
+    event_type = Column(String, nullable=False, index=True)
+    status = Column(String, default="info") 
+    message = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    business = relationship("Business", backref="activity_events")
+
+
+def _reset_legacy_user_sessions():
+    """user_sessions is disposable runtime state. If the table still has the old
+    single-column (phone_number) primary key, drop it so create_all rebuilds it
+    with the composite (phone_number, business_id) key."""
+    insp = inspect(engine)
+    if "user_sessions" not in insp.get_table_names():
+        return
+    columns = {c["name"] for c in insp.get_columns("user_sessions")}
+    if "business_id" not in columns:
+        with engine.begin() as conn:
+            conn.exec_driver_sql("DROP TABLE user_sessions")
+
+
+_reset_legacy_user_sessions()
+Base.metadata.create_all(bind=engine)
+</file>
+
 <file path="owner/owner_dashboard.py">
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
@@ -8079,10 +8205,20 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
 </file>
 
 <file path="server.py">
-from fastapi import Request
+import hashlib
+import hmac
+import json
+import logging
+import os
+from datetime import datetime, timedelta
+
+from fastapi import BackgroundTasks, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from incident_service import create_incident
 
 from routers.admin_businesses import router as business_router
@@ -8099,25 +8235,27 @@ from owner.owner_settings import router as owner_settings_router
 from owner.owner_reports import router as owner_reports_router
 
 from activity_log import log_event
-
-import os
 from dotenv import load_dotenv
+from settings import IS_PRODUCTION
+from admin_auth import admin_auth_middleware
 
 load_dotenv()
+META_APP_SECRET = os.getenv("META_APP_SECRET", "")
 
-print("META TOKEN:", os.getenv("META_ACCESS_TOKEN"))
-print("PHONE NUMBER ID:", os.getenv("PHONE_NUMBER_ID"))
-
-
-import logging
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from database import Business, init_db, get_db, Appointment
+from fastapi import Depends, FastAPI, HTTPException, Query
+from database import Appointment, Business, SessionLocal, engine, get_db, init_db
 from booking_runtime import BookingRuntime
 
-print("ACCESS TOKEN:", os.getenv("META_ACCESS_TOKEN"))
-app = FastAPI(title="Verzio Studio API")
+app = FastAPI(
+    title="Verzio Studio API",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+
+# Zero-trust: every /admin path requires admin credentials
+app.middleware("http")(admin_auth_middleware)
 
 app.include_router(business_router)
 app.include_router(services_router)
@@ -8143,6 +8281,50 @@ logger = logging.getLogger("VERZIO_SERVER")
 @app.on_event("startup")
 def startup():
     init_db()
+    if not META_APP_SECRET:
+        logger.error("META_APP_SECRET not set — all webhooks will be rejected.")
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS processed_messages (
+                wamid TEXT PRIMARY KEY,
+                received_at TIMESTAMP NOT NULL
+            )
+        """))
+        conn.execute(
+            text("DELETE FROM processed_messages WHERE received_at < :cutoff"),
+            {"cutoff": datetime.utcnow() - timedelta(days=7)}
+        )
+
+
+def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
+    if not META_APP_SECRET or not signature_header:
+        return False
+    if not signature_header.startswith("sha256="):
+        return False
+
+    received = signature_header.split("=", 1)[1].strip()
+    expected = hmac.new(
+        META_APP_SECRET.encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, received)
+
+
+def claim_message(wamid: str) -> bool:
+    if not wamid:
+        logger.warning("Webhook message has no wamid; processing without deduplication.")
+        return True
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text(
+                "INSERT OR IGNORE INTO processed_messages "
+                "(wamid, received_at) VALUES (:wamid, :ts)"
+            ),
+            {"wamid": wamid, "ts": datetime.utcnow()}
+        )
+    return result.rowcount == 1
 
 
 @app.get("/health")
@@ -8264,12 +8446,29 @@ async def dispatch_whatsapp(
 
 @app.post("/webhook")
 async def webhook(request: Request, db: Session = Depends(get_db)):
+    raw_body = await request.body()
+    signature_header = request.headers.get("X-Hub-Signature-256")
+    expected_signature = hmac.new(
+        os.getenv("META_APP_SECRET", "").encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+    if (
+        not signature_header
+        or not signature_header.startswith("sha256=")
+        or not hmac.compare_digest(
+            expected_signature,
+            signature_header.split("=", 1)[1].strip()
+        )
+    ):
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
     try:
         print("\n" + "=" * 80)
         print("🚀 WEBHOOK RECEIVED")
         print("=" * 80)
 
-        data = await request.json()
+        data = json.loads(raw_body)
 
         logger.info(f"Received webhook: {data}")
         print("Raw Payload:")
