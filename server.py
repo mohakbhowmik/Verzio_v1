@@ -234,12 +234,29 @@ async def dispatch_whatsapp(
 
 @app.post("/webhook")
 async def webhook(request: Request, db: Session = Depends(get_db)):
+    raw_body = await request.body()
+    signature_header = request.headers.get("X-Hub-Signature-256")
+    expected_signature = hmac.new(
+        os.getenv("META_APP_SECRET", "").encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+    if (
+        not signature_header
+        or not signature_header.startswith("sha256=")
+        or not hmac.compare_digest(
+            expected_signature,
+            signature_header.split("=", 1)[1].strip()
+        )
+    ):
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
     try:
         print("\n" + "=" * 80)
         print("🚀 WEBHOOK RECEIVED")
         print("=" * 80)
 
-        data = await request.json()
+        data = json.loads(raw_body)
 
         logger.info(f"Received webhook: {data}")
         print("Raw Payload:")
