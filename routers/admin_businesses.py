@@ -17,7 +17,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db, Business, Owner
-from owner.owner_auth import SESSION_COOKIE_NAME, create_session_token, hash_password
+from owner.owner_auth import create_session_token, hash_password, set_session_cookie
+from activity_log import log_event
 
 logger = logging.getLogger("VERZIO_ADMIN_BUSINESSES")
 
@@ -299,21 +300,22 @@ def toggle_business_active(
 @router.post("/{business_id}/impersonate")
 def impersonate_business_owner(
     business_id: int,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     owner = db.query(Owner).filter(Owner.business_id == business_id).first()
-
     if not owner:
         raise HTTPException(status_code=404, detail="Owner not found for this business.")
 
+    log_event(
+        db=db,
+        event_type="admin_impersonation",
+        status="warning",
+        message=f"Admin opened owner session for owner #{owner.id}",
+        business_id=business_id,
+    )
+
     token, max_age = create_session_token(owner.id)
     response = RedirectResponse(url="/owner/dashboard", status_code=303)
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        max_age=max_age,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-    )
+    set_session_cookie(response, request, token, max_age)
     return response

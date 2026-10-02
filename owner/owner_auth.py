@@ -1,4 +1,3 @@
-import os
 import hmac
 import hashlib
 import secrets
@@ -6,21 +5,17 @@ import time
 import logging
 from typing import Optional, Tuple
 from datetime import datetime
-
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-
 from database import get_db, Owner, Business
+from settings import SECRET_KEY, IS_PRODUCTION, COOKIE_SECURE_OVERRIDE
 
 logger = logging.getLogger("VERZIO_OWNER_AUTH")
-
 router = APIRouter(prefix="/owner", tags=["owner-auth"])
 templates = Jinja2Templates(directory="templates")
-
-SECRET_KEY = os.getenv("VERZIO_SECRET_KEY", "verzio-studio-secret-key-v1")
 SESSION_COOKIE_NAME = "verzio_owner_session"
 LEGACY_COOKIE_NAME = "verzio_owner_phone"
 
@@ -85,6 +80,27 @@ def create_session_token(owner_id: int, remember_me: bool = False) -> Tuple[str,
     return token, max_age
 
 
+def _cookie_secure(request: Request) -> bool:
+    if COOKIE_SECURE_OVERRIDE in ("true", "1"):
+        return True
+    if COOKIE_SECURE_OVERRIDE in ("false", "0"):
+        return False
+    return IS_PRODUCTION or request.url.scheme == "https"
+
+
+def set_session_cookie(response, request: Request, token: str, max_age: Optional[int]) -> None:
+    """The only place an owner session cookie is ever set."""
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        max_age=max_age,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_secure(request),
+        path="/",
+    )
+
+
 def verify_session_token(token: str, db: Session) -> Optional[Owner]:
     """Verify signed session token and return active Owner object."""
     try:
@@ -128,37 +144,13 @@ def is_mobile(request: Request) -> bool:
 
 
 def resolve_owner_and_business(request: Request, db: Session) -> Tuple[Optional[Owner], Optional[Business]]:
-    """
-    Centralized Owner & Business resolution.
-    1. Reads verzio_owner_session cookie / header.
-    2. Fallback to legacy verzio_owner_phone matching Business.manager_phone_number.
-    Returns (Owner | None, Business | None).
-    """
-    session_token = (
-        request.cookies.get(SESSION_COOKIE_NAME)
-        or request.headers.get("x-verzio-owner-session")
-        or ""
-    ).strip()
-
-    if session_token:
-        owner = verify_session_token(session_token, db)
-        if owner and owner.business:
-            return owner, owner.business
-
-    # Backwards compatibility legacy fallback
-    legacy_phone = (
-        request.cookies.get(LEGACY_COOKIE_NAME)
-        or request.headers.get("x-verzio-owner-phone")
-        or ""
-    ).strip()
-
-    if legacy_phone:
-        biz = db.query(Business).filter(Business.manager_phone_number == legacy_phone).first()
-        if biz:
-            # Resolve or create temporary owner mapping if missing
-            owner = db.query(Owner).filter(Owner.business_id == biz.id).first()
-            return owner, biz
-
+    """Resolve the owner strictly from the signed session cookie. No fallbacks."""
+    token = (request.cookies.get(SESSION_COOKIE_NAME) or "").strip()
+    if not token:
+        return None, None
+    owner = verify_session_token(token, db)
+    if owner and owner.business:
+        return owner, owner.business
     return None, None
 
 
@@ -198,7 +190,7 @@ async def login_action(
     db: Session = Depends(get_db),
     identifier: str = Form(""),
     password: str = Form(""),
-    remember_me: Optional[str] = Form(None)
+    remember_me: Optional[str] = Form(None),
 ):
     """Authenticate Owner and create session."""
     clean_identifier = identifier.strip()
@@ -209,14 +201,13 @@ async def login_action(
         return templates.TemplateResponse(
             request=request,
             name="owner/login.html",
-            context={"request": request, "error": "Please provide your email/phone and password."}
+            context={"request": request, "error": "Please provide your email/phone and password."},
         )
 
-    # Lookup Owner by email or phone
     owner = db.query(Owner).filter(
         or_(
             Owner.email == clean_identifier,
-            Owner.phone_number == clean_identifier
+            Owner.phone_number == clean_identifier,
         )
     ).first()
 
@@ -225,22 +216,12 @@ async def login_action(
         return templates.TemplateResponse(
             request=request,
             name="owner/login.html",
-            context={"request": request, "error": "Invalid email/phone or password."}
+            context={"request": request, "error": "Invalid email/phone or password."},
         )
 
-    # Generate session token
     token, max_age = create_session_token(owner.id, remember_me=is_remember)
-
     response = RedirectResponse(url="/owner/dashboard", status_code=303)
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        max_age=max_age,
-        httponly=True,
-        samesite="lax",
-        secure=False  # Set True in production with HTTPS
-    )
-
+    set_session_cookie(response, request, token, max_age)
     logger.info(f"Owner #{owner.id} ('{owner.full_name}') logged in successfully.")
     return response
 
@@ -250,5 +231,4 @@ async def logout_action():
     """Destroy session and redirect to login."""
     response = RedirectResponse(url="/owner/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE_NAME)
-    response.delete_cookie(LEGACY_COOKIE_NAME)
     return response

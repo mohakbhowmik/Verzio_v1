@@ -13,7 +13,10 @@ from datetime import datetime, date, time
 from database import SessionLocal, Business, Appointment
 
 # Your permanent Meta app access token
-META_ACCESS_TOKEN = "EAAZAdv3p7VSQBRyZBDJ1DSo1HTPmNz1kHtgQwF7ZBHUTyqJzZCZB8GBwTuex9Ql3Wy6ZC7pn1rCpxNZBcQrnbUt7VmyKL0RVKRHMmZCWfp21XmHGQub6YZAnpMAvEVgoInRRVxDwSJIQpuzltEup3UIbZA6UEdgg2Js64ORzzlb5dWWO7ZCrjqguVCthUI4FdEjQrFE4QZDZD"
+from dotenv import load_dotenv
+
+load_dotenv()
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "")
 
 async def dispatch_interactive_confirmation(recipient_phone: str, appointment: Appointment, business_name: str, business_phone_id: str):
     url = f"https://graph.facebook.com/v17.0/{business_phone_id}/messages"
@@ -64,6 +67,9 @@ async def dispatch_interactive_confirmation(recipient_phone: str, appointment: A
 
 async def run_morning_validation_routine():
     print("⚡ Starting Verzio Dispatch Engine Subsystem...")
+    if not META_ACCESS_TOKEN:
+        print("❌ META_ACCESS_TOKEN is not set. Aborting.")
+        return
     db = SessionLocal()
     try:
         # Pull everything pending for the current day window window

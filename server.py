@@ -29,21 +29,26 @@ from owner.owner_reports import router as owner_reports_router
 
 from activity_log import log_event
 from dotenv import load_dotenv
+from settings import IS_PRODUCTION
+from admin_auth import admin_auth_middleware
 
 load_dotenv()
 META_APP_SECRET = os.getenv("META_APP_SECRET", "")
-
-print("META TOKEN:", os.getenv("META_ACCESS_TOKEN"))
-print("PHONE NUMBER ID:", os.getenv("PHONE_NUMBER_ID"))
-
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query
 from database import Appointment, Business, SessionLocal, engine, get_db, init_db
 from booking_runtime import BookingRuntime
 
-print("ACCESS TOKEN:", os.getenv("META_ACCESS_TOKEN"))
-app = FastAPI(title="Verzio Studio API")
+app = FastAPI(
+    title="Verzio Studio API",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+
+# Zero-trust: every /admin path requires admin credentials
+app.middleware("http")(admin_auth_middleware)
 
 app.include_router(business_router)
 app.include_router(services_router)

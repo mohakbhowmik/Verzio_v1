@@ -43,7 +43,7 @@
                                 <label class="form-label small fw-bold text-muted text-uppercase">Owner Name</label>
                                 <span class="coming-soon-pill">Locked</span>
                             </div>
-                            <input type="text" class="form-control-verzio opacity-50" value="Mohak Bhowmik" disabled>
+                            <input type="text" class="form-control-verzio opacity-50" value="{{ owner.full_name if owner else 'Owner' }}" disabled>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small fw-bold text-muted text-uppercase">Public Phone</label>

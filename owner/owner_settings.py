@@ -70,6 +70,7 @@ async def owner_settings_page(
         name=template_name,
         context={
             "active_page": "settings",
+            "owner": owner,
             "business": business,
             "hours_rows": _business_hours_rows(business),
             "message": None,
@@ -91,6 +92,7 @@ async def owner_settings_save(
             name=template_name,
             context={
                 "active_page": "settings",
+                "owner": owner,
                 "business": None,
                 "hours_rows": [],
                 "message": None,
@@ -130,6 +132,7 @@ async def owner_settings_save(
         name=template_name,
         context={
             "active_page": "settings",
+            "owner": owner,
             "business": business,
             "hours_rows": _business_hours_rows(business),
             "message": "Settings saved successfully.",
