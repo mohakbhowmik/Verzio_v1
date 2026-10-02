@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, ForeignKey, Float, Text
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, ForeignKey, Float, Text, inspect
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from dotenv import load_dotenv
 
@@ -61,8 +61,9 @@ class Owner(Base):
 
 class UserSession(Base):
     __tablename__ = "user_sessions"
+    # Composite primary key: a phone number has one independent session PER business.
     phone_number = Column(String, primary_key=True)
-    tenant_id = Column(String, nullable=False)
+    business_id = Column(Integer, ForeignKey("businesses.id"), primary_key=True, index=True)
     step = Column(String, default="START") 
     selected_service_id = Column(Integer, nullable=True)
     selected_date = Column(String, nullable=True)
@@ -133,6 +134,7 @@ class Appointment(Base):
     staff = relationship("Staff", back_populates="appointments")
 
 def init_db():
+    _reset_legacy_user_sessions()
     Base.metadata.create_all(bind=engine)
 
 def get_db():
@@ -179,4 +181,18 @@ class ActivityEvent(Base):
     business = relationship("Business", backref="activity_events")
 
 
+def _reset_legacy_user_sessions():
+    """user_sessions is disposable runtime state. If the table still has the old
+    single-column (phone_number) primary key, drop it so create_all rebuilds it
+    with the composite (phone_number, business_id) key."""
+    insp = inspect(engine)
+    if "user_sessions" not in insp.get_table_names():
+        return
+    columns = {c["name"] for c in insp.get_columns("user_sessions")}
+    if "business_id" not in columns:
+        with engine.begin() as conn:
+            conn.exec_driver_sql("DROP TABLE user_sessions")
+
+
+_reset_legacy_user_sessions()
 Base.metadata.create_all(bind=engine)
