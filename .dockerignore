@@ -8,6 +8,15 @@ venv/
 .venv/
 .git
 .gitignore
+
+# Secrets are injected at runtime through env_file, never baked into the image
 .env
+.env.*
+*.env
+
+# Data and tests
 exports/
 *.db
+*.db-journal
+test_*.py
+seed_mission2.py

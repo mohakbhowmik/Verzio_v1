@@ -221,11 +221,11 @@
                                     <div class="p-2 border rounded bg-light mono small">{{ business.whatsapp_business_phone_number_id }}</div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="small text-muted mb-1 text-uppercase fw-bold" style="font-size: 10px;">Webhook Status</div>
-                                    <div class="d-flex align-items-center">
-                                        <span class="dot bg-success me-2"></span>
-                                        <span class="small fw-bold">Live & Connected</span>
+                                    <div class="small text-muted mb-1 text-uppercase fw-bold" style="font-size: 10px;">WhatsApp Bookings</div>
+                                    <div class="small fw-bold">
+                                        {% if business.is_active and business.accepting_bookings %}Accepting bookings{% else %}Paused{% endif %}
                                     </div>
+                                    <div class="text-muted" style="font-size: 11px;">Problems with messages? Contact Verzio Support.</div>
                                 </div>
                             </div>
                         </div>

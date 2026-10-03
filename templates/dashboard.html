@@ -1,98 +1,118 @@
-{% extends "base.html" %}
+{% extends "owner/base.html" %}
 
-{% block title %}Overview — Verzio Studio{% endblock %}
-{% block page_title %}Overview{% endblock %}
+{% block title %}Dashboard — Verzio Studio{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}">
+{% endblock %}
 
 {% block content %}
-<!-- ==================== TOP METRICS (Operational States) ==================== -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
+<div class="d-none d-lg-block">
+<div class="page-header mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">OWNER PORTAL</span>
+        </div>
+        <h1 class="page-title" style="margin:0;">{{ business.name if business else 'Dashboard' }}</h1>
+        <p class="page-subtitle" style="margin-top:4px;">Manage your daily operations, capacity, and recent bookings.</p>
+    </div>
+</div>
+
+<!-- 5-Column Metric Grid -->
+<div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Active businesses</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value">{{ active_business_count }}</span>
-                <span class="cell-muted">/ {{ total_business_count }}</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Today's</span>
+                <i class="bi bi-calendar-check text-muted"></i>
             </div>
+            <div class="metric-value">{{ todays_appointments|length }}</div>
+            <span class="cell-muted">live queue</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Needing attention</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value {% if needing_attention %}text-danger{% endif %}">
-                    {{ needing_attention|length }}
-                </span>
-                <span class="cell-muted">status flags</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Pending</span>
+                <i class="bi bi-hourglass-split text-muted"></i>
             </div>
+            <div class="metric-value">{{ pending_count }}</div>
+            <span class="cell-muted">needs review</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">Failed webhooks (24h)</span>
-            <div class="d-flex align-items-baseline gap-2">
-                <span class="metric-value {% if failed_events %}text-danger{% endif %}">
-                    {{ failed_events|length }}
-                </span>
-                <span class="cell-muted">errors</span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Confirmed</span>
+                <i class="bi bi-check-circle text-muted"></i>
             </div>
+            <div class="metric-value">{{ confirmed_count }}</div>
+            <span class="cell-muted">scheduled</span>
         </div>
     </div>
-
-    <div class="col-6 col-lg-3">
+    <div class="col">
         <div class="metric-card">
-            <span class="metric-label">System health</span>
-            <div class="d-flex align-items-center gap-2">
-                {% if failed_events %}
-                <span class="status-badge status-warning"><span class="dot"></span>Review Required</span>
-                {% else %}
-                <span class="status-badge status-active"><span class="dot"></span>Normal</span>
-                {% endif %}
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Completed</span>
+                <i class="bi bi-flag text-muted"></i>
             </div>
+            <div class="metric-value">{{ completed_count }}</div>
+            <span class="cell-muted">finished</span>
+        </div>
+    </div>
+    <div class="col">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="metric-label">Services</span>
+                <i class="bi bi-list-stars text-muted"></i>
+            </div>
+            <div class="metric-value">{{ service_count }}</div>
+            <span class="cell-muted">active catalog</span>
         </div>
     </div>
 </div>
 
-<div class="row g-3">
-    <!-- ==================== PRIMARY OPERATIONS TABLE ==================== -->
+<div class="row g-4">
+    <!-- Appointments Table -->
     <div class="col-lg-8">
         <div class="section-container">
-            <div class="section-head">
-                <h2 class="section-title">Businesses needing attention</h2>
+            <div class="section-head d-flex justify-content-between align-items-center">
+                <h2 class="section-title">Today's Schedule</h2>
+                <a href="/owner/appointments" class="text-accent small fw-bold text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
             </div>
 
             <div class="table-verzio-wrap">
                 <table class="table table-verzio align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Business</th>
-                            <th>Status Flag</th>
-                            <th class="text-end">Action</th>
+                            <th>Customer</th>
+                            <th>Service</th>
+                            <th>Date &amp; Time</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for b in needing_attention %}
+                        {% for appointment in todays_appointments %}
                         <tr>
                             <td>
-                                <div class="fw-medium">{{ b.name }}</div>
-                                <div class="cell-muted mono" style="font-size: 11px;">ID: {{ b.whatsapp_business_phone_number_id }}</div>
+                                <div class="table-entity">
+                                    <div class="table-avatar"><i class="bi bi-phone"></i></div>
+                                    <div class="cell-primary mono">{{ appointment.customer_phone }}</div>
+                                </div>
                             </td>
+                            <td class="cell-secondary">{{ appointment.service.name if appointment.service else 'Service removed' }}</td>
+                            <td class="mono cell-secondary">{{ appointment.appointment_time.strftime("%d %b, %I:%M %p") }}</td>
                             <td>
-                                {% if not b.is_active %}
-                                <span class="status-badge status-inactive"><span class="dot"></span>Inactive Account</span>
-                                {% elif not b.accepting_bookings %}
-                                <span class="status-badge status-pending"><span class="dot"></span>Bookings Paused</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
-                                <a href="/admin/businesses/{{ b.id }}" class="btn-console-outline">Manage</a>
+                                <span class="status-badge status-{{ appointment.status }}">
+                                    <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
+                                </span>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="3" class="text-center cell-muted py-5">
-                                All businesses are operating within normal parameters.
+                            <td colspan="4" class="text-center cell-muted py-5">
+                                <i class="bi bi-calendar-x d-block fs-2 mb-2"></i>
+                                No appointments found.
                             </td>
                         </tr>
                         {% endfor %}
@@ -102,24 +122,21 @@
         </div>
     </div>
 
-    <!-- ==================== SECONDARY ACTIVITY FEED ==================== -->
+    <!-- Activity Feed -->
     <div class="col-lg-4">
         <div class="section-container">
             <div class="section-head">
-                <h2 class="section-title">Latest Events</h2>
+                <h2 class="section-title">Latest activity</h2>
             </div>
-            
-            <div class="activity-feed">
-                {% for e in recent_activity %}
-                <div class="activity-item">
-                    <div class="d-flex justify-content-between align-items-start mb-1">
-                        <span class="activity-type mono">{{ e.event_type|replace("_", " ")|upper }}</span>
-                        <span class="activity-time mono">{{ e.created_at.strftime("%H:%M") }}</span>
+
+            <div class="activity-feed p-2">
+                {% for event in recent_activity if event.event_type not in ['webhook_received', 'whatsapp_sent', 'webhook_failed'] %}
+                <div class="activity-item p-3 mb-2 rounded-3" style="background: #fcfcfd; border: 1px solid var(--border-subtle);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="activity-type mono text-accent" style="font-size: 11px;">{{ event.event_type|replace("_", " ")|upper }}</span>
+                        <span class="activity-time mono">{{ event.created_at.strftime("%H:%M") }}</span>
                     </div>
-                    <div class="activity-msg">{{ e.message[:100] }}{% if e.message|length > 100 %}...{% endif %}</div>
-                    {% if e.business %}
-                    <div class="activity-context">Ref: {{ e.business.name }}</div>
-                    {% endif %}
+                    <div class="activity-msg mt-1">{{ event.message[:80] if event.message else 'No message' }}...</div>
                 </div>
                 {% else %}
                 <div class="text-center cell-muted py-4">No recent activity logged.</div>
@@ -127,5 +144,93 @@
             </div>
         </div>
     </div>
+</div>
+</div>
+
+<div class="d-block d-lg-none owner-phone-ui">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border rounded-3 mb-3 owner-phone-navbar">
+        <div class="container-fluid px-3">
+            <span class="navbar-brand mb-0 fw-bold">Owner Portal</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ownerMobileNav" aria-controls="ownerMobileNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="ownerMobileNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/owner">Overview</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'appointments' %}active{% endif %}" href="/owner/appointments">Appointments</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'services' %}active{% endif %}" href="/owner/services">Services</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'reports' %}active{% endif %}" href="/owner/reports">Reports</a></li>
+                    <li class="nav-item"><a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/owner/settings">Settings</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <section class="owner-phone-header mb-3">
+        <div class="owner-phone-eyebrow">Owner Portal</div>
+        <h2 class="owner-phone-title mb-1">{{ business.name if business else 'Your business' }}</h2>
+        <p class="owner-phone-subtitle mb-0">Phone-optimized live operations dashboard.</p>
+    </section>
+
+    {% set mobile_kpis = [
+        {"count": todays_appointments|length, "unit": "live queue", "label": "Appointments in today's queue", "icon": "bi-calendar-check"},
+        {"count": pending_count, "unit": "pending review", "label": "Awaiting approval", "icon": "bi-hourglass-split"},
+        {"count": confirmed_count, "unit": "scheduled", "label": "Confirmed bookings", "icon": "bi-check-circle"},
+        {"count": completed_count, "unit": "finished", "label": "Completed visits", "icon": "bi-flag"},
+        {"count": service_count, "unit": "active catalog", "label": "Services available", "icon": "bi-list-stars"}
+    ] %}
+
+    <section class="owner-phone-kpis mb-4">
+        {% for metric in mobile_kpis %}
+        <article class="owner-phone-kpi-card">
+            <div class="owner-phone-kpi-icon"><i class="bi {{ metric.icon }}"></i></div>
+            <div class="owner-phone-kpi-content">
+                <div class="owner-phone-kpi-number">{{ metric.count }} <span>{{ metric.unit }}</span></div>
+                <div class="owner-phone-kpi-label">{{ metric.label }}</div>
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="owner-phone-schedule mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="owner-phone-section-title mb-0">Today's Schedule</h3>
+            <a href="/owner/appointments" class="small fw-bold text-decoration-none">View all</a>
+        </div>
+
+        {% for appointment in todays_appointments %}
+        <article class="card owner-phone-appointment mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="owner-phone-field-label">Time</div>
+                        <div class="owner-phone-field-value mono">{{ appointment.appointment_time.strftime("%d %b, %I:%M %p") }}</div>
+                    </div>
+                    <span class="status-badge status-{{ appointment.status }}">
+                        <span class="dot"></span>{{ appointment.status|replace("_", " ")|capitalize }}
+                    </span>
+                </div>
+
+                <div class="owner-phone-field mb-2">
+                    <div class="owner-phone-field-label">Name</div>
+                    <div class="owner-phone-field-value">{{ appointment.customer_name or appointment.customer_phone }}</div>
+                </div>
+
+                <div class="owner-phone-field mb-3">
+                    <div class="owner-phone-field-label">Service</div>
+                    <div class="owner-phone-field-value">{{ appointment.service.name if appointment.service else 'Service removed' }}</div>
+                </div>
+
+                <a href="/owner/appointments" class="btn btn-sm btn-outline-primary w-100">Manage Booking</a>
+            </div>
+        </article>
+        {% else %}
+        <div class="text-center cell-muted py-4 border rounded-3 bg-white">No appointments found.</div>
+        {% endfor %}
+    </section>
+
+    <a href="/owner/appointments/new" class="owner-mobile-fab" aria-label="New Booking">
+        <i class="bi bi-plus-lg"></i>
+    </a>
 </div>
 {% endblock %}

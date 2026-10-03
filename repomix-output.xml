@@ -51,6 +51,7 @@ exports/
   Report_1_2026-07-14_to_2026-07-27.xlsx
   Report_1_2026-07-14_to_2026-07-28.xlsx
   Report_1_2026-07-25_to_2026-07-25.xlsx
+  Report_1_2026-10-02_to_2026-10-02.xlsx
 owner/
   owner_appointments.py
   owner_auth.py
@@ -72,6 +73,7 @@ static/
     script.js
 templates/
   owner/
+    appointments_form.html
     appointments_mobile.html
     appointments.html
     auth_base.html
@@ -123,11 +125,89 @@ seed_mission2.py
 seed.py
 server.py
 settings.py
+test_capacity.py
 test_isolation.py
+whatsapp_client.py
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="test_capacity.py">
+"""
+test_capacity.py — Automated verification for C1 duration awareness and collision resistance.
+"""
+from datetime import datetime, date, time
+from database import SessionLocal, Business, Service, Appointment
+from booking_engine import get_available_slots_for_day
+
+db = SessionLocal()
+biz = db.query(Business).first()
+if not biz:
+    print("❌ No business in database. Run 'python seed.py' first.")
+    exit(1)
+
+# Ensure business operational hours exist
+biz.operational_hours = {
+    "mon": ["09:00", "18:00"], "tue": ["09:00", "18:00"], "wed": ["09:00", "18:00"],
+    "thu": ["09:00", "18:00"], "fri": ["09:00", "18:00"], "sat": ["09:00", "18:00"], "sun": ["09:00", "18:00"]
+}
+biz.max_parallel_bookings = 1
+biz.accepting_bookings = True
+biz.slot_interval = 30
+db.commit()
+
+# Find or create 30m and 60m test services
+s30 = db.query(Service).filter(Service.business_id == biz.id, Service.duration == 30, Service.is_deleted == False).first()
+if not s30:
+    s30 = Service(business_id=biz.id, name="Cut (30m)", duration=30, price=300.0, is_active=True, is_deleted=False)
+    db.add(s30)
+
+s60 = db.query(Service).filter(Service.business_id == biz.id, Service.duration == 60, Service.is_deleted == False).first()
+if not s60:
+    s60 = Service(business_id=biz.id, name="Facial (60m)", duration=60, price=1200.0, is_active=True, is_deleted=False)
+    db.add(s60)
+
+db.commit()
+
+test_date = date(2026, 11, 15)
+day_start = datetime.combine(test_date, time.min)
+day_end = datetime.combine(test_date, time.max)
+
+# Clear existing appointments for test date using appointment_time
+db.query(Appointment).filter(
+    Appointment.business_id == biz.id,
+    Appointment.appointment_time >= day_start,
+    Appointment.appointment_time <= day_end
+).delete()
+db.commit()
+
+# 1. Book a 60-min service at 10:00 AM (10:00 - 11:00 occupied)
+test_appt = Appointment(
+    business_id=biz.id,
+    service_id=s60.id,
+    customer_phone="919999999999",
+    customer_name="Verification Client",
+    appointment_time=datetime.combine(test_date, time(10, 0)),
+    status="confirmed"
+)
+db.add(test_appt)
+db.commit()
+
+# 2. Check available slots for a 30m service
+slots = get_available_slots_for_day(db, biz, test_date, s30)
+
+print("\n--- Capacity Overlap Verification Results ---")
+print("10:00 available? ->", "10:00" in slots, "(Expected: False)")
+print("10:30 available? ->", "10:30" in slots, "(Expected: False - overlaps 60min booking)")
+print("11:00 available? ->", "11:00" in slots, "(Expected: True - service freed at 11:00)")
+
+assert "10:00" not in slots, "FAIL: 10:00 must be blocked!"
+assert "10:30" not in slots, "FAIL: 10:30 must be blocked by 60min booking!"
+assert "11:00" in slots, "FAIL: 11:00 must be available!"
+
+print("\n🎉 ALL CAPACITY AND DURATION CHECKS PASSED!\n")
+</file>
 
 <file path="docs/DATABASE.md">
 # Verzio Database
@@ -768,6 +848,92 @@ async def toggle_service_active(service_id: int, db: Session = Depends(get_db)):
     return RedirectResponse(url="/admin/services", status_code=303)
 </file>
 
+<file path="templates/owner/appointments_form.html">
+{% extends "owner_base_mobile.html" if mobile else "owner/base.html" %}
+
+{% block title %}New Booking — Verzio Studio{% endblock %}
+{% block page_title %}New Booking{% endblock %}
+
+{% block content %}
+<div class="form-workspace" style="max-width: 640px;">
+
+  <div class="breadcrumb-verzio">
+    <a href="/owner/appointments"><i class="bi bi-arrow-left me-2"></i> Back to Appointments</a>
+  </div>
+
+  <div class="mb-3">
+    <h1 class="h5 fw-bold mb-1">Add a booking</h1>
+    <p class="text-muted small mb-0">For walk-ins and phone bookings. The slot is blocked on WhatsApp immediately.</p>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger small">{{ error }}</div>
+  {% endif %}
+
+  {% if not services %}
+  <div class="alert alert-warning small">
+    You have no active services yet. <a href="/owner/services/new">Add a service</a> first.
+  </div>
+  {% else %}
+  <form method="post" action="/owner/appointments/manual">
+    <div class="section-container mb-3">
+      <div class="section-head"><h2 class="section-title">Customer</h2></div>
+      <div class="p-3">
+        <label class="form-label small fw-bold text-muted" for="customer_name">Name</label>
+        <input type="text" id="customer_name" name="customer_name" class="form-control mb-3"
+               value="{{ values.customer_name }}" placeholder="e.g. Priya Sharma" maxlength="120">
+
+        <label class="form-label small fw-bold text-muted" for="customer_phone">Mobile number</label>
+        <input type="tel" id="customer_phone" name="customer_phone" class="form-control"
+               value="{{ values.customer_phone }}" placeholder="e.g. 9876543210" inputmode="tel">
+        <div class="form-text">Optional for walk-ins. Needed if you want WhatsApp updates sent to them later.</div>
+      </div>
+    </div>
+
+    <div class="section-container mb-3">
+      <div class="section-head"><h2 class="section-title">Booking</h2></div>
+      <div class="p-3">
+        <label class="form-label small fw-bold text-muted" for="service_id">Service</label>
+        <select id="service_id" name="service_id" class="form-select mb-3" required>
+          <option value="" disabled {% if not values.service_id %}selected{% endif %}>Choose a service</option>
+          {% for s in services %}
+          <option value="{{ s.id }}" {% if values.service_id == s.id|string %}selected{% endif %}>
+            {{ s.name }} · {{ s.duration }} min{% if s.price is not none %} · ₹{{ '%.0f'|format(s.price) }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small fw-bold text-muted" for="date">Date</label>
+            <input type="date" id="date" name="date" class="form-control" value="{{ values.date }}" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold text-muted" for="time">Time</label>
+            <input type="time" id="time" name="time" class="form-control" value="{{ values.time }}"
+                   step="{{ (business.slot_interval or 30) * 60 }}" required>
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" id="allow_overbook" name="allow_overbook" {% if allow_overbook %}checked{% endif %}>
+          <label class="form-check-label small" for="allow_overbook">
+            Override availability checks (the customer is already here)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end">
+      <a href="/owner/appointments" class="btn btn-outline-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary px-4">Save booking</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+</file>
+
 <file path="templates/owner/auth_base.html">
 <!DOCTYPE html>
 <html lang="en">
@@ -1402,96 +1568,200 @@ Meta Cloud API
 </file>
 
 <file path="seed_demo_data.py">
-from datetime import datetime, timedelta
-import random
+"""
+seed_demo_data.py — DEVELOPMENT / SALES DEMO ONLY.
+Creates (or refreshes) one demo tenant, "Aura Aesthetic Clinic", with realistic
+services, hours and a few days of bookings. It only touches the demo tenant's
+own rows; other tenants are never modified.
+
+Refuses to run when VERZIO_ENV=production.
+
+For a live WhatsApp demo, set DEMO_PHONE_NUMBER_ID to a real test number's
+phone_number_id that no other tenant uses. Without it, the demo works in the
+owner portal only.
+"""
+# --- Production guard: runs before any database import --------------------
+import os
+import sys
+
+from dotenv import load_dotenv
+
+load_dotenv()  # so VERZIO_ENV set only in .env is also respected
+
+if os.getenv("VERZIO_ENV", "development").strip().lower() == "production":
+    sys.exit("REFUSING TO RUN: seed_demo_data.py is for development and demos only (VERZIO_ENV=production).")
+# ---------------------------------------------------------------------------
+
+import secrets
+from datetime import datetime, time, timedelta
+
+import pytz
 
 from database import (
-    SessionLocal,
-    Business,
-    Service,
+    ActivityEvent,
     Appointment,
+    Business,
+    Owner,
+    Service,
+    SessionLocal,
+    Subscription,
+    UserSession,
+    init_db,
 )
+from owner.owner_auth import hash_password
 
+DEMO_NAME = "Aura Aesthetic Clinic"
+DEMO_PHONE_NUMBER_ID = os.getenv("DEMO_PHONE_NUMBER_ID", "DEMO_AURA_CLINIC")
+DEMO_MANAGER_PHONE = os.getenv("DEMO_MANAGER_PHONE", "910000000099")
+DEMO_OWNER_NAME = os.getenv("DEMO_OWNER_NAME", "Dr. Ananya Rao")
+DEMO_OWNER_EMAIL = os.getenv("DEMO_OWNER_EMAIL", "demo@aura-clinic.test")
+DEMO_OWNER_PASSWORD = os.getenv("DEMO_OWNER_PASSWORD") or secrets.token_urlsafe(9)
+TIMEZONE = "Asia/Kolkata"
+
+# Mon–Sat 10:00–20:00, Sun 11:00–17:00
+HOURS = {d: ["10:00", "20:00"] for d in ("mon", "tue", "wed", "thu", "fri", "sat")}
+HOURS["sun"] = ["11:00", "17:00"]
+
+SERVICES = {
+    "consult":   ("Skin Consultation", 30, 1500.0),
+    "hydra":     ("HydraFacial", 60, 4500.0),
+    "peel":      ("Chemical Peel", 45, 3500.0),
+    "laser":     ("Laser Hair Reduction", 45, 3000.0),
+    "micro":     ("Microneedling", 60, 5000.0),
+    "prp":       ("PRP Hair Therapy", 60, 6000.0),
+    "antiage":   ("Anti-Ageing Consultation", 30, 2000.0),
+}
+
+# (day offset from today, start time, service key, customer name)
+# Times sit inside both weekday and Sunday hours, are 90 min apart and every
+# service is <= 60 min, so bookings never overlap and never exceed capacity.
+BOOKINGS = [
+    (-2, "11:00", "hydra",   "Meera Iyer"),
+    (-2, "12:30", "consult", "Rohan Mehta"),
+    (-2, "14:00", "peel",    "Sneha Kulkarni"),
+    (-1, "11:00", "laser",   "Ishita Jain"),
+    (-1, "12:30", "micro",   "Kabir Das"),
+    (-1, "15:30", "consult", "Pooja Nair"),
+    (0,  "11:00", "consult", "Priya Patel"),
+    (0,  "12:30", "hydra",   "Simran Kaur"),
+    (0,  "14:00", "prp",     "Aditya Rao"),
+    (0,  "15:30", "antiage", "Nikita Roy"),
+    (1,  "11:00", "peel",    "Riya Bose"),
+    (1,  "14:00", "hydra",   "Ananya Gupta"),
+    (2,  "12:30", "laser",   "Vikram Joshi"),
+    (2,  "15:30", "consult", "Neha Singh"),
+    (3,  "11:00", "micro",   "Harsh Kapoor"),
+    (4,  "14:00", "antiage", "Karan Shah"),
+]
+
+PAST_STATUSES = ["completed", "completed", "completed", "no_show", "completed", "cancelled"]
+FUTURE_STATUSES = ["confirmed", "pending", "confirmed", "confirmed", "pending"]
+
+init_db()
 db = SessionLocal()
 
 try:
-    business = db.query(Business).first()
-
-    if not business:
-        raise Exception("No business found. Run seed.py first.")
-
-    services = (
-        db.query(Service)
-        .filter(Service.business_id == business.id)
-        .all()
+    business = (
+        db.query(Business)
+        .filter(Business.whatsapp_business_phone_number_id == DEMO_PHONE_NUMBER_ID)
+        .first()
     )
-
-    if not services:
-        raise Exception("No services found. Run seed.py first.")
-
-    print("🧹 Removing existing appointments...")
-    db.query(Appointment).delete()
-    db.commit()
-
-    print("🌱 Creating demo appointments...")
-
-    names = [
-        "Aarav Sharma",
-        "Priya Patel",
-        "Rohan Mehta",
-        "Neha Singh",
-        "Ananya Gupta",
-        "Vikram Joshi",
-        "Sneha Kulkarni",
-        "Rahul Verma",
-        "Ishita Jain",
-        "Karan Shah",
-        "Dev Malhotra",
-        "Pooja Nair",
-        "Aryan Desai",
-        "Simran Kaur",
-        "Aditya Rao",
-        "Nikita Roy",
-        "Harsh Kapoor",
-        "Meera Iyer",
-        "Kabir Das",
-        "Riya Bose",
-    ]
-
-    statuses = (
-        ["pending"] * 3 +
-        ["confirmed"] * 5 +
-        ["completed"] * 8 +
-        ["cancelled"] * 3 +
-        ["no_show"] * 1
-    )
-
-    random.shuffle(statuses)
-
-    base = datetime.now()
-
-    for i, name in enumerate(names):
-
-        appointment = Appointment(
-            business_id=business.id,
-            service_id=random.choice(services).id,
-            customer_name=name,
-            customer_phone=f"9198000{10000+i}",
-            appointment_time=base + timedelta(
-                days=random.randint(-3, 7),
-                hours=random.randint(9, 18),
-            ),
-            status=statuses[i],
+    if business and business.name != DEMO_NAME:
+        sys.exit(
+            f"REFUSING TO RUN: phone_number_id {DEMO_PHONE_NUMBER_ID} already belongs to "
+            f"'{business.name}'. Use a different DEMO_PHONE_NUMBER_ID."
         )
 
-        db.add(appointment)
+    clashing_owner = db.query(Owner).filter(Owner.email == DEMO_OWNER_EMAIL).first()
+    if clashing_owner and (business is None or clashing_owner.business_id != business.id):
+        sys.exit(f"REFUSING TO RUN: {DEMO_OWNER_EMAIL} already belongs to another business. "
+                 f"Set a different DEMO_OWNER_EMAIL.")
+
+    if business:
+        print(f"♻️  Refreshing existing demo tenant '{DEMO_NAME}' (id={business.id})...")
+        for model in (Appointment, UserSession, Service, Owner, ActivityEvent):
+            db.query(model).filter(model.business_id == business.id).delete()
+        db.commit()
+    else:
+        print(f"🌱 Creating demo tenant '{DEMO_NAME}'...")
+        business = Business(name=DEMO_NAME, whatsapp_business_phone_number_id=DEMO_PHONE_NUMBER_ID,
+                            manager_phone_number=DEMO_MANAGER_PHONE, operational_hours=HOURS)
+        db.add(business)
+        db.flush()
+
+    business.manager_phone_number = DEMO_MANAGER_PHONE
+    business.timezone = TIMEZONE
+    business.is_active = True
+    business.accepting_bookings = True
+    business.operational_hours = HOURS
+    business.holidays = []
+    business.slot_interval = 30
+    business.advance_booking_days = 14
+    business.enable_service_selection = True
+    business.approval_mode = "manual"
+    business.max_parallel_bookings = 2
+    business.notification_preferences = {"whatsapp_owner": True, "whatsapp_customer": True}
+    db.commit()
+    db.refresh(business)
+
+    db.add(Owner(
+        business_id=business.id,
+        full_name=DEMO_OWNER_NAME,
+        email=DEMO_OWNER_EMAIL,
+        phone_number=None,  # login by email; avoids clashing with other owners' phones
+        password_hash=hash_password(DEMO_OWNER_PASSWORD),
+        is_active=True,
+    ))
+
+    services = {}
+    for key, (name, minutes, price) in SERVICES.items():
+        svc = Service(business_id=business.id, name=name, duration=minutes, price=price, is_active=True)
+        db.add(svc)
+        services[key] = svc
+    db.flush()
+
+    now_local = datetime.now(pytz.timezone(TIMEZONE)).replace(tzinfo=None)
+    today = now_local.date()
+    past_i = future_i = 0
+
+    for i, (offset, hhmm, svc_key, customer) in enumerate(BOOKINGS):
+        start = datetime.combine(today + timedelta(days=offset), time.fromisoformat(hhmm))
+        if start < now_local:
+            status = PAST_STATUSES[past_i % len(PAST_STATUSES)]
+            past_i += 1
+        else:
+            status = FUTURE_STATUSES[future_i % len(FUTURE_STATUSES)]
+            future_i += 1
+
+        db.add(Appointment(
+            business_id=business.id,
+            service_id=services[svc_key].id,
+            customer_name=customer,
+            customer_phone=f"91000000{1000 + i}",  # deliberately invalid dummy numbers
+            appointment_time=start,
+            status=status,
+        ))
+
+    subscription = db.query(Subscription).filter(Subscription.business_id == business.id).first()
+    if not subscription:
+        subscription = Subscription(business_id=business.id)
+        db.add(subscription)
+    subscription.plan = "pro"
+    subscription.status = "active"
+    subscription.next_billing_date = (today + timedelta(days=30)).isoformat()
 
     db.commit()
-
-    print(f"✅ Created {len(names)} demo appointments.")
-
+    print(f"✅ '{DEMO_NAME}' ready: {len(SERVICES)} services, {len(BOOKINGS)} demo bookings.")
+    if DEMO_PHONE_NUMBER_ID == "DEMO_AURA_CLINIC":
+        print("ℹ️  DEMO_PHONE_NUMBER_ID not set: portal demo only (no live WhatsApp).")
 finally:
     db.close()
+
+print()
+print("========== DEMO OWNER LOGIN ==========")
+print(f"Email    : {DEMO_OWNER_EMAIL}")
+print(f"Password : {DEMO_OWNER_PASSWORD}")
+print("======================================")
 </file>
 
 <file path="seed_mission2.py">
@@ -1659,6 +1929,224 @@ send(TENANT_A_ID, "hi")
 
 print("\n--- Sending message to Tenant B with the SAME user phone ---")
 send(TENANT_B_ID, "hi")
+</file>
+
+<file path="whatsapp_client.py">
+"""
+whatsapp_client.py
+================================================================================
+VERZIO STUDIO — OUTBOUND WHATSAPP (single source of truth)
+================================================================================
+Every outbound WhatsApp message goes through send_whatsapp(). It is shared by
+the webhook (server.py) and the owner portal (owner/owner_appointments.py), so
+neither module has to import the other.
+
+- Retries network errors, 429 and 5xx responses with a short backoff.
+- Logs success/failure with its OWN database session, so a logging failure can
+  never roll back the caller's business transaction.
+- Never logs full phone numbers.
+"""
+import asyncio
+import logging
+import os
+import re
+
+import httpx
+
+from activity_log import log_event
+from database import SessionLocal
+from incident_service import create_incident
+
+logger = logging.getLogger("VERZIO_WHATSAPP")
+
+GRAPH_API_VERSION = os.getenv("GRAPH_API_VERSION", "v23.0")
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+RETRY_DELAYS = (1, 3)  # seconds before attempt 2 and attempt 3
+
+
+# ------------------------------------------------------------------------
+# Phone helpers
+# ------------------------------------------------------------------------
+
+def normalize_phone(raw: str | None) -> str:
+    """Digits only. '+91 98765-43210' -> '919876543210'."""
+    return re.sub(r"\D", "", raw or "")
+
+
+def is_real_phone(raw: str | None) -> bool:
+    """True for a plausible international number (country code + number)."""
+    return 11 <= len(normalize_phone(raw)) <= 15
+
+
+def mask_phone(raw: str | None) -> str:
+    digits = normalize_phone(raw)
+    return f"***{digits[-4:]}" if digits else "unknown"
+
+
+# ------------------------------------------------------------------------
+# Message builders
+# ------------------------------------------------------------------------
+
+def build_message_body(to: str, payload: dict) -> dict:
+    """Translate a runtime payload into a Meta Cloud API message body."""
+    msg_type = payload.get("type")
+    body = {"messaging_product": "whatsapp", "to": to}
+
+    if msg_type == "text":
+        body["type"] = "text"
+        body["text"] = {"body": payload["body"]}
+
+    elif msg_type == "list":
+        interactive = {
+            "type": "list",
+            "body": {"text": payload.get("body", "")},
+            "action": {
+                "button": payload.get("button", "Select"),
+                "sections": payload.get("sections", []),
+            },
+        }
+        if payload.get("header"):
+            interactive["header"] = {"type": "text", "text": payload["header"]}
+        body["type"] = "interactive"
+        body["interactive"] = interactive
+
+    elif msg_type == "buttons":
+        body["type"] = "interactive"
+        body["interactive"] = {
+            "type": "button",
+            "body": {"text": payload.get("body", "")},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": b["id"], "title": b["title"]}}
+                    for b in payload.get("buttons", [])
+                ]
+            },
+        }
+
+    elif msg_type == "template":
+        # payload["template"] = {"name": ..., "language": {"code": ...}, "components": [...]}
+        body["type"] = "template"
+        body["template"] = payload["template"]
+
+    else:
+        raise ValueError(f"Unsupported WhatsApp payload type: {msg_type!r}")
+
+    return body
+
+
+def build_status_message(appointment, business, previous_status: str, new_status: str) -> str | None:
+    """Customer-facing text for a status change, or None if the customer
+    should not be messaged for this transition."""
+    service_name = appointment.service.name if appointment.service else "your appointment"
+    when = appointment.appointment_time
+    day = when.strftime("%a, %d %b")
+    clock = when.strftime("%I:%M %p").lstrip("0")
+
+    name = (appointment.customer_name or "").strip()
+    greeting = f"Hi {name.split()[0]}, " if name else "Hi, "
+
+    if new_status == "confirmed":
+        return (
+            f"{greeting}your booking at {business.name} is confirmed ✅\n\n"
+            f"{service_name}\n{day} at {clock}\n\n"
+            f"See you then!"
+        )
+
+    if new_status == "cancelled" and previous_status == "pending":
+        return (
+            f"{greeting}sorry, {business.name} couldn't confirm your booking for "
+            f"{service_name} on {day} at {clock}.\n\n"
+            f"Send us a message any time to pick another slot."
+        )
+
+    if new_status == "cancelled":
+        return (
+            f"{greeting}your booking at {business.name} for {service_name} on "
+            f"{day} at {clock} has been cancelled.\n\n"
+            f"Send us a message any time to book a new slot."
+        )
+
+    return None
+
+
+# ------------------------------------------------------------------------
+# Sending
+# ------------------------------------------------------------------------
+
+def _log(business_id: int | None, event_type: str, status: str, message: str) -> None:
+    db = SessionLocal()
+    try:
+        log_event(db=db, event_type=event_type, status=status, message=message, business_id=business_id)
+    finally:
+        db.close()
+
+
+def _record_failure(business_id: int | None, to: str, reason: str) -> None:
+    logger.error("WhatsApp send to %s failed: %s", mask_phone(to), reason)
+    _log(business_id, "whatsapp_failed", "error", reason[:500])
+    try:
+        create_incident(
+            severity="error",
+            module="WhatsApp",
+            title="Outbound message failed",
+            message=reason,
+            business_id=business_id,
+            phone_number=to,
+        )
+    except Exception:
+        logger.exception("Could not record WhatsApp incident")
+
+
+async def send_whatsapp(
+    to: str,
+    phone_number_id: str,
+    payload: dict,
+    business_id: int | None = None,
+) -> bool:
+    """Send one message. Returns True on success. Never raises."""
+    recipient = normalize_phone(to)
+    if not recipient or not payload:
+        return False
+
+    access_token = os.getenv("META_ACCESS_TOKEN", "")
+    if not access_token or not phone_number_id:
+        _record_failure(business_id, recipient, "Missing META_ACCESS_TOKEN or phone_number_id")
+        return False
+
+    try:
+        body = build_message_body(recipient, payload)
+    except (KeyError, ValueError) as exc:
+        _record_failure(business_id, recipient, f"Invalid payload: {exc}")
+        return False
+
+    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+
+    last_error = "unknown error"
+    for attempt in range(len(RETRY_DELAYS) + 1):
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(url, headers=headers, json=body)
+        except httpx.HTTPError as exc:
+            last_error = f"Network error: {exc}"
+        else:
+            if response.status_code == 200:
+                _log(
+                    business_id,
+                    "whatsapp_sent",
+                    "success",
+                    f"Sent {payload.get('type')} message to {mask_phone(recipient)}",
+                )
+                return True
+            last_error = f"Meta API {response.status_code}: {response.text[:300]}"
+            if response.status_code not in RETRYABLE_STATUS:
+                break  # 4xx such as 131047 (outside 24h window) will not succeed on retry
+
+        if attempt < len(RETRY_DELAYS):
+            await asyncio.sleep(RETRY_DELAYS[attempt])
+
+    _record_failure(business_id, recipient, last_error)
+    return False
 </file>
 
 <file path="routers/admin_appointments.py">
@@ -3208,7 +3696,7 @@ document.addEventListener("DOMContentLoaded", () => {
         {% endfor %}
     </div>
 
-    <a href="/owner/appointments" class="owner-mobile-fab" aria-label="New Booking">
+    <a href="/owner/appointments/new" class="owner-mobile-fab" aria-label="New Booking">
         <i class="bi bi-plus-lg"></i>
     </a>
 </section>
@@ -3294,7 +3782,7 @@ document.addEventListener("DOMContentLoaded", () => {
         {% endfor %}
     </div>
 
-    <a href="/owner/appointments" class="owner-mobile-fab" aria-label="New Booking">
+    <a href="/owner/appointments/new" class="owner-mobile-fab" aria-label="New Booking">
         <i class="bi bi-plus-lg"></i>
     </a>
 </section>
@@ -4094,11 +4582,15 @@ async def logout_action():
 {% block page_title %}Appointments{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Appointments</h1>
-    <div class="page-subtitle">Manage bookings for {{ business.name if business else 'your business' }}.</div>
-  </div>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-eyebrow">Schedule</div>
+        <h1 class="page-title">Appointments</h1>
+        <div class="page-subtitle">Manage customer bookings and daily capacity.</div>
+    </div>
+    <a href="/owner/appointments/new" class="btn-verzio-primary">
+        <i class="bi bi-plus-lg me-1"></i> New booking
+    </a>
 </div>
 
 <form method="get" action="/owner/appointments" class="filter-bar">
@@ -4685,129 +5177,130 @@ async def logout_action():
 </file>
 
 <file path="seed.py">
+"""
+seed.py — DEVELOPMENT ONLY.
+Wipes EVERY tenant's data and creates one test business.
+Refuses to run when VERZIO_ENV=production, and asks for confirmation otherwise
+(pass --yes to skip the prompt in local scripts).
+"""
+# --- Production guard: runs before any database import --------------------
+import os
+import sys
+
+from dotenv import load_dotenv
+
+load_dotenv()  # so VERZIO_ENV set only in .env is also respected
+
+if os.getenv("VERZIO_ENV", "development").strip().lower() == "production":
+    sys.exit("REFUSING TO RUN: seed.py wipes ALL tenant data and VERZIO_ENV=production.")
+
+if "--yes" not in sys.argv:
+    target = os.getenv("DATABASE_URL", "sqlite:///./verzio_saas.db")
+    try:
+        answer = input(f"This deletes ALL businesses, owners, services and appointments in {target}.\n"
+                       f"Type WIPE to continue: ")
+    except EOFError:
+        answer = ""
+    if answer.strip() != "WIPE":
+        sys.exit("Aborted. Nothing was changed.")
+# ---------------------------------------------------------------------------
+
+import secrets
+
+from sqlalchemy import text
+
 from database import (
-    SessionLocal,
-    Business,
-    Service,
+    ActivityEvent,
     Appointment,
-    UserSession,
+    Business,
+    Incident,
     Owner,
+    PaymentRecord,
+    Service,
+    SessionLocal,
+    Staff,
+    Subscription,
+    UserSession,
     init_db,
 )
-from datetime import datetime
 from owner.owner_auth import hash_password
+
+# Values come from the environment so no real numbers live in the repo.
+SEED_PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID", "TEST_PHONE_NUMBER_ID")
+SEED_MANAGER_PHONE = os.getenv("SEED_MANAGER_PHONE", "910000000001")
+SEED_OWNER_NAME = os.getenv("SEED_OWNER_NAME", "Test Owner")
+SEED_OWNER_EMAIL = os.getenv("SEED_OWNER_EMAIL", "owner@verzio.test")
+SEED_OWNER_PASSWORD = os.getenv("SEED_OWNER_PASSWORD") or secrets.token_urlsafe(9)
 
 init_db()
 db = SessionLocal()
 
 try:
-    print("🧹 Purging old data...")
-
-    db.query(Appointment).delete()
-    db.query(UserSession).delete()
-    db.query(Service).delete()
-    db.query(Owner).delete()
-    db.query(Business).delete()
+    print("🧹 Purging all tenant data...")
+    for model in (Appointment, UserSession, Service, Staff, Owner,
+                  Subscription, PaymentRecord, ActivityEvent, Incident, Business):
+        db.query(model).delete()
+    try:
+        db.execute(text("DELETE FROM processed_messages"))
+    except Exception:
+        db.rollback()  # table is created by the server on first start
     db.commit()
 
-    print("🌱 Seeding Verzio Business...")
-
-    biz_config = {
-        # Business Hours
-        "operational_hours": {
+    print("🌱 Seeding test business...")
+    business = Business(
+        name="Verzio Test Salon",
+        whatsapp_business_phone_number_id=SEED_PHONE_NUMBER_ID,
+        manager_phone_number=SEED_MANAGER_PHONE,
+        timezone="Asia/Kolkata",
+        is_active=True,
+        accepting_bookings=True,
+        operational_hours={
             "mon": ["09:00", "18:00"],
             "tue": ["09:00", "18:00"],
             "wed": ["09:00", "18:00"],
             "thu": ["09:00", "18:00"],
             "fri": ["09:00", "18:00"],
-            "sat": ["10:00", "15:00"]
+            "sat": ["10:00", "15:00"],
         },
-        "holidays": [],
-
-        # Booking Settings
-        "slot_interval": 60,
-        "advance_booking_days": 14,
-        "enable_service_selection": True,
-        "approval_mode": "manual",
-        "accepting_bookings": True,
-        "max_parallel_bookings": 2,
-
-        # Notifications
-        "notification_preferences": {
-            "whatsapp_owner": True,
-            "whatsapp_customer": True
-        }
-    }
-
-    new_business = Business(
-        name="Verzio Parallel Salon",
-        whatsapp_business_phone_number_id="1265387899980753",
-        manager_phone_number="918208559570",
-        timezone="Asia/Kolkata",
-        is_active=True,
-        **biz_config
+        holidays=[],
+        slot_interval=30,
+        advance_booking_days=14,
+        enable_service_selection=True,
+        approval_mode="manual",
+        max_parallel_bookings=2,
+        notification_preferences={"whatsapp_owner": True, "whatsapp_customer": True},
     )
-
-    db.add(new_business)
+    db.add(business)
     db.commit()
-    db.refresh(new_business)
+    db.refresh(business)
 
-
-    owner = Owner(
-        business_id=new_business.id,
-        full_name="Mohak Bhowmik",
-        email="admin@verzio.test",
-        phone_number="918208559570",
-        password_hash=hash_password("admin123"),
+    db.add(Owner(
+        business_id=business.id,
+        full_name=SEED_OWNER_NAME,
+        email=SEED_OWNER_EMAIL,
+        phone_number=SEED_MANAGER_PHONE,
+        password_hash=hash_password(SEED_OWNER_PASSWORD),
         is_active=True,
-    )
+    ))
 
-    db.add(owner)
+    db.add_all([
+        Service(business_id=business.id, name="Haircut", duration=45, price=500.0, is_active=True),
+        Service(business_id=business.id, name="Beard Trim", duration=30, price=250.0, is_active=True),
+        Service(business_id=business.id, name="Hair Spa", duration=60, price=1200.0, is_active=True),
+        Service(business_id=business.id, name="Hair Colour", duration=90, price=2500.0, is_active=True),
+    ])
     db.commit()
 
-    services = [
-        Service(
-            business_id=new_business.id,
-            name="Haircut",
-            duration=60,
-            price=300.0,
-            is_active=True
-        ),
-        Service(
-            business_id=new_business.id,
-            name="Beard Trim",
-            duration=60,
-            price=150.0,
-            is_active=True
-        ),
-        Service(
-            business_id=new_business.id,
-            name="Hair Spa",
-            duration=60,
-            price=800.0,
-            is_active=True
-        )
-    ]
-
-    db.add_all(services)
-    db.commit()
-
-    print(f"✅ Seeded '{new_business.name}' successfully.")
-    print(f"📅 Slot Interval: {biz_config['slot_interval']} minutes")
-    print(f"👥 Online Capacity: {biz_config['max_parallel_bookings']} concurrent bookings")
-    print(f"📆 Advance Booking Window: {biz_config['advance_booking_days']} days")
-
-
-
-
+    print(f"✅ Seeded '{business.name}' (phone_number_id={SEED_PHONE_NUMBER_ID}).")
+    if SEED_PHONE_NUMBER_ID == "TEST_PHONE_NUMBER_ID":
+        print("⚠️  PHONE_NUMBER_ID is not set: WhatsApp messages won't reach this business.")
 finally:
     db.close()
 
-
 print()
 print("========== OWNER LOGIN ==========")
-print("Email    : admin@verzio.test")
-print("Password : admin123")
+print(f"Email    : {SEED_OWNER_EMAIL}")
+print(f"Password : {SEED_OWNER_PASSWORD}")
 print("=================================")
 </file>
 
@@ -5503,364 +5996,6 @@ def impersonate_business_owner(
     </div>
 </form>
 {% endblock %}
-</file>
-
-<file path="booking_runtime.py">
-import logging
-from sqlalchemy.orm import Session
-from runtime_state import RuntimeStateManager
-from booking_engine import VerzioSaaSEngine, BookingEngineException
-from database import Business, Service
-from datetime import datetime
-
-logger = logging.getLogger("VERZIO_RUNTIME")
-
-class BookingRuntime:
-    def __init__(self, db: Session):
-        self.db = db
-        self.state_mgr = RuntimeStateManager(db)
-        self.engine = VerzioSaaSEngine()
-
-    async def process_interaction(self, phone: str, tenant_id: str, interaction_id: str):
-        # Resolve the tenant FIRST; the session is always scoped to biz.id.
-        biz = self.engine.get_tenant_config(self.db, tenant_id)
-        session = self.state_mgr.get_or_create_session(phone, business_id=biz.id)
-
-        if interaction_id == "action_start":
-            return self._render_services(phone, biz)
-
-        elif session.step == "SELECT_SERVICE":
-            svc = self._resolve_service_selection(biz, interaction_id)
-            if svc is None:
-                logger.warning(
-                    "Rejected service selection %r for business_id=%s phone=%s",
-                    interaction_id, biz.id, phone,
-                )
-                return self._render_services(
-                    phone, biz,
-                    notice="That service isn't available here. Please choose from our menu:",
-                )
-            self.state_mgr.update_session(
-                phone, business_id=biz.id, step="SELECT_DATE", selected_service_id=svc.id
-            )
-            dates = self.engine.get_available_dates(self.db, biz)
-            return self._render_dates(dates, phone, biz)
-
-        elif session.step == "SELECT_DATE":
-            date_str = interaction_id.split("_")[1]
-            self.state_mgr.update_session(
-                phone, business_id=biz.id, step="SELECT_TIME", selected_date=date_str
-            )
-            target_date = datetime.strptime(date_str, "%Y-%m-%d")
-            slots = self.engine.get_available_slots(self.db, biz, target_date)
-            return self._render_slots(slots, phone, biz)
-
-        elif session.step == "SELECT_TIME":
-            time_str = interaction_id.split("_")[1]
-            self.state_mgr.update_session(
-                phone, business_id=biz.id, step="CONFIRM", selected_time=time_str
-            )
-            return self._render_confirmation(session, phone, biz)
-
-        elif session.step == "CONFIRM":
-            if interaction_id == "action_confirm":
-                return self._finalize(phone, tenant_id, session, biz)
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-            return {"type": "text", "body": "Cancelled."}
-
-    def _resolve_service_selection(self, biz, interaction_id):
-        """Parse 'svc_<id>' and return the Service only if it belongs to biz."""
-        if not isinstance(interaction_id, str) or not interaction_id.startswith("svc_"):
-            return None
-        try:
-            svc_id = int(interaction_id[len("svc_"):])
-        except ValueError:
-            return None
-        return self.engine.get_service_for_business(self.db, biz.id, svc_id)
-
-    def _render_services(self, phone, biz, notice=None):
-        svcs = self.db.query(Service).filter(
-            Service.business_id == biz.id,
-            Service.is_active == True,
-            Service.is_deleted == False
-        ).limit(10).all()
-
-        if not svcs:
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-            return {"type": "text", "body": "Sorry, this business currently has no active services available."}
-        
-        rows = [{
-            "id": f"svc_{s.id}",
-            "title": s.name[:24],
-            "description": f"₹{s.price:.0f}" if s.price is not None else f"{s.duration} mins"
-        } for s in svcs]
-        
-        self.state_mgr.update_session(phone, business_id=biz.id, step="SELECT_SERVICE")
-        
-        return {
-            "type": "list", 
-            "header": "Services", 
-            "body": f"{notice}\n\nPick a service:" if notice else "Pick a service:",
-            "button": "Services", 
-            "sections": [{"title": "Our Menu", "rows": rows}]
-        }
-
-    def _render_dates(self, dates, phone, biz):
-        if not dates:
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-            return {"type": "text", "body": "No booking dates are currently available. Please check back soon."}
-
-        btns = [{"id": f"date_{d.isoformat()}", "title": d.strftime("%a %d %b")} for d in dates[:3]]
-        return {"type": "buttons", "body": "Pick a date:", "buttons": btns}
-
-    def _render_slots(self, slots, phone, biz):
-        if not slots:
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-            return {"type": "text", "body": "All slots for this date are fully booked or unavailable. Please message again to choose another date."}
-
-        rows = [{"id": f"time_{s}", "title": s} for s in slots[:10]]
-        return {"type": "list", "header": "Times", "body": "Pick a time:", "button": "Times", "sections": [{"title": "Slots", "rows": rows}]}
-
-    def _render_confirmation(self, session, phone, biz):
-        svc = self.engine.get_service_for_business(self.db, biz.id, session.selected_service_id)
-        if svc is None:
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-            return {"type": "text", "body": "Sorry, the selected service is no longer available. Please start again."}
-
-        body = f"Confirm: {svc.name} on {session.selected_date} at {session.selected_time}?"
-        return {
-            "type": "buttons", 
-            "body": body, 
-            "buttons": [
-                {"id": "action_confirm", "title": "Confirm ✅"}, 
-                {"id": "action_cancel", "title": "Cancel ❌"}
-            ]
-        }
-
-    def _finalize(self, phone, tenant_id, session, biz):
-        try:
-            dt = datetime.strptime(
-                f"{session.selected_date} {session.selected_time}",
-                "%Y-%m-%d %H:%M"
-            )
-
-            appt = self.engine.validate_and_book(
-                self.db,
-                tenant_id,
-                dt,
-                phone,
-                session.selected_service_id
-            )
-
-            svc = self.db.get(Service, appt.service_id)
-
-            dt_str = appt.appointment_time.strftime("%A, %b %d")
-            tm_str = appt.appointment_time.strftime("%I:%M %p")
-
-            owner_payload = {
-                "type": "buttons",
-                "body": (
-                    f"📅 New Booking Request\n\n"
-                    f"Customer: {phone}\n"
-                    f"Service: {svc.name}\n"
-                    f"Date: {dt_str}\n"
-                    f"Time: {tm_str}\n"
-                    f"Booking ID: {appt.id}"
-                ),
-                "buttons": [
-                    {
-                        "id": f"confirm_{appt.id}",
-                        "title": "Approve ✅"
-                    },
-                    {
-                        "id": f"cancel_{appt.id}",
-                        "title": "Reject ❌"
-                    }
-                ]
-            }
-
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-
-            return {
-                "customer": {
-                    "type": "text",
-                    "body": (
-                        "✅ Booking request received.\n\n"
-                        "Waiting for business approval."
-                    )
-                },
-                "owner": {
-                    "recipient": biz.manager_phone_number,
-                    "payload": owner_payload
-                }
-            }
-
-        except BookingEngineException as e:
-
-            if e.error_code == "ERR_TENANT_LOCKED":
-                message = "This business is temporarily not accepting bookings."
-
-            elif e.error_code == "ERR_HOLIDAY":
-                message = "The business is closed on the selected date."
-
-            elif e.error_code == "ERR_CAPACITY":
-                message = "Sorry, that time slot has just become full. Please choose another."
-
-            elif e.error_code == "ERR_INVALID_CONFIG":
-                message = "The business configuration is currently unavailable."
-
-            elif e.error_code == "ERR_INVALID_SERVICE":
-                message = "Sorry, that service is no longer available. Please message us again to start over."
-
-            else:
-                message = "Unable to complete your booking."
-
-            self.state_mgr.clear_session(phone, business_id=biz.id)
-
-            return {
-                "type": "text",
-                "body": message
-            }
-</file>
-
-<file path="owner/owner_appointments.py">
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from owner.owner_auth import is_mobile, resolve_owner_and_business
-
-from activity_log import log_event
-from database import Appointment, Business, Service, get_db
-
-router = APIRouter(prefix="/owner/appointments", tags=["owner-appointments"])
-templates = Jinja2Templates(directory="templates")
-
-ALLOWED_STATUSES = {"pending", "confirmed", "completed", "cancelled", "no_show"}
-ACTION_TARGETS = {
-    "approve": ("pending", "confirmed"),
-    "reject": ("pending", "cancelled"),
-    "complete": ("confirmed", "completed"),
-    "cancel": ("confirmed", "cancelled"),
-    "no_show": ("confirmed", "no_show"),
-}
-
-
-
-
-@router.get("")
-async def owner_appointments_page(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    owner, business = resolve_owner_and_business(request, db)
-    search = request.query_params.get("search", "").strip()
-    status = request.query_params.get("status", "all").strip().lower()
-    sort = request.query_params.get("sort", "newest").strip().lower()
-
-    appointments = []
-    if business:
-        query = (
-            db.query(Appointment)
-            .filter(Appointment.business_id == business.id)
-            .join(Service, Appointment.service_id == Service.id, isouter=True)
-        )
-
-        if search:
-            search_value = f"%{search}%"
-            query = query.filter(
-                (Appointment.customer_name.ilike(search_value))
-                | (Appointment.customer_phone.ilike(search_value))
-            )
-
-        if status in ALLOWED_STATUSES:
-            query = query.filter(Appointment.status == status)
-        else:
-            status = "all"
-
-        appointments = (
-            query
-            .order_by(
-                Appointment.appointment_time.asc()
-                if sort == "oldest"
-                else Appointment.appointment_time.desc()
-            )
-            .all()
-        )
-
-    template_name = "owner/appointments_mobile.html" if is_mobile(request) else "owner/appointments.html"
-
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "active_page": "appointments",
-            "business": business,
-            "appointments": appointments,
-            "search": search,
-            "status": status,
-            "sort": sort if sort in {"oldest", "newest"} else "newest",
-        },
-    )
-
-
-@router.post("/{appointment_id}/{action}")
-async def update_owner_appointment(
-    appointment_id: int,
-    action: str,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    owner, business = resolve_owner_and_business(request, db)
-    transition = ACTION_TARGETS.get(action)
-
-    if not business or not transition:
-        raise HTTPException(status_code=404, detail="Appointment action not found.")
-
-    appointment = (
-        db.query(Appointment)
-        .filter(
-            Appointment.id == appointment_id,
-            Appointment.business_id == business.id,
-        )
-        .first()
-    )
-
-    if not appointment:
-        raise HTTPException(status_code=404, detail="Appointment not found.")
-
-    expected_status, next_status = transition
-    if appointment.status != expected_status:
-        raise HTTPException(
-            status_code=409,
-            detail="This appointment cannot be changed from its current status.",
-        )
-
-    appointment.status = next_status
-    db.commit()
-
-    if next_status == "completed":
-        log_event(
-            db=db,
-            event_type="appointment_completed",
-            status="success",
-            message=f"Appointment #{appointment.id} completed",
-            business_id=appointment.business_id,
-        )
-    elif next_status == "no_show":
-        log_event(
-            db=db,
-            event_type="appointment_no_show",
-            status="warning",
-            message=f"Appointment #{appointment.id} marked as no-show",
-            business_id=appointment.business_id,
-        )
-
-    query = request.query_params
-    redirect_url = "/owner/appointments"
-    if query:
-        redirect_url = f"{redirect_url}?{query}"
-    return RedirectResponse(url=redirect_url, status_code=303)
 </file>
 
 <file path="owner/owner_settings.py">
@@ -7239,7 +7374,7 @@ Integrates with existing :root tokens defined above.
         {% endfor %}
     </section>
 
-    <a href="/owner/appointments" class="owner-mobile-fab" aria-label="New Booking">
+    <a href="/owner/appointments/new" class="owner-mobile-fab" aria-label="New Booking">
         <i class="bi bi-plus-lg"></i>
     </a>
 </div>
@@ -7350,157 +7485,733 @@ Integrates with existing :root tokens defined above.
 {% endblock %}
 </file>
 
-<file path="booking_engine.py">
+<file path="booking_runtime.py">
+"""
+booking_runtime.py — WhatsApp interactive state machine for customer bookings.
+Includes W5 (stale tap recovery), W6 (revalidation), and W11 (profile name capture).
+"""
+import os
 import logging
-import pytz  # NEW: Required for timezone handling
-from datetime import datetime, timedelta, time as dt_time
+from datetime import datetime, date, time, timedelta
+from typing import Optional, Dict, Any, List
+import httpx
 from sqlalchemy.orm import Session
-from database import Business, Appointment, Service
 
-logger = logging.getLogger("VERZIO_ENGINE")
+from database import Business, Service, Appointment, UserSession
+from booking_engine import get_available_slots_for_day, validate_and_book
 
-class BookingEngineException(Exception):
-    def __init__(self, message: str, error_code: str):
-        super().__init__(message)
-        self.error_code = error_code
+logger = logging.getLogger("VERZIO_BOOKING_RUNTIME")
 
-class VerzioSaaSEngine:
-    def get_tenant_config(self, db: Session, tenant_id: str) -> Business:
-        biz = db.query(Business).filter(
-            Business.whatsapp_business_phone_number_id == tenant_id
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID", "")
+
+
+def send_whatsapp_raw(payload: dict, phone_number_id: Optional[str] = None) -> bool:
+    """Send a raw JSON payload to the WhatsApp Cloud API."""
+    token = os.getenv("META_ACCESS_TOKEN", "")
+    pid = phone_number_id or os.getenv("PHONE_NUMBER_ID", "")
+    if not token or not pid:
+        logger.warning("WhatsApp API credentials missing; message dispatch skipped.")
+        return False
+
+    url = f"https://graph.facebook.com/v20.0/{pid}/messages"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            if resp.status_code not in (200, 201):
+                logger.error(f"WhatsApp API error {resp.status_code}: {resp.text}")
+                return False
+            return True
+    except Exception as exc:
+        logger.error(f"Failed to post to WhatsApp API: {exc}")
+        return False
+
+
+def send_text_message(to: str, text: str, phone_number_id: Optional[str] = None) -> bool:
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "text",
+        "text": {"preview_url": False, "body": text},
+    }
+    return send_whatsapp_raw(payload, phone_number_id)
+
+
+def send_button_message(to: str, body_text: str, buttons: List[Dict[str, str]], phone_number_id: Optional[str] = None) -> bool:
+    """Send up to 3 interactive reply buttons."""
+    button_rows = [
+        {"type": "reply", "reply": {"id": btn["id"], "title": btn["title"][:20]}}
+        for btn in buttons[:3]
+    ]
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": body_text},
+            "action": {"buttons": button_rows},
+        },
+    }
+    return send_whatsapp_raw(payload, phone_number_id)
+
+
+def send_list_message(to: str, body_text: str, button_label: str, rows: List[Dict[str, str]], phone_number_id: Optional[str] = None) -> bool:
+    """Send an interactive list message (up to 10 rows)."""
+    list_rows = [
+        {
+            "id": r["id"],
+            "title": r["title"][:24],
+            "description": r.get("description", "")[:72],
+        }
+        for r in rows[:10]
+    ]
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "list",
+            "body": {"text": body_text},
+            "action": {
+                "button": button_label[:20],
+                "sections": [{"title": "Options", "rows": list_rows}],
+            },
+        },
+    }
+    return send_whatsapp_raw(payload, phone_number_id)
+
+
+class BookingRuntime:
+    """State machine governing customer booking sessions."""
+
+    def get_or_create_session(self, db: Session, phone_number: str, business_id: int) -> UserSession:
+        session = db.query(UserSession).filter(
+            UserSession.phone_number == phone_number,
+            UserSession.business_id == business_id
         ).first()
 
-        if not biz:
-            raise BookingEngineException("Business not found.", "ERR_NOT_FOUND")
-
-        if not biz.is_active or not biz.accepting_bookings:
-            raise BookingEngineException(
-                "Business is not currently accepting bookings.",
-                "ERR_TENANT_LOCKED"
+        if not session:
+            session = UserSession(
+                phone_number=phone_number,
+                business_id=business_id,
+                current_state="START",
+                selected_service_id=None,
+                selected_date=None,
+                selected_time=None
             )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+        return session
 
-        return biz
+    def reset_session(self, db: Session, session: UserSession) -> None:
+        session.current_state = "START"
+        session.selected_service_id = None
+        session.selected_date = None
+        session.selected_time = None
+        db.commit()
 
-    def get_available_dates(self, db: Session, biz: Business) -> list:
-        # Get current date in Business Timezone to avoid "today" being wrong
-        tz = pytz.timezone(biz.timezone or "UTC")
-        today = datetime.now(tz).date()
-        
-        available_dates = []
-        for i in range(biz.advance_booking_days):
-            target = today + timedelta(days=i)
-            if target.isoformat() not in (biz.holidays or []):
-                day_name = target.strftime("%a").lower()[:3]
-                if day_name in biz.operational_hours:
-                    available_dates.append(target)
-        return available_dates[:10]
-
-    def get_available_slots(self, db: Session, biz: Business, target_date: datetime) -> list:
-        # 1. Resolve Business Timezone
-        tz = pytz.timezone(biz.timezone or "UTC")
-        now_in_tz = datetime.now(tz)
-        
-        day_name = target_date.strftime("%a").lower()[:3]
-        hours = biz.operational_hours.get(day_name)
-        
-        if not hours: 
-            return []
-
-        start_h, end_h = hours
-        start_time = datetime.strptime(start_h, "%H:%M").time()
-        end_time = datetime.strptime(end_h, "%H:%M").time()
-
-        # Fetch existing occupancy
-        existing = db.query(Appointment.appointment_time).filter(
-             Appointment.business_id == biz.id,
-             Appointment.status.in_(["pending", "confirmed"]),
-             Appointment.appointment_time >= datetime.combine(target_date.date(), dt_time.min),
-             Appointment.appointment_time <= datetime.combine(target_date.date(), dt_time.max)
-        ).all()
-        
-        occupancy_map = {}
-        for appt in existing:
-            time_key = appt[0].strftime("%H:%M")
-            occupancy_map[time_key] = occupancy_map.get(time_key, 0) + 1
-
-        slots = []
-        curr = datetime.combine(target_date.date(), start_time)
-        limit = datetime.combine(target_date.date(), end_time)
-        
-        # 2. Logic: Loop through slots and validate against "Now"
-        interval = max(int(biz.slot_interval or 30), 5)
-        while curr < limit:
-            s_str = curr.strftime("%H:%M")
-            
-            # Check if this slot is in the past (only relevant for today)
-            if target_date.date() == now_in_tz.date():
-                slot_time = datetime.strptime(s_str, "%H:%M").time()
-                if slot_time <= now_in_tz.time():
-                    curr += timedelta(minutes=interval)
-                    continue
-
-            # Only show if capacity remains
-            if occupancy_map.get(s_str, 0) < biz.max_parallel_bookings:
-                slots.append(s_str)
-            
-            curr += timedelta(minutes=interval)
-            
-        return slots
-
-    def get_service_for_business(self, db: Session, business_id: int, service_id) -> Service | None:
-        """Return the service only if it belongs to this business and is bookable."""
-        if not isinstance(service_id, int):
-            return None
-        return (
+    def render_service_menu(self, db: Session, business: Business, to: str, prefix_msg: str = "") -> None:
+        services = (
             db.query(Service)
             .filter(
-                Service.id == service_id,
-                Service.business_id == business_id,
+                Service.business_id == business.id,
                 Service.is_active == True,
-                Service.is_deleted == False,
+                Service.is_deleted == False
             )
-            .first()
+            .all()
         )
 
-    def validate_and_book(self, db: Session, tenant_id: str, target_dt: datetime, customer_phone: str, service_id: int) -> Appointment:
-        biz = self.get_tenant_config(db, tenant_id)
+        if not services:
+            send_text_message(to, f"Welcome to {business.name}. We are currently updating our service menu. Please check back shortly!")
+            return
 
-        if self.get_service_for_business(db, biz.id, service_id) is None:
-            logger.warning(
-                "Rejected booking: service_id=%s not bookable for business_id=%s",
-                service_id, biz.id,
-            )
-            raise BookingEngineException(
-                "Selected service is not available for this business.",
-                "ERR_INVALID_SERVICE",
-            )
-        
-        # Holiday Check
-        if target_dt.date().isoformat() in (biz.holidays or []):
-            raise BookingEngineException("Business is closed on this date.", "ERR_HOLIDAY")
+        body = f"{prefix_msg}\n\nWelcome to *{business.name}*!\nPlease choose a service to begin your booking:" if prefix_msg else f"Welcome to *{business.name}*!\nPlease choose a service to begin your booking:"
 
-        # Capacity Check
-        count = db.query(Appointment).filter(
-            Appointment.business_id == biz.id,
-            Appointment.appointment_time == target_dt,
-            Appointment.status.in_(["pending", "confirmed"])
-        ).count()
-        
-        if count >= biz.max_parallel_bookings:
-            raise BookingEngineException("This slot just reached full capacity.", "ERR_CAPACITY")
+        if len(services) <= 3:
+            buttons = [
+                {"id": f"svc_{s.id}", "title": f"{s.name} (₹{int(s.price)})"}
+                for s in services
+            ]
+            send_button_message(to, body, buttons)
+        else:
+            rows = [
+                {
+                    "id": f"svc_{s.id}",
+                    "title": s.name,
+                    "description": f"₹{int(s.price)} • {s.duration} mins"
+                }
+                for s in services
+            ]
+            send_list_message(to, body, "View Services", rows)
 
-        status = "confirmed" if biz.approval_mode == "automatic" else "pending"
-        new_appt = Appointment(
-            business_id=biz.id, service_id=service_id,
-            customer_phone=customer_phone, appointment_time=target_dt, status=status
+    def render_date_picker(self, business: Business, to: str) -> None:
+        """Presents the next 7 calendar dates as an interactive list."""
+        today = date.today()
+        rows = []
+        for i in range(7):
+            d = today + timedelta(days=i)
+            day_label = "Today" if i == 0 else ("Tomorrow" if i == 1 else d.strftime("%A"))
+            date_str = d.strftime("%Y-%m-%d")
+            rows.append({
+                "id": f"date_{date_str}",
+                "title": f"{day_label} ({d.strftime('%b %d')})",
+                "description": f"Book for {d.strftime('%A, %d %B')}"
+            })
+
+        send_list_message(
+            to=to,
+            body_text=f"Please choose a date for your appointment at *{business.name}*:",
+            button_label="Select Date",
+            rows=rows
         )
-        db.add(new_appt)
-        db.commit()
-        db.refresh(new_appt)
-        return new_appt
 
-def validate_and_book(db, tenant_id, target_dt, customer_phone, service_id):
-    return VerzioSaaSEngine().validate_and_book(db, tenant_id, target_dt, customer_phone, service_id)
+    def render_time_picker(self, db: Session, business: Business, session: UserSession, to: str) -> None:
+        service = db.query(Service).filter(Service.id == session.selected_service_id).first()
+        target_date = session.selected_date
+
+        slots = get_available_slots_for_day(db, business, target_date, service)
+        if not slots:
+            buttons = [{"id": "restart_flow", "title": "Pick Another Date"}]
+            send_button_message(
+                to,
+                f"No open slots found for {target_date.strftime('%a, %b %d')}. Please choose another date:",
+                buttons
+            )
+            session.current_state = "AWAITING_DATE"
+            db.commit()
+            return
+
+        formatted_date = target_date.strftime("%a, %b %d")
+        body_text = f"Available times for *{service.name}* on {formatted_date}:"
+
+        if len(slots) <= 3:
+            buttons = [{"id": f"time_{t}", "title": datetime.strptime(t, "%H:%M").strftime("%I:%M %p")} for t in slots]
+            send_button_message(to, body_text, buttons)
+        else:
+            rows = [
+                {
+                    "id": f"time_{t}",
+                    "title": datetime.strptime(t, "%H:%M").strftime("%I:%M %p"),
+                    "description": f"{service.duration} mins slot"
+                }
+                for t in slots[:10]
+            ]
+            send_list_message(to, body_text, "Choose Time", rows)
+
+    def process_interaction(
+        self,
+        db: Session,
+        business_id: int,
+        sender_phone: str,
+        interaction_id: str,
+        raw_text: str = "",
+        profile_name: str = "Client"
+    ) -> None:
+        """Main dispatcher for incoming WhatsApp customer taps."""
+        biz = db.query(Business).filter(Business.id == business_id).first()
+        if not biz:
+            logger.error(f"Interaction received for non-existent business #{business_id}")
+            return
+
+        if not biz.accepting_bookings:
+            send_text_message(sender_phone, f"*{biz.name}* is currently not accepting automated bookings. Please contact the front desk directly.")
+            return
+
+        session = self.get_or_create_session(db, sender_phone, business_id)
+
+        # W5: Manual or explicit restart
+        if interaction_id in ("restart_flow", "menu", "hi", "hello", "start"):
+            self.reset_session(db, session)
+            self.render_service_menu(db, biz, sender_phone)
+            session.current_state = "AWAITING_SERVICE"
+            db.commit()
+            return
+
+        try:
+            # 1. SERVICE SELECTION
+            if interaction_id.startswith("svc_"):
+                svc_id = int(interaction_id.split("_")[1])
+                service = db.query(Service).filter(Service.id == svc_id, Service.business_id == biz.id).first()
+                if not service:
+                    raise ValueError("Service not found")
+
+                session.selected_service_id = service.id
+                session.current_state = "AWAITING_DATE"
+                db.commit()
+                self.render_date_picker(biz, sender_phone)
+                return
+
+            # 2. DATE SELECTION
+            elif interaction_id.startswith("date_"):
+                date_str = interaction_id.split("_")[1]
+                selected_d = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+                session.selected_date = selected_d
+                session.current_state = "AWAITING_TIME"
+                db.commit()
+                self.render_time_picker(db, biz, session, sender_phone)
+                return
+
+            # 3. TIME SELECTION
+            elif interaction_id.startswith("time_"):
+                time_str = interaction_id.split("_")[1]
+                selected_t = datetime.strptime(time_str, "%H:%M").time()
+
+                session.selected_time = selected_t
+                session.current_state = "AWAITING_CONFIRMATION"
+                db.commit()
+
+                service = db.query(Service).filter(Service.id == session.selected_service_id).first()
+                d_fmt = session.selected_date.strftime("%A, %d %B %Y")
+                t_fmt = selected_t.strftime("%I:%M %p")
+
+                summary = (
+                    f"Please confirm your booking at *{biz.name}*:\n\n"
+                    f"💇 *Service:* {service.name} (₹{int(service.price)})\n"
+                    f"📅 *Date:* {d_fmt}\n"
+                    f"⏰ *Time:* {t_fmt}\n"
+                    f"⏳ *Duration:* {service.duration} mins\n\n"
+                    f"Tap *Confirm* below to secure your appointment."
+                )
+                buttons = [
+                    {"id": "confirm_booking", "title": "✅ Confirm"},
+                    {"id": "restart_flow", "title": "❌ Cancel"}
+                ]
+                send_button_message(sender_phone, summary, buttons)
+                return
+
+            # 4. FINAL CONFIRMATION (Atomic validate_and_book with W6 revalidation)
+            elif interaction_id == "confirm_booking":
+                if not (session.selected_service_id and session.selected_date and session.selected_time):
+                    raise ValueError("Missing session booking state")
+
+                success, msg, appt = validate_and_book(
+                    db=db,
+                    business_id=biz.id,
+                    service_id=session.selected_service_id,
+                    customer_phone=sender_phone,
+                    target_date=session.selected_date,
+                    target_time=session.selected_time,
+                    customer_name=profile_name
+                )
+
+                if not success:
+                    # Slot expired or collision
+                    send_button_message(
+                        sender_phone,
+                        f"⚠️ {msg}",
+                        [{"id": "restart_flow", "title": "Pick Another Time"}]
+                    )
+                    return
+
+                # Success response
+                d_fmt = appt.appointment_date.strftime("%A, %d %B")
+                t_fmt = appt.appointment_time.strftime("%I:%M %p")
+
+                if appt.status == "confirmed":
+                    final_msg = f"🎉 *Booking Confirmed!*\n\nWe look forward to seeing you at *{biz.name}* on {d_fmt} at {t_fmt}."
+                else:
+                    final_msg = f"⏳ *Booking Request Received!*\n\nYour appointment for {appt.service.name} on {d_fmt} at {t_fmt} has been sent to the manager for confirmation. We will notify you shortly."
+
+                send_text_message(sender_phone, final_msg)
+
+                # Reset session
+                self.reset_session(db, session)
+                return
+
+            else:
+                # Unrecognized interaction ID
+                raise ValueError(f"Unknown interaction: {interaction_id}")
+
+        except Exception as exc:
+            # W5: Graceful stale-tap recovery
+            logger.warning(f"W5: Stale or out-of-order interaction '{interaction_id}' from {sender_phone}: {exc}")
+            self.reset_session(db, session)
+            self.render_service_menu(
+                db, biz, sender_phone,
+                prefix_msg="⚠️ That selection has expired or was interrupted. Let's start fresh:"
+            )
+            session.current_state = "AWAITING_SERVICE"
+            db.commit()
+</file>
+
+<file path="owner/owner_appointments.py">
+"""
+owner_appointments.py
+================================================================================
+VERZIO STUDIO — OWNER PORTAL: APPOINTMENTS
+================================================================================
+- List / filter / sort the tenant's appointments.
+- Status actions (approve, reject, complete, cancel, no-show) with valid
+  transitions only. Approve / reject / cancel send the customer a WhatsApp
+  update in the background, so the owner's page responds instantly.
+- Manual booking (walk-ins and phone calls) at /owner/appointments/new.
+  Goes through the booking engine so the slot is blocked on WhatsApp in real
+  time. An explicit override exists for customers who are already in the chair.
+"""
+import logging
+from datetime import datetime, timedelta
+
+import pytz
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from activity_log import log_event
+from booking_engine import BookingEngineException, VerzioSaaSEngine
+from database import Appointment, Business, Service, get_db
+from owner.owner_auth import is_mobile, resolve_owner_and_business
+from whatsapp_client import build_status_message, is_real_phone, normalize_phone, send_whatsapp
+
+logger = logging.getLogger("VERZIO_OWNER_APPOINTMENTS")
+
+router = APIRouter(prefix="/owner/appointments", tags=["owner-appointments"])
+templates = Jinja2Templates(directory="templates")
+
+ALLOWED_STATUSES = {"pending", "confirmed", "completed", "cancelled", "no_show"}
+ACTION_TARGETS = {
+    "approve": ("pending", "confirmed"),
+    "reject": ("pending", "cancelled"),
+    "complete": ("confirmed", "completed"),
+    "cancel": ("confirmed", "cancelled"),
+    "no_show": ("confirmed", "no_show"),
+}
+STATUS_EVENTS = {
+    "confirmed": ("booking_confirmed", "success"),
+    "cancelled": ("booking_cancelled", "warning"),
+    "completed": ("appointment_completed", "success"),
+    "no_show": ("appointment_no_show", "warning"),
+}
+
+# Stored when the owner logs a walk-in without a phone number (column is NOT NULL).
+WALK_IN_PHONE = "walk-in"
+
+MANUAL_BOOKING_ERRORS = {
+    "ERR_CAPACITY": "That time is already fully booked. Pick another time, or tick the override if the customer is already here.",
+    "ERR_OUTSIDE_HOURS": "That time is outside your opening hours (or the service runs past closing). Tick the override to save it anyway.",
+    "ERR_HOLIDAY": "You're marked as closed on that date. Tick the override to save it anyway.",
+    "ERR_TENANT_LOCKED": "WhatsApp bookings are paused for your business. Tick the override to save this booking anyway, or turn bookings back on in Settings.",
+    "ERR_INVALID_SERVICE": "That service isn't active any more. Choose another service.",
+}
+
+
+# ------------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------------
+
+def _now_local(business: Business) -> datetime:
+    try:
+        tz = pytz.timezone(business.timezone or "UTC")
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.UTC
+    return datetime.now(tz).replace(tzinfo=None)
+
+
+def _next_slot_time(business: Business) -> str:
+    interval = max(int(business.slot_interval or 30), 5)
+    now = _now_local(business).replace(second=0, microsecond=0)
+    minutes_to_add = interval - (now.minute % interval)
+    return (now + timedelta(minutes=minutes_to_add)).strftime("%H:%M")
+
+
+def _clean_customer_phone(raw: str, business: Business) -> str | None:
+    """Blank -> walk-in marker. 10-digit Indian numbers get +91. Otherwise the
+    number must include a country code. Returns None if invalid."""
+    if not raw:
+        return WALK_IN_PHONE
+    digits = normalize_phone(raw)
+    if len(digits) == 10 and (business.timezone or "") == "Asia/Kolkata":
+        digits = "91" + digits
+    if not 11 <= len(digits) <= 15:
+        return None
+    return digits
+
+
+def _active_services(db: Session, business: Business) -> list[Service]:
+    return (
+        db.query(Service)
+        .filter(
+            Service.business_id == business.id,
+            Service.is_active == True,
+            Service.is_deleted == False,
+        )
+        .order_by(Service.name.asc())
+        .all()
+    )
+
+
+def _booking_form_response(
+    request: Request,
+    db: Session,
+    owner,
+    business: Business,
+    values: dict | None = None,
+    allow_overbook: bool = False,
+    error: str | None = None,
+    status_code: int = 200,
+):
+    form_values = {
+        "customer_name": "",
+        "customer_phone": "",
+        "service_id": "",
+        "date": _now_local(business).strftime("%Y-%m-%d"),
+        "time": _next_slot_time(business),
+    }
+    if values:
+        form_values.update(values)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="owner/appointment_form.html",
+        context={
+            "active_page": "appointments",
+            "owner": owner,
+            "business": business,
+            "services": _active_services(db, business),
+            "values": form_values,
+            "allow_overbook": allow_overbook,
+            "error": error,
+            "mobile": is_mobile(request),
+        },
+        status_code=status_code,
+    )
+
+
+def _queue_customer_update(
+    background_tasks: BackgroundTasks,
+    appointment: Appointment,
+    business: Business,
+    previous_status: str,
+    new_status: str,
+) -> None:
+    if not is_real_phone(appointment.customer_phone):
+        return
+    message = build_status_message(appointment, business, previous_status, new_status)
+    if not message:
+        return
+    background_tasks.add_task(
+        send_whatsapp,
+        appointment.customer_phone,
+        business.whatsapp_business_phone_number_id,
+        {"type": "text", "body": message},
+        business.id,
+    )
+
+
+# ------------------------------------------------------------------------
+# List
+# ------------------------------------------------------------------------
+
+@router.get("")
+async def owner_appointments_page(request: Request, db: Session = Depends(get_db)):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+
+    search = request.query_params.get("search", "").strip()
+    status = request.query_params.get("status", "all").strip().lower()
+    sort = request.query_params.get("sort", "newest").strip().lower()
+
+    query = (
+        db.query(Appointment)
+        .filter(Appointment.business_id == business.id)
+        .join(Service, Appointment.service_id == Service.id, isouter=True)
+    )
+
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (Appointment.customer_name.ilike(like)) | (Appointment.customer_phone.ilike(like))
+        )
+
+    if status in ALLOWED_STATUSES:
+        query = query.filter(Appointment.status == status)
+    else:
+        status = "all"
+
+    appointments = query.order_by(
+        Appointment.appointment_time.asc() if sort == "oldest" else Appointment.appointment_time.desc()
+    ).all()
+
+    template_name = "owner/appointments_mobile.html" if is_mobile(request) else "owner/appointments.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "active_page": "appointments",
+            "owner": owner,
+            "business": business,
+            "appointments": appointments,
+            "search": search,
+            "status": status,
+            "sort": sort if sort in {"oldest", "newest"} else "newest",
+        },
+    )
+
+
+# ------------------------------------------------------------------------
+# Manual booking (walk-ins and phone calls)
+# ------------------------------------------------------------------------
+
+@router.get("/new")
+async def new_manual_appointment_form(request: Request, db: Session = Depends(get_db)):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+    return _booking_form_response(request, db, owner, business)
+
+
+@router.post("/manual")
+async def create_manual_appointment(request: Request, db: Session = Depends(get_db)):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+
+    form = await request.form()
+    values = {
+        key: (form.get(key) or "").strip()
+        for key in ("customer_name", "customer_phone", "service_id", "date", "time")
+    }
+    allow_overbook = form.get("allow_overbook") == "on"
+
+    def fail(message: str):
+        return _booking_form_response(
+            request, db, owner, business, values=values,
+            allow_overbook=allow_overbook, error=message, status_code=400,
+        )
+
+    engine = VerzioSaaSEngine()
+
+    try:
+        service_id = int(values["service_id"])
+    except ValueError:
+        return fail("Please choose a service.")
+    service = engine.get_service_for_business(db, business.id, service_id)
+    if service is None:
+        return fail(MANUAL_BOOKING_ERRORS["ERR_INVALID_SERVICE"])
+
+    try:
+        start = datetime.strptime(f"{values['date']} {values['time']}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return fail("Please enter a valid date and time.")
+
+    phone = _clean_customer_phone(values["customer_phone"], business)
+    if phone is None:
+        return fail("Enter a mobile number with country code (e.g. 919876543210), or leave it blank for a walk-in.")
+
+    name = values["customer_name"][:120] or None
+    if not name and phone == WALK_IN_PHONE:
+        return fail("Enter the customer's name or phone number.")
+
+    try:
+        if allow_overbook:
+            # Explicit owner override: the customer is physically here, so record
+            # reality even if it exceeds capacity or falls outside hours.
+            appt = Appointment(
+                business_id=business.id,
+                service_id=service.id,
+                customer_phone=phone,
+                customer_name=name,
+                appointment_time=start,
+                status="confirmed",
+            )
+            db.add(appt)
+            db.commit()
+            db.refresh(appt)
+        else:
+            # Same engine and lock as WhatsApp bookings: the slot is blocked atomically.
+            appt = engine.validate_and_book(
+                db,
+                business.whatsapp_business_phone_number_id,
+                start,
+                phone,
+                service.id,
+            )
+            appt.customer_name = name
+            appt.status = "confirmed"  # the owner entered it, so no approval step
+            db.commit()
+    except BookingEngineException as exc:
+        db.rollback()
+        return fail(MANUAL_BOOKING_ERRORS.get(
+            exc.error_code,
+            "That booking couldn't be saved. Try another time, or tick the override if the customer is already here.",
+        ))
+
+    log_event(
+        db=db,
+        event_type="manual_booking",
+        status="success",
+        message=(
+            f"Owner added booking #{appt.id} for {start.strftime('%d %b %H:%M')}"
+            f"{' (override)' if allow_overbook else ''}"
+        ),
+        business_id=business.id,
+    )
+    logger.info("Manual booking #%s created for business_id=%s", appt.id, business.id)
+    return RedirectResponse(url="/owner/appointments?status=confirmed", status_code=303)
+
+
+# ------------------------------------------------------------------------
+# Status actions
+# ------------------------------------------------------------------------
+
+@router.post("/{appointment_id}/{action}")
+async def update_owner_appointment(
+    appointment_id: int,
+    action: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+
+    transition = ACTION_TARGETS.get(action)
+    if not transition:
+        raise HTTPException(status_code=404, detail="Appointment action not found.")
+
+    appointment = (
+        db.query(Appointment)
+        .filter(Appointment.id == appointment_id, Appointment.business_id == business.id)
+        .first()
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found.")
+
+    expected_status, next_status = transition
+    if appointment.status != expected_status:
+        raise HTTPException(status_code=409, detail="This appointment cannot be changed from its current status.")
+
+    previous_status = appointment.status
+    appointment.status = next_status
+    db.commit()
+
+    event_type, event_status = STATUS_EVENTS[next_status]
+    log_event(
+        db=db,
+        event_type=event_type,
+        status=event_status,
+        message=f"Appointment #{appointment.id} {previous_status} -> {next_status} (via portal)",
+        business_id=business.id,
+    )
+
+    _queue_customer_update(background_tasks, appointment, business, previous_status, next_status)
+
+    redirect_url = "/owner/appointments"
+    if request.query_params:
+        redirect_url = f"{redirect_url}?{request.query_params}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 </file>
 
 <file path="owner/owner_services.py">
@@ -7769,24 +8480,294 @@ async def delete_owner_service(
     )
 </file>
 
+<file path="booking_engine.py">
+"""
+booking_engine.py — Core calendar availability and atomic booking engine.
+Supports unified appointment_time DateTime schema.
+Implements C1 (duration-aware slot overlaps) and C2 (atomic concurrency locking).
+"""
+import logging
+from datetime import datetime, date, time, timedelta
+from typing import Tuple, Optional, List, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from database import Business, Service, Appointment
+
+logger = logging.getLogger("VERZIO_BOOKING_ENGINE")
+
+ERR_CAPACITY = "ERR_CAPACITY"
+ERR_OUTSIDE_HOURS = "ERR_OUTSIDE_HOURS"
+ERR_HOLIDAY = "ERR_HOLIDAY"
+ERR_TENANT_LOCKED = "ERR_TENANT_LOCKED"
+ERR_INVALID_SERVICE = "ERR_INVALID_SERVICE"
+ERR_PAST_TIME = "ERR_PAST_TIME"
+
+
+class BookingEngineException(Exception):
+    def __init__(self, code: str = "ERR_UNKNOWN", message: str = ""):
+        self.code = code
+        self.message = message or code
+        super().__init__(self.message)
+
+
+class CapacityError(BookingEngineException):
+    def __init__(self, message: str = "Capacity limit reached"):
+        super().__init__(ERR_CAPACITY, message)
+
+
+class OutsideHoursError(BookingEngineException):
+    def __init__(self, message: str = "Outside business hours"):
+        super().__init__(ERR_OUTSIDE_HOURS, message)
+
+
+class InvalidServiceError(BookingEngineException):
+    def __init__(self, message: str = "Invalid or inactive service"):
+        super().__init__(ERR_INVALID_SERVICE, message)
+
+
+class BookingEngineCode(str):
+    def __new__(cls, code: str, friendly_msg: str = ""):
+        s = super().__new__(cls, code)
+        s.code = code
+        s.friendly_msg = friendly_msg or code
+        return s
+
+    def __str__(self):
+        return self.friendly_msg
+
+    def __format__(self, format_spec):
+        return self.friendly_msg
+
+
+def is_holiday(db: Session, business_id: int, target_date: date) -> bool:
+    return False
+
+
+def get_available_slots_for_day(
+    db: Session,
+    business: Business,
+    target_date: date,
+    service: Optional[Service] = None
+) -> List[str]:
+    """
+    C1: Duration-aware slot calculator.
+    - Prevents overlapping appointments from exceeding max_parallel_bookings.
+    - Ensures service completes before closing.
+    - Filters out elapsed times for today.
+    """
+    if not business.accepting_bookings:
+        return []
+
+    if is_holiday(db, business.id, target_date):
+        return []
+
+    weekday_str = target_date.strftime("%a").lower()[:3]
+    hours = (business.operational_hours or {}).get(weekday_str)
+    if not hours or len(hours) < 2:
+        return []
+
+    try:
+        open_time = datetime.strptime(hours[0], "%H:%M").time()
+        close_time = datetime.strptime(hours[1], "%H:%M").time()
+    except (ValueError, TypeError):
+        return []
+
+    open_dt = datetime.combine(target_date, open_time)
+    close_dt = datetime.combine(target_date, close_time)
+
+    duration_mins = service.duration if (service and service.duration) else (business.slot_interval or 30)
+    service_duration = timedelta(minutes=duration_mins)
+    slot_interval = timedelta(minutes=business.slot_interval or 30)
+    max_capacity = business.max_parallel_bookings or 1
+
+    # Query using start and end of target day
+    day_start = datetime.combine(target_date, time.min)
+    day_end = datetime.combine(target_date, time.max)
+
+    existing_appts = (
+        db.query(Appointment)
+        .filter(
+            Appointment.business_id == business.id,
+            Appointment.appointment_time >= day_start,
+            Appointment.appointment_time <= day_end,
+            Appointment.status.in_(["pending", "confirmed"])
+        )
+        .all()
+    )
+
+    booked_intervals = []
+    for appt in existing_appts:
+        appt_start = appt.appointment_time
+        appt_dur = appt.service.duration if (appt.service and appt.service.duration) else (business.slot_interval or 30)
+        booked_intervals.append((appt_start, appt_start + timedelta(minutes=appt_dur)))
+
+    now = datetime.now()
+    available_slots = []
+    current_slot = open_dt
+
+    while current_slot + service_duration <= close_dt:
+        slot_start = current_slot
+        slot_end = current_slot + service_duration
+
+        if target_date == now.date() and slot_start <= now:
+            current_slot += slot_interval
+            continue
+
+        overlapping_count = sum(
+            1 for b_start, b_end in booked_intervals
+            if b_start < slot_end and b_end > slot_start
+        )
+
+        if overlapping_count < max_capacity:
+            available_slots.append(slot_start.strftime("%H:%M"))
+
+        current_slot += slot_interval
+
+    return available_slots
+
+
+def validate_and_book(*args, **kwargs) -> Tuple[bool, str, Optional[Appointment]]:
+    """
+    C2 & W6: Atomic booking validation storing combined appointment_time.
+    """
+    call_args = list(args)
+    if call_args and isinstance(call_args[0], VerzioSaaSEngine):
+        call_args.pop(0)
+
+    db: Session = kwargs.get("db", call_args[0] if call_args else None)
+    rem = call_args[1:]
+
+    business_id = kwargs.get("business_id", kwargs.get("tenant_id"))
+    service_id = kwargs.get("service_id")
+    customer_phone = kwargs.get("customer_phone", kwargs.get("phone", ""))
+    customer_name = kwargs.get("customer_name", "Client")
+    target_date = kwargs.get("target_date")
+    target_time = kwargs.get("target_time")
+
+    if rem:
+        if len(rem) >= 2 and isinstance(rem[1], (datetime, date)):
+            business_id = rem[0]
+            dt_val = rem[1]
+            if isinstance(dt_val, datetime):
+                target_date = dt_val.date()
+                target_time = dt_val.time()
+            else:
+                target_date = dt_val
+                target_time = time(9, 0)
+            if len(rem) > 2:
+                customer_phone = str(rem[2])
+            if len(rem) > 3:
+                service_id = int(rem[3])
+            if len(rem) > 4:
+                customer_name = str(rem[4])
+        elif len(rem) >= 5:
+            business_id = rem[0]
+            service_id = int(rem[1])
+            customer_phone = str(rem[2])
+            target_date = rem[3]
+            target_time = rem[4]
+            if len(rem) > 5:
+                customer_name = str(rem[5])
+
+    if isinstance(target_date, str):
+        target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+    if isinstance(target_time, str):
+        target_time = datetime.strptime(target_time, "%H:%M" if len(target_time) == 5 else "%H:%M:%S").time()
+
+    try:
+        db.execute(text("BEGIN IMMEDIATE"))
+    except Exception:
+        pass
+
+    biz = db.query(Business).filter(Business.id == business_id).first()
+    if not biz or not biz.accepting_bookings:
+        db.rollback()
+        return False, BookingEngineCode(ERR_TENANT_LOCKED, "This business is currently not accepting bookings."), None
+
+    if is_holiday(db, business_id, target_date):
+        db.rollback()
+        return False, BookingEngineCode(ERR_HOLIDAY, "The business is closed for a holiday on this date."), None
+
+    service = db.query(Service).filter(
+        Service.id == service_id,
+        Service.business_id == business_id,
+        Service.is_active == True,
+        Service.is_deleted == False
+    ).first()
+    if not service:
+        db.rollback()
+        return False, BookingEngineCode(ERR_INVALID_SERVICE, "The selected service is no longer available."), None
+
+    now = datetime.now()
+    combined_dt = datetime.combine(target_date, target_time)
+    if combined_dt <= now:
+        db.rollback()
+        return False, BookingEngineCode(ERR_PAST_TIME, "This appointment time is in the past."), None
+
+    available_slots = get_available_slots_for_day(db, biz, target_date, service)
+    time_str = target_time.strftime("%H:%M")
+    if time_str not in available_slots:
+        db.rollback()
+        return False, BookingEngineCode(ERR_CAPACITY, "Sorry, this slot was just taken or is no longer available."), None
+
+    initial_status = "confirmed" if biz.approval_mode == "automatic" else "pending"
+
+    appt = Appointment(
+        business_id=biz.id,
+        service_id=service.id,
+        customer_phone=customer_phone,
+        customer_name=customer_name or "Client",
+        appointment_time=combined_dt,
+        status=initial_status
+    )
+    db.add(appt)
+    db.commit()
+    db.refresh(appt)
+
+    logger.info(f"Booked appointment #{appt.id} for {customer_phone} at business #{biz.id} ({initial_status})")
+    return True, "SUCCESS", appt
+
+
+class VerzioSaaSEngine:
+    ERR_CAPACITY = ERR_CAPACITY
+    ERR_OUTSIDE_HOURS = ERR_OUTSIDE_HOURS
+    ERR_HOLIDAY = ERR_HOLIDAY
+    ERR_TENANT_LOCKED = ERR_TENANT_LOCKED
+    ERR_INVALID_SERVICE = ERR_INVALID_SERVICE
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def get_available_slots(self, *args, **kwargs):
+        return get_available_slots_for_day(*args, **kwargs)
+
+    def get_available_slots_for_day(self, *args, **kwargs):
+        return get_available_slots_for_day(*args, **kwargs)
+
+    def validate_and_book(self, *args, **kwargs):
+        return validate_and_book(*args, **kwargs)
+
+    def is_holiday(self, *args, **kwargs):
+        return is_holiday(*args, **kwargs)
+
+
+engine = VerzioSaaSEngine()
+</file>
+
 <file path="owner/owner_reports.py">
 import os
 from datetime import date, datetime, timedelta
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import ActivityEvent, Appointment, Business, get_db
-from reports import generate_excel_report  # Updated name
+from reports import generate_excel_report
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter(prefix="/owner/reports", tags=["owner-reports"])
 templates = Jinja2Templates(directory="templates")
-
-
-
 
 @router.get("")
 async def owner_reports_page(
@@ -7806,7 +8787,6 @@ async def owner_reports_page(
         selected_from,
         datetime.min.time()
     )
-
     selected_end = datetime.combine(
         selected_to,
         datetime.max.time()
@@ -7814,6 +8794,7 @@ async def owner_reports_page(
 
     appointments = []
     recent_activity = []
+
     if business:
         appointments = (
             db.query(Appointment)
@@ -7826,10 +8807,19 @@ async def owner_reports_page(
             .all()
         )
 
+        # STRICT WHITELIST: Only show customer/booking events to the owner
+        owner_visible_events = [
+            "booking_confirmed", 
+            "booking_cancelled", 
+            "appointment_completed", 
+            "appointment_no_show"
+        ]
+
         recent_activity = (
             db.query(ActivityEvent)
             .filter(
                 ActivityEvent.business_id == business.id,
+                ActivityEvent.event_type.in_(owner_visible_events),
                 ActivityEvent.created_at >= selected_start,
                 ActivityEvent.created_at <= selected_end,
             )
@@ -7837,13 +8827,13 @@ async def owner_reports_page(
             .all()
         )
 
-
     total_count = len(appointments)
     pending_count = sum(1 for appointment in appointments if appointment.status == "pending")
     confirmed_count = sum(1 for appointment in appointments if appointment.status == "confirmed")
     completed_count = sum(1 for appointment in appointments if appointment.status == "completed")
     cancelled_count = sum(1 for appointment in appointments if appointment.status == "cancelled")
     no_show_count = sum(1 for appointment in appointments if appointment.status == "no_show")
+
     # Revenue is computed strictly for confirmed and completed bookings (no_show excluded)
     revenue = sum(
         appointment.service.price or 0
@@ -7852,7 +8842,7 @@ async def owner_reports_page(
     )
 
     template_name = "owner/reports_mobile.html" if is_mobile(request) else "owner/reports.html"
-
+    
     return templates.TemplateResponse(
         request=request,
         name=template_name,
@@ -7872,13 +8862,12 @@ async def owner_reports_page(
         },
     )
 
-
 @router.get("/export")
 async def export_owner_daily_report(
     request: Request,
     db: Session = Depends(get_db),
-    from_date: date | None = Query(default=None), # Added
-    to_date: date | None = Query(default=None),   # Added
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
 ):
     owner, business = resolve_owner_and_business(request, db)
     if not owner or not business:
@@ -7888,7 +8877,6 @@ async def export_owner_daily_report(
     export_from = from_date or date.today()
     export_to = to_date or export_from
 
-    # Updated function call with dates
     report_path = generate_excel_report(
         business_id=business.id,
         business_name=business.name,
@@ -8122,16 +9110,13 @@ from database import (
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter()
-
 templates = Jinja2Templates(directory="templates")
 
 @router.get("/owner")
 async def owner_root(request: Request, db: Session = Depends(get_db)):
     owner, business = resolve_owner_and_business(request, db)
-
     if owner and business:
         return RedirectResponse(url="/owner/dashboard", status_code=303)
-
     return RedirectResponse(url="/owner/login", status_code=303)
 
 @router.get("/owner/dashboard")
@@ -8150,7 +9135,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
     today = date.today()
     today_start = datetime.combine(today, datetime.min.time())
     tomorrow_start = today_start + timedelta(days=1)
-
+    
     todays_appointments = [
         a for a in appointments
         if today_start <= a.appointment_time < tomorrow_start
@@ -8174,16 +9159,26 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
         .count()
     )
 
+    # STRICT WHITELIST: Only show customer/booking events to the owner
+    owner_visible_events = [
+        "booking_confirmed", 
+        "booking_cancelled", 
+        "appointment_completed", 
+        "appointment_no_show"
+    ]
+
     recent_activity = (
         db.query(ActivityEvent)
-        .filter(ActivityEvent.business_id == business.id)
+        .filter(
+            ActivityEvent.business_id == business.id,
+            ActivityEvent.event_type.in_(owner_visible_events)
+        )
         .order_by(ActivityEvent.created_at.desc())
         .limit(10)
         .all()
     )
 
     template_name = "owner/dashboard_mobile.html" if is_mobile(request) else "owner/dashboard.html"
-
     return templates.TemplateResponse(
         request=request,
         name=template_name,
@@ -8205,21 +9200,46 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
 </file>
 
 <file path="server.py">
+"""
+server.py
+================================================================================
+VERZIO STUDIO — APPLICATION ENTRY POINT
+================================================================================
+- W1:  HMAC-SHA256 webhook signature verification (fail-closed in production).
+- W2:  Fast ACK. Meta gets 200 immediately; work runs in BackgroundTasks.
+- W2:  Idempotency on the WhatsApp message id (wamid) via processed_messages.
+- W8:  Every entry / change / message in a webhook batch is processed.
+- T5:  Manager approve/reject/no-show buttons are tenant-scoped, sender-checked
+       and only allow valid status transitions.
+- T1:  /admin guarded by Basic Auth middleware; API docs off in production.
+"""
 import hashlib
 import hmac
+import inspect
 import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 
-from fastapi import BackgroundTasks, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
-from incident_service import create_incident
+from settings import IS_PRODUCTION
+from admin_auth import admin_auth_middleware
+from activity_log import log_event
+from booking_engine import BookingEngineException
+from booking_runtime import BookingRuntime
+from database import ActivityEvent, Appointment, Business, SessionLocal, engine, get_db, init_db
+from whatsapp_client import build_status_message, is_real_phone, mask_phone, normalize_phone, send_whatsapp
 
 from routers.admin_businesses import router as business_router
 from routers.admin_services import router as services_router
@@ -8234,18 +9254,28 @@ from owner.owner_services import router as owner_services_router
 from owner.owner_settings import router as owner_settings_router
 from owner.owner_reports import router as owner_reports_router
 
-from activity_log import log_event
-from dotenv import load_dotenv
-from settings import IS_PRODUCTION
-from admin_auth import admin_auth_middleware
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("VERZIO_SERVER")
 
-load_dotenv()
-META_APP_SECRET = os.getenv("META_APP_SECRET", "")
+META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
+VERIFY_TOKEN = os.getenv("VERZIO_VERIFY_TOKEN", "")
 
-import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query
-from database import Appointment, Business, SessionLocal, engine, get_db, init_db
-from booking_runtime import BookingRuntime
+# Media and other message types we reply to with a short "please type" hint.
+# Reactions and system events are ignored silently.
+NON_TEXT_REPLY_TYPES = {"image", "audio", "video", "document", "sticker", "location", "contacts"}
+
+MANAGER_ACTION_RE = re.compile(r"(confirm|cancel|noshow)_(\d+)")
+MANAGER_TRANSITIONS = {
+    #  action     allowed from              new status     event type             event status
+    "confirm": ({"pending"},              "confirmed", "booking_confirmed",   "success"),
+    "cancel":  ({"pending", "confirmed"}, "cancelled", "booking_cancelled",   "warning"),
+    "noshow":  ({"confirmed"},            "no_show",   "appointment_no_show", "warning"),
+}
+
+
+# ------------------------------------------------------------------------
+# App setup
+# ------------------------------------------------------------------------
 
 app = FastAPI(
     title="Verzio Studio API",
@@ -8254,7 +9284,7 @@ app = FastAPI(
     openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
-# Zero-trust: every /admin path requires admin credentials
+# Zero-trust: every /admin path requires admin credentials, including future routes.
 app.middleware("http")(admin_auth_middleware)
 
 app.include_router(business_router)
@@ -8271,505 +9301,358 @@ app.include_router(owner_settings_router)
 app.include_router(owner_reports_router)
 
 templates = Jinja2Templates(directory="templates")
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Setup Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("VERZIO_SERVER")
 
 @app.on_event("startup")
-def startup():
+def startup() -> None:
     init_db()
-    if not META_APP_SECRET:
-        logger.error("META_APP_SECRET not set — all webhooks will be rejected.")
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS processed_messages (
-                wamid TEXT PRIMARY KEY,
-                received_at TIMESTAMP NOT NULL
-            )
-        """))
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS processed_messages ("
+            "  wamid TEXT PRIMARY KEY,"
+            "  received_at TIMESTAMP NOT NULL"
+            ")"
+        ))
         conn.execute(
             text("DELETE FROM processed_messages WHERE received_at < :cutoff"),
-            {"cutoff": datetime.utcnow() - timedelta(days=7)}
+            {"cutoff": datetime.utcnow() - timedelta(days=7)},
         )
 
+    if not META_APP_SECRET:
+        if IS_PRODUCTION:
+            logger.critical("META_APP_SECRET is not set: every webhook will be rejected with 403.")
+        else:
+            logger.warning("META_APP_SECRET is not set: webhook signature checks are DISABLED (development only).")
+
+
+# ------------------------------------------------------------------------
+# W1 — Signature verification
+# ------------------------------------------------------------------------
 
 def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
-    if not META_APP_SECRET or not signature_header:
+    """Validate X-Hub-Signature-256 against META_APP_SECRET.
+    Development without a secret: allowed (with a startup warning).
+    Production without a secret: always rejected."""
+    if not META_APP_SECRET:
+        return not IS_PRODUCTION
+    if not signature_header or not signature_header.startswith("sha256="):
         return False
-    if not signature_header.startswith("sha256="):
-        return False
-
     received = signature_header.split("=", 1)[1].strip()
-    expected = hmac.new(
-        META_APP_SECRET.encode("utf-8"),
-        raw_body,
-        hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(META_APP_SECRET.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, received)
 
 
-def claim_message(wamid: str) -> bool:
+# ------------------------------------------------------------------------
+# W2 — Idempotency
+# ------------------------------------------------------------------------
+
+def claim_message(wamid: str | None) -> bool:
+    """Atomically record a wamid. True = first delivery, False = duplicate."""
     if not wamid:
-        logger.warning("Webhook message has no wamid; processing without deduplication.")
+        logger.warning("Webhook message has no id; processing without deduplication.")
         return True
 
+    if engine.dialect.name == "sqlite":
+        sql = "INSERT OR IGNORE INTO processed_messages (wamid, received_at) VALUES (:wamid, :ts)"
+    else:
+        sql = ("INSERT INTO processed_messages (wamid, received_at) VALUES (:wamid, :ts) "
+               "ON CONFLICT (wamid) DO NOTHING")
+
     with engine.begin() as conn:
-        result = conn.execute(
-            text(
-                "INSERT OR IGNORE INTO processed_messages "
-                "(wamid, received_at) VALUES (:wamid, :ts)"
-            ),
-            {"wamid": wamid, "ts": datetime.utcnow()}
-        )
+        result = conn.execute(text(sql), {"wamid": wamid, "ts": datetime.utcnow()})
     return result.rowcount == 1
 
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy",
-        "version": "1.2.0"
-    }
+# ------------------------------------------------------------------------
+# Runtime compatibility: pass the WhatsApp profile name if the runtime accepts it
+# ------------------------------------------------------------------------
 
-async def dispatch_whatsapp(
-    to: str,
-    tenant_id: str,
-    payload: dict,
-    db: Session = None,
-    business_id: int = None
-):
-    access_token = os.getenv("META_ACCESS_TOKEN")
-    phone_number_id = (tenant_id or "").strip() or os.getenv("PHONE_NUMBER_ID")
-    if not phone_number_id:
-        logger.error(f"Cannot dispatch WhatsApp message to {to}: Missing tenant phone number ID.")
-        return
-    api_version = os.getenv("GRAPH_API_VERSION", "v23.0")
+def _detect_runtime_name_kwarg() -> str | None:
+    params = inspect.signature(BookingRuntime.process_interaction).parameters
+    for candidate in ("customer_name", "profile_name"):
+        if candidate in params:
+            return candidate
+    return None
 
-    url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
+RUNTIME_NAME_KWARG = _detect_runtime_name_kwarg()
 
-    # Base Meta Payload
-    body = {
-        "messaging_product": "whatsapp",
-        "to": to
-    }
 
-    # Mapping Runtime response types to Meta Cloud API format
-    msg_type = payload.get("type")
+def _profile_name(val: dict, wa_id: str) -> str | None:
+    contacts = val.get("contacts") or []
+    for contact in contacts:
+        if contact.get("wa_id") == wa_id:
+            return (contact.get("profile") or {}).get("name")
+    if len(contacts) == 1:
+        return (contacts[0].get("profile") or {}).get("name")
+    return None
 
-    if msg_type == "text":
-        body["type"] = "text"
-        body["text"] = {"body": payload["body"]}
 
-    elif msg_type == "list":
-        body["type"] = "interactive"
-        body["interactive"] = {
-            "type": "list",
-            "header": {"type": "text", "text": payload.get("header", "")},
-            "body": {"text": payload.get("body", "")},
-            "action": {
-                "button": payload.get("button", "Select"),
-                "sections": payload.get("sections", [])
+def _interaction_id(msg: dict) -> str | None:
+    interactive = msg.get("interactive") or {}
+    itype = interactive.get("type")
+    if itype == "button_reply":
+        return (interactive.get("button_reply") or {}).get("id")
+    if itype == "list_reply":
+        return (interactive.get("list_reply") or {}).get("id")
+    return None
+
+
+# ------------------------------------------------------------------------
+# Background processing
+# ------------------------------------------------------------------------
+
+async def _run_customer_flow(
+    db: Session, biz: Business, tenant_id: str, phone: str, interaction_id: str, val: dict
+) -> None:
+    runtime = BookingRuntime(db)
+
+    kwargs = {}
+    name = _profile_name(val, phone)
+    if RUNTIME_NAME_KWARG and name:
+        kwargs[RUNTIME_NAME_KWARG] = name
+
+    try:
+        resp = await runtime.process_interaction(phone, tenant_id, interaction_id, **kwargs)
+    except BookingEngineException as exc:
+        db.rollback()
+        if exc.error_code == "ERR_TENANT_LOCKED":
+            resp = {
+                "type": "text",
+                "body": f"Sorry, {biz.name} isn't taking WhatsApp bookings right now. "
+                        f"Please contact the business directly.",
             }
-        }
+        else:
+            logger.warning("Booking engine error %s for business_id=%s", exc.error_code, biz.id)
+            resp = {"type": "text", "body": "Sorry, something went wrong. Send \"Hi\" to start again."}
 
-    elif msg_type == "buttons":
-        body["type"] = "interactive"
-        body["interactive"] = {
-            "type": "button",
-            "body": {"text": payload.get("body", "")},
-            "action": {
-                "buttons": [
-                    {
-                        "type": "reply",
-                        "reply": {"id": b["id"], "title": b["title"]}
-                    } for b in payload.get("buttons", [])
-                ]
-            }
-        }
+    if not resp:
+        logger.warning("Runtime returned no response for business_id=%s phone=%s", biz.id, mask_phone(phone))
+        resp = {"type": "text", "body": "Sorry, I didn't catch that. Send \"Hi\" to start a new booking."}
+
+    if isinstance(resp, dict) and "customer" in resp:
+        await send_whatsapp(phone, tenant_id, resp["customer"], biz.id)
+        owner = resp.get("owner") or {}
+        if owner.get("recipient") and owner.get("payload"):
+            await send_whatsapp(owner["recipient"], tenant_id, owner["payload"], biz.id)
     else:
-        raise ValueError(f"Unsupported WhatsApp payload type: {msg_type}")
+        await send_whatsapp(phone, tenant_id, resp, biz.id)
 
-    print(f"\n========== OUTGOING {msg_type.upper()} REQUEST ==========")
-    print(body)
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(
-            url,
-            headers=headers,
-            json=body
+async def _handle_manager_action(
+    db: Session, biz: Business, tenant_id: str, sender: str, action: str, appointment_id: int
+) -> None:
+    # T5.2 — only this business's manager may act. Checked first so a stranger
+    # learns nothing about which booking ids exist.
+    if normalize_phone(sender) != normalize_phone(biz.manager_phone_number):
+        logger.warning(
+            "Blocked manager action %s_%s from non-manager %s for business_id=%s",
+            action, appointment_id, mask_phone(sender), biz.id,
         )
+        log_event(
+            db=db,
+            event_type="manager_action_blocked",
+            status="warning",
+            message=f"Action '{action}' on #{appointment_id} from unauthorised number {mask_phone(sender)}",
+            business_id=biz.id,
+        )
+        return
 
-# ---- Activity Logging ----
-        if db:
-            if response.status_code == 200:
-                log_event(
-                    db=db,
-                    event_type="whatsapp_sent",
-                    status="success",
-                    message=f"Sent {payload.get('type')} message to {to}",
-                    business_id=business_id
-                )
+    # T5.1 — the appointment must exist AND belong to the tenant that received the webhook.
+    appt = (
+        db.query(Appointment)
+        .filter(Appointment.id == appointment_id, Appointment.business_id == biz.id)
+        .first()
+    )
+    if appt is None:
+        await send_whatsapp(sender, tenant_id, {"type": "text", "body": f"Booking #{appointment_id} wasn't found."}, biz.id)
+        return
+
+    # T5.3 — valid transitions only.
+    allowed_from, next_status, event_type, event_status = MANAGER_TRANSITIONS[action]
+    previous_status = appt.status
+    if previous_status not in allowed_from:
+        await send_whatsapp(
+            sender, tenant_id,
+            {"type": "text", "body": f"Booking #{appt.id} is already {previous_status.replace('_', ' ')}. No change made."},
+            biz.id,
+        )
+        return
+
+    appt.status = next_status
+    db.commit()
+    log_event(
+        db=db,
+        event_type=event_type,
+        status=event_status,
+        message=f"Appointment #{appt.id} {previous_status} -> {next_status} (via WhatsApp)",
+        business_id=biz.id,
+    )
+
+    # T5.4 — tell the customer immediately.
+    customer_text = build_status_message(appt, biz, previous_status, next_status)
+    note = ""
+    if customer_text:
+        delivered = False
+        if is_real_phone(appt.customer_phone):
+            delivered = await send_whatsapp(appt.customer_phone, tenant_id, {"type": "text", "body": customer_text}, biz.id)
+        note = " Customer notified." if delivered else " We couldn't message the customer, please contact them directly."
+
+    await send_whatsapp(
+        sender, tenant_id,
+        {"type": "text", "body": f"Booking #{appt.id} marked {next_status.replace('_', ' ')}.{note}"},
+        biz.id,
+    )
+
+
+async def process_message(val: dict, msg: dict) -> None:
+    """Handle one inbound message. Owns its own DB session; never raises."""
+    db = SessionLocal()
+    business_id = None
+    try:
+        tenant_id = (val.get("metadata") or {}).get("phone_number_id")
+        sender = msg.get("from")
+        msg_type = msg.get("type")
+
+        if not tenant_id or not sender:
+            logger.warning("Webhook message missing tenant or sender; ignored.")
+            return
+
+        biz = db.query(Business).filter(Business.whatsapp_business_phone_number_id == tenant_id).first()
+        if biz is None:
+            logger.warning("Webhook for unknown phone_number_id %s; ignored.", tenant_id)
+            return
+        business_id = biz.id
+
+        log_event(db=db, event_type="webhook_received", status="info",
+                  message=f"Incoming {msg_type} message", business_id=business_id)
+
+        if msg_type == "interactive":
+            iid = _interaction_id(msg)
+            if not iid:
+                logger.info("Unsupported interactive message for business_id=%s", business_id)
+                return
+            match = MANAGER_ACTION_RE.fullmatch(iid)
+            if match:
+                await _handle_manager_action(db, biz, tenant_id, sender, match.group(1), int(match.group(2)))
             else:
-                log_event(
-                    db=db,
-                    event_type="whatsapp_failed",
-                    status="error",
-                    message=f"Meta API Error {response.status_code}: {response.text[:200]}",
-                    business_id=business_id
-                )
+                await _run_customer_flow(db, biz, tenant_id, sender, iid, val)
 
-                
+        elif msg_type == "text":
+            await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
 
-                create_incident(
-                    severity="error",
-                    module="WhatsApp",
-                    title="Meta API Error",
-                    message=response.text,
-                    business_id=business_id,
-                    phone_number=to,
-                )
+        elif msg_type in NON_TEXT_REPLY_TYPES:
+            await send_whatsapp(
+                sender, tenant_id,
+                {"type": "text", "body": f"Hi! To book at {biz.name}, just send us a text message like \"Hi\"."},
+                business_id,
+            )
 
-        
+    except Exception as exc:
+        logger.exception("Webhook processing error for business_id=%s", business_id)
+        try:
+            db.rollback()
+            log_event(db=db, event_type="webhook_failed", status="error",
+                      message=str(exc)[:500], business_id=business_id)
+        except Exception:
+            pass
+    finally:
+        db.close()
 
-    print("\n========== META RESPONSE ==========")
-    print(response.status_code)
-    if response.status_code != 200:
-        print(response.text)
+
+# ------------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------------
 
 @app.post("/webhook")
-async def webhook(request: Request, db: Session = Depends(get_db)):
+async def webhook(request: Request, background_tasks: BackgroundTasks):
     raw_body = await request.body()
-    signature_header = request.headers.get("X-Hub-Signature-256")
-    expected_signature = hmac.new(
-        os.getenv("META_APP_SECRET", "").encode("utf-8"),
-        raw_body,
-        hashlib.sha256
-    ).hexdigest()
-    if (
-        not signature_header
-        or not signature_header.startswith("sha256=")
-        or not hmac.compare_digest(
-            expected_signature,
-            signature_header.split("=", 1)[1].strip()
-        )
-    ):
+
+    if not verify_meta_signature(raw_body, request.headers.get("x-hub-signature-256")):
+        logger.warning("Rejected webhook: invalid or missing signature")
         raise HTTPException(status_code=403, detail="Invalid signature")
 
     try:
-        print("\n" + "=" * 80)
-        print("🚀 WEBHOOK RECEIVED")
-        print("=" * 80)
-
         data = json.loads(raw_body)
+    except ValueError:
+        return {"status": "received"}
+    if not isinstance(data, dict):
+        return {"status": "received"}
 
-        logger.info(f"Received webhook: {data}")
-        print("Raw Payload:")
-        print(data)
+    for entry in data.get("entry") or []:
+        for change in entry.get("changes") or []:
+            val = change.get("value") or {}
+            for msg in val.get("messages") or []:
+                if claim_message(msg.get("id")):
+                    background_tasks.add_task(process_message, val, msg)
+                else:
+                    logger.info("Duplicate webhook message ignored: %s", msg.get("id"))
 
-        # ---------------------------------------------------------------------
-        # Extract payload safely
-        # ---------------------------------------------------------------------
-        entries = data.get("entry", [])
-        if not entries:
-            print("❌ No entries found")
-            return {"status": "ok"}
+    return {"status": "received"}
 
-        changes = entries[0].get("changes", [])
-        if not changes:
-            print("❌ No changes found")
-            return {"status": "ok"}
-
-        val = changes[0].get("value", {})
-        if "messages" not in val:
-            print("❌ No messages in payload")
-            return {"status": "ok"}
-
-        msg = val["messages"][0]
-
-        phone = msg.get("from")
-        tenant_id = val.get("metadata", {}).get("phone_number_id")
-
-        biz = db.query(Business).filter(
-            Business.whatsapp_business_phone_number_id == tenant_id
-        ).first()
-
-        business_id = biz.id if biz else None
-
-        log_event(
-            db=db,
-            event_type="webhook_received",
-            status="info",
-            message=f"Incoming {msg.get('type')} message",
-            business_id=business_id
-        )
-
-        print(f"📞 Phone: {phone}")
-        print(f"🏢 Tenant ID: {tenant_id}")
-        print(f"📩 Message Type: {msg.get('type')}")
-
-        if msg.get("type") == "text":
-            print(f"💬 Text: {msg['text']['body']}")
-
-        if not tenant_id:
-            print("❌ Tenant ID missing")
-            return {"status": "ok"}
-
-        runtime = BookingRuntime(db)
-
-        print("✅ BookingRuntime initialized")
-
-        # ---------------------------------------------------------------------
-        # INTERACTIVE
-        # ---------------------------------------------------------------------
-        if msg.get("type") == "interactive":
-
-            print("➡ Processing Interactive Message")
-
-            interactive = msg["interactive"]
-            itype = interactive.get("type")
-
-            print(f"Interactive Type: {itype}")
-
-            if itype == "button_reply":
-                iid = interactive["button_reply"]["id"]
-
-            elif itype == "list_reply":
-                iid = interactive["list_reply"]["id"]
-
-            else:
-                print("❌ Unsupported interactive type")
-                return {"status": "unsupported_interactive_type"}
-
-            print(f"Interaction ID: {iid}")
-
-            # Manager buttons
-            if iid.startswith(("confirm_", "cancel_", "noshow_")):
-
-                print("➡ Manager Action")
-
-                act, aid = iid.split("_")
-
-                # Use modern SQLAlchemy get
-                appt = db.get(Appointment, int(aid))
-
-                if appt:
-                    # 1. Update status in database & determine event/message
-                    if act == "confirm":
-                        appt.status = "confirmed"
-                        log_event(
-                            db=db,
-                            event_type="booking_confirmed",
-                            status="success",
-                            message=f"Appointment #{appt.id} confirmed",
-                            business_id=appt.business_id
-                        )
-                        msg_text = "✅ Your appointment has been confirmed."
-                    elif act == "noshow":
-                        appt.status = "no_show"
-                        log_event(
-                            db=db,
-                            event_type="appointment_no_show",
-                            status="warning",
-                            message=f"Appointment #{appt.id} marked as no-show",
-                            business_id=appt.business_id
-                        )
-                        msg_text = "⚠️ Your appointment has been recorded as a No Show."
-                    else:
-                        appt.status = "cancelled"
-                        log_event(
-                            db=db,
-                            event_type="booking_cancelled",
-                            status="warning",
-                            message=f"Appointment #{appt.id} cancelled",
-                            business_id=appt.business_id
-                        )
-                        msg_text = "❌ Unfortunately your booking could not be approved."
-
-                    db.commit()
-                    
-                    print(f"✅ Appointment {aid} updated")
-
-                    # 2. Dispatch notification to the CUSTOMER
-                    # We use the customer_phone from the appt record and the current tenant_id
-                    await dispatch_whatsapp(
-                        to=appt.customer_phone,
-                        tenant_id=tenant_id,
-                        payload={
-                            "type": "text",
-                            "body": msg_text
-                        },
-                        db=db,
-                        business_id=appt.business_id
-                    )
-                return {"status": "ok"}
-
-            print("➡ Calling process_interaction()")
-
-            resp = await runtime.process_interaction(
-                phone,
-                tenant_id,
-                iid
-            )
-
-            print("✅ process_interaction() completed")
-            print(resp)
-
-            print("➡ Calling dispatch_whatsapp()")
-
-            if isinstance(resp, dict) and "customer" in resp and "owner" in resp:
-
-                # Send customer message
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp["customer"],
-                    db=db,
-                    business_id=business_id
-                )
-
-                # Send owner message
-                await dispatch_whatsapp(
-                    resp["owner"]["recipient"],
-                    tenant_id,
-                    resp["owner"]["payload"],
-                    db=db,
-                    business_id=business_id
-                )
-
-            else:
-
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp,
-                    db=db,
-                    business_id=business_id
-                )
-
-            print("✅ dispatch_whatsapp() completed")
-
-        # ---------------------------------------------------------------------
-        # TEXT
-        # ---------------------------------------------------------------------
-        elif msg.get("type") == "text":
-
-            print("➡ Text flow started")
-
-            print("Calling process_interaction(action_start)...")
-
-            resp = await runtime.process_interaction(
-                phone,
-                tenant_id,
-                "action_start"
-            )
-
-            print("✅ process_interaction returned")
-            print("Response:")
-            print(resp)
-
-            print("Calling dispatch_whatsapp...")
-
-            if isinstance(resp, dict) and "customer" in resp and "owner" in resp:
-
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp["customer"],
-                    db=db,
-                    business_id=business_id
-                )
-
-                await dispatch_whatsapp(
-                    resp["owner"]["recipient"],
-                    tenant_id,
-                    resp["owner"]["payload"],
-                    db=db,
-                    business_id=business_id
-                )
-
-            else:
-
-                await dispatch_whatsapp(
-                    phone,
-                    tenant_id,
-                    resp,
-                    db=db,
-                    business_id=business_id
-                )
-
-            print("✅ dispatch_whatsapp completed")
-        else:
-            print(f"⚠ Unsupported message type: {msg.get('type')}")
-
-        print("=" * 80)
-        print("🎉 WEBHOOK FINISHED SUCCESSFULLY")
-        print("=" * 80)
-
-        return {"status": "ok"}
-
-    except Exception as e:
-
-        print("\n" + "=" * 80)
-        print("🔥 WEBHOOK EXCEPTION")
-        print("=" * 80)
-
-        import traceback
-        traceback.print_exc()
-
-        logger.error(
-            f"Webhook Processing Error: {e}",
-            exc_info=True
-        )
-        try:
-            log_event(
-                db,
-                "webhook_failed",
-                status="error",
-                message=str(e)[:500]
-            )
-        except Exception:
-            pass
-
-        return {"status": "error"}
 
 @app.get("/webhook")
 async def verify(
-    mode: str = Query(None, alias="hub.mode"), 
-    token: str = Query(None, alias="hub.verify_token"), 
-    challenge: str = Query(None, alias="hub.challenge")
+    mode: str = Query(None, alias="hub.mode"),
+    token: str = Query(None, alias="hub.verify_token"),
+    challenge: str = Query(None, alias="hub.challenge"),
 ):
-    """Handle Meta's Webhook verification handshake."""
-    verify_token = os.getenv("VERZIO_VERIFY_TOKEN")
-    if mode == "subscribe" and token == verify_token:
-        return int(challenge)
+    """Meta's webhook verification handshake."""
+    if mode == "subscribe" and VERIFY_TOKEN and hmac.compare_digest(token or "", VERIFY_TOKEN):
+        return PlainTextResponse(challenge or "")
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
+@app.get("/health")
+def health():
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "ok"}
+    except Exception:
+        logger.exception("Health check: database unreachable")
+        return JSONResponse({"status": "degraded", "database": "error"}, status_code=503)
+
+
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     active_business_count = db.query(Business).filter(Business.is_active == True).count()
     total_business_count = db.query(Business).count()
+
+    needing_attention = (
+        db.query(Business)
+        .filter(or_(Business.is_active == False, Business.accepting_bookings == False))
+        .order_by(Business.name.asc())
+        .all()
+    )
+
+    since = datetime.utcnow() - timedelta(hours=24)
+    failed_events = (
+        db.query(ActivityEvent)
+        .filter(ActivityEvent.status == "error", ActivityEvent.created_at >= since)
+        .all()
+    )
+
+    recent_activity = (
+        db.query(ActivityEvent)
+        .filter(ActivityEvent.message.isnot(None))
+        .order_by(ActivityEvent.created_at.desc())
+        .limit(20)
+        .all()
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
-            "request": request,
             "active_page": "dashboard",
             "active_business_count": active_business_count,
             "total_business_count": total_business_count,
-        }
+            "needing_attention": needing_attention,
+            "failed_events": failed_events,
+            "recent_activity": recent_activity,
+        },
     )
 </file>
 

@@ -1,9 +1,17 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.env
-.venv
-env/
+.venv/
 venv/
+env/
+
+# Secrets: never commit these
+.env
+.env.*
+*.env
+
+# Data: databases and generated reports contain customer details
 *.db
-exports/".env.save" 
+*.db-journal
+exports/

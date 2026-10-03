@@ -14,16 +14,13 @@ from database import (
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter()
-
 templates = Jinja2Templates(directory="templates")
 
 @router.get("/owner")
 async def owner_root(request: Request, db: Session = Depends(get_db)):
     owner, business = resolve_owner_and_business(request, db)
-
     if owner and business:
         return RedirectResponse(url="/owner/dashboard", status_code=303)
-
     return RedirectResponse(url="/owner/login", status_code=303)
 
 @router.get("/owner/dashboard")
@@ -42,7 +39,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
     today = date.today()
     today_start = datetime.combine(today, datetime.min.time())
     tomorrow_start = today_start + timedelta(days=1)
-
+    
     todays_appointments = [
         a for a in appointments
         if today_start <= a.appointment_time < tomorrow_start
@@ -66,16 +63,26 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
         .count()
     )
 
+    # STRICT WHITELIST: Only show customer/booking events to the owner
+    owner_visible_events = [
+        "booking_confirmed", 
+        "booking_cancelled", 
+        "appointment_completed", 
+        "appointment_no_show"
+    ]
+
     recent_activity = (
         db.query(ActivityEvent)
-        .filter(ActivityEvent.business_id == business.id)
+        .filter(
+            ActivityEvent.business_id == business.id,
+            ActivityEvent.event_type.in_(owner_visible_events)
+        )
         .order_by(ActivityEvent.created_at.desc())
         .limit(10)
         .all()
     )
 
     template_name = "owner/dashboard_mobile.html" if is_mobile(request) else "owner/dashboard.html"
-
     return templates.TemplateResponse(
         request=request,
         name=template_name,

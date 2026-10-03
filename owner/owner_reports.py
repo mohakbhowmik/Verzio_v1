@@ -1,20 +1,16 @@
 import os
 from datetime import date, datetime, timedelta
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import ActivityEvent, Appointment, Business, get_db
-from reports import generate_excel_report  # Updated name
+from reports import generate_excel_report
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter(prefix="/owner/reports", tags=["owner-reports"])
 templates = Jinja2Templates(directory="templates")
-
-
-
 
 @router.get("")
 async def owner_reports_page(
@@ -34,7 +30,6 @@ async def owner_reports_page(
         selected_from,
         datetime.min.time()
     )
-
     selected_end = datetime.combine(
         selected_to,
         datetime.max.time()
@@ -42,6 +37,7 @@ async def owner_reports_page(
 
     appointments = []
     recent_activity = []
+
     if business:
         appointments = (
             db.query(Appointment)
@@ -54,10 +50,19 @@ async def owner_reports_page(
             .all()
         )
 
+        # STRICT WHITELIST: Only show customer/booking events to the owner
+        owner_visible_events = [
+            "booking_confirmed", 
+            "booking_cancelled", 
+            "appointment_completed", 
+            "appointment_no_show"
+        ]
+
         recent_activity = (
             db.query(ActivityEvent)
             .filter(
                 ActivityEvent.business_id == business.id,
+                ActivityEvent.event_type.in_(owner_visible_events),
                 ActivityEvent.created_at >= selected_start,
                 ActivityEvent.created_at <= selected_end,
             )
@@ -65,13 +70,13 @@ async def owner_reports_page(
             .all()
         )
 
-
     total_count = len(appointments)
     pending_count = sum(1 for appointment in appointments if appointment.status == "pending")
     confirmed_count = sum(1 for appointment in appointments if appointment.status == "confirmed")
     completed_count = sum(1 for appointment in appointments if appointment.status == "completed")
     cancelled_count = sum(1 for appointment in appointments if appointment.status == "cancelled")
     no_show_count = sum(1 for appointment in appointments if appointment.status == "no_show")
+
     # Revenue is computed strictly for confirmed and completed bookings (no_show excluded)
     revenue = sum(
         appointment.service.price or 0
@@ -80,7 +85,7 @@ async def owner_reports_page(
     )
 
     template_name = "owner/reports_mobile.html" if is_mobile(request) else "owner/reports.html"
-
+    
     return templates.TemplateResponse(
         request=request,
         name=template_name,
@@ -100,13 +105,12 @@ async def owner_reports_page(
         },
     )
 
-
 @router.get("/export")
 async def export_owner_daily_report(
     request: Request,
     db: Session = Depends(get_db),
-    from_date: date | None = Query(default=None), # Added
-    to_date: date | None = Query(default=None),   # Added
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
 ):
     owner, business = resolve_owner_and_business(request, db)
     if not owner or not business:
@@ -116,7 +120,6 @@ async def export_owner_daily_report(
     export_from = from_date or date.today()
     export_to = to_date or export_from
 
-    # Updated function call with dates
     report_path = generate_excel_report(
         business_id=business.id,
         business_name=business.name,

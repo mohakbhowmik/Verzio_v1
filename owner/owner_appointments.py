@@ -55,6 +55,8 @@ MANUAL_BOOKING_ERRORS = {
     "ERR_HOLIDAY": "You're marked as closed on that date. Tick the override to save it anyway.",
     "ERR_TENANT_LOCKED": "WhatsApp bookings are paused for your business. Tick the override to save this booking anyway, or turn bookings back on in Settings.",
     "ERR_INVALID_SERVICE": "That service isn't active any more. Choose another service.",
+    "ERR_PAST_TIME": "That time has already passed. Tick the override to log a customer who is already here.",
+    "ERR_BUSY": "The calendar was busy for a moment. Please press Save again.",
 }
 
 

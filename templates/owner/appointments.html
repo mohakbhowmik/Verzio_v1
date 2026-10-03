@@ -4,11 +4,15 @@
 {% block page_title %}Appointments{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Appointments</h1>
-    <div class="page-subtitle">Manage bookings for {{ business.name if business else 'your business' }}.</div>
-  </div>
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-eyebrow">Schedule</div>
+        <h1 class="page-title">Appointments</h1>
+        <div class="page-subtitle">Manage customer bookings and daily capacity.</div>
+    </div>
+    <a href="/owner/appointments/new" class="btn-verzio-primary">
+        <i class="bi bi-plus-lg me-1"></i> New booking
+    </a>
 </div>
 
 <form method="get" action="/owner/appointments" class="filter-bar">
