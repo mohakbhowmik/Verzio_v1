@@ -2,48 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#173b32">
     <title>{% block title %}Verzio Studio{% endblock %}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}">
 
-    <style>
-        input, select, textarea { font-size: 16px !important; }
-    </style>
-
     {% block extra_head %}{% endblock %}
 </head>
-<body>
-    <div class="bg-light min-vh-100">
-        <nav class="navbar navbar-light bg-white border-bottom px-2 py-2 sticky-top">
-            <div class="d-flex align-items-center justify-content-between w-100">
-                <a class="fw-bold text-decoration-none text-dark" href="/owner/dashboard">Verzio Studio</a>
-                <button class="navbar-toggler border-0 p-0" type="button" data-bs-toggle="collapse" data-bs-target="#ownerMobileNav" aria-controls="ownerMobileNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-            </div>
-            <div class="collapse" id="ownerMobileNav">
-                <div class="pt-3 pb-1">
-                    <a class="d-block py-2 text-decoration-none text-dark {% if active_page == 'dashboard' %}fw-bold text-accent{% endif %}" href="/owner/dashboard">Overview</a>
-                    <a class="d-block py-2 text-decoration-none text-dark {% if active_page == 'appointments' %}fw-bold text-accent{% endif %}" href="/owner/appointments">Appointments</a>
-                    <a class="d-block py-2 text-decoration-none text-dark {% if active_page == 'services' %}fw-bold text-accent{% endif %}" href="/owner/services">Services</a>
-                    <a class="d-block py-2 text-decoration-none text-dark {% if active_page == 'reports' %}fw-bold text-accent{% endif %}" href="/owner/reports">Reports</a>
-                    <a class="d-block py-2 text-decoration-none text-dark {% if active_page == 'settings' %}fw-bold text-accent{% endif %}" href="/owner/settings">Settings</a>
-                    <form action="/owner/logout" method="post" class="mt-2">
-                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Sign Out</button>
-                    </form>
-                </div>
-            </div>
-        </nav>
+<body class="m-body">
 
-        <main class="px-2 py-2 pb-5">
-            {% block content %}{% endblock %}
-        </main>
-    </div>
+    <header class="m-header">
+        <a class="sidebar-brand text-decoration-none" href="/owner" aria-label="Verzio Studio home">
+            <span class="brand-mark">V</span>
+            <span class="brand-word">Verzio<small>{{ business.name if business else 'Studio' }}</small></span>
+        </a>
+        <form action="/owner/logout" method="post" class="m-0">
+            <button type="submit" class="m-header-action" aria-label="Sign out" title="Sign out">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </form>
+    </header>
+
+    <main class="m-main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <nav class="m-tabbar" aria-label="Main">
+        {% for key, href, icon, label in [
+            ("dashboard", "/owner", "bi-grid-1x2", "Today"),
+            ("appointments", "/owner/appointments", "bi-calendar3", "Bookings"),
+            ("services", "/owner/services", "bi-stars", "Services"),
+            ("reports", "/owner/reports", "bi-graph-up", "Reports"),
+            ("settings", "/owner/settings", "bi-sliders", "Settings")
+        ] %}
+        <a href="{{ href }}" class="{% if active_page == key %}active{% endif %}" {% if active_page == key %}aria-current="page"{% endif %}>
+            <i class="bi {{ icon }}"></i>
+            <span>{{ label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', path='js/script.js') }}"></script>

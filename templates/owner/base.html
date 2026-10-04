@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#173b32">
     <title>{% block title %}Verzio Studio{% endblock %}</title>
 
     <!-- Bootstrap 5 (Utility & Grid only) -->
@@ -10,94 +11,107 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-    <!-- Fonts: Inter for readability, JetBrains Mono for ID/Phone data -->
+    <!-- Fonts: Bodoni Moda for names and numbers, Hanken Grotesk for the interface -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Design System: White Background / Thin Borders / Accent Only -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 
     {% block extra_head %}{% endblock %}
 </head>
 <body>
 
+    {% set nav_items = [
+        ("dashboard", "/owner", "bi-grid-1x2", "Overview"),
+        ("appointments", "/owner/appointments", "bi-calendar3", "Appointments"),
+        ("services", "/owner/services", "bi-stars", "Services"),
+        ("reports", "/owner/reports", "bi-graph-up", "Reports"),
+        ("settings", "/owner/settings", "bi-sliders", "Settings")
+    ] %}
+    {% set owner_name = owner.full_name if owner and owner.full_name else 'Owner' %}
+    {% set owner_initials = (owner_name.split()[-2:] | map('first') | join | upper) if owner_name else 'O' %}
+
     <div class="app-shell">
 
         <!-- ==================== SIDEBAR ==================== -->
         <aside class="sidebar">
-            <div class="sidebar-brand">
-                Verzio Studio
-            </div>
+            <a href="/owner" class="sidebar-brand" aria-label="Verzio Studio home">
+                <span class="brand-mark">V</span>
+                <span class="brand-word">Verzio<small>Studio</small></span>
+            </a>
 
-            <nav class="sidebar-nav">
-                <a href="/owner" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
-                    <i class="bi bi-compass"></i>
-                    <span>Overview</span>
+            <nav class="sidebar-nav" aria-label="Main">
+                {% for key, href, icon, label in nav_items %}
+                <a href="{{ href }}" class="nav-item {% if active_page == key %}active{% endif %}" {% if active_page == key %}aria-current="page"{% endif %}>
+                    <i class="bi {{ icon }}"></i>
+                    <span>{{ label }}</span>
                 </a>
-
-                <a href="/owner/appointments" class="nav-item {% if active_page == 'appointments' %}active{% endif %}">
-                    <i class="bi bi-calendar3"></i>
-                    <span>Appointments</span>
-                </a>
-
-                <a href="/owner/services" class="nav-item {% if active_page == 'services' %}active{% endif %}">
-                    <i class="bi bi-briefcase"></i>
-                    <span>Services</span>
-                </a>
-
-                <a href="/owner/reports" class="nav-item {% if active_page == 'reports' %}active{% endif %}">
-                    <i class="bi bi-bar-chart"></i>
-                    <span>Reports</span>
-                </a>
-
-                <a href="/owner/settings" class="nav-item {% if active_page == 'settings' %}active{% endif %}">
-                    <i class="bi bi-gear"></i>
-                    <span>Settings</span>
-                </a>
+                {% endfor %}
             </nav>
+
+            {% if business %}
+            <div class="sidebar-foot">
+                <div class="sidebar-foot-name">{{ business.name }}</div>
+                <div class="sidebar-foot-status">
+                    {% if business.accepting_bookings %}
+                    <span class="live-dot"></span> Taking WhatsApp bookings
+                    {% else %}
+                    <span class="live-dot paused"></span> WhatsApp bookings paused
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </aside>
 
         <!-- ==================== MAIN COLUMN ==================== -->
         <div class="main-col">
 
-            <!-- ---- Top Bar ---- -->
+            <nav class="mobile-topnav" aria-label="Main">
+                {% for key, href, icon, label in nav_items %}
+                <a href="{{ href }}" class="{% if active_page == key %}active{% endif %}">{{ label }}</a>
+                {% endfor %}
+            </nav>
+
             <header class="topbar">
                 <div class="topbar-left">
-                    <h1 class="page-current-title">{% block page_title %}Overview{% endblock %}</h1>
+                    <p class="page-current-title">{% block page_title %}Overview{% endblock %}</p>
                 </div>
-
-            
 
                 <div class="topbar-right">
                     <details class="profile-menu">
                         <summary class="profile-trigger">
-                            <span class="mono fw-bold text-accent">{{ owner.full_name if owner else 'OWNER' }}</span>
-                            <i class="bi bi-chevron-down ms-1" style="font-size: 10px;"></i>
+                            <span class="avatar-initials">{{ owner_initials }}</span>
+                            <span class="d-none d-sm-inline">{{ owner_name }}</span>
+                            <i class="bi bi-chevron-down" style="font-size: 11px; color: var(--text-muted);"></i>
                         </summary>
 
                         <div class="profile-dropdown">
-                            <!-- You can add other links here later, like "Account Settings" -->
-                            <form action="/owner/logout" method="post">
+                            <div class="profile-dropdown-head">
+                                <strong>{{ owner_name }}</strong>
+                                {% if business %}<span>{{ business.name }}</span>{% endif %}
+                            </div>
+                            <a href="/owner/settings" class="dropdown-item text-decoration-none">
+                                <i class="bi bi-sliders"></i>
+                                <span>Settings</span>
+                            </a>
+                            <form action="/owner/logout" method="post" class="m-0">
                                 <button type="submit" class="dropdown-item logout">
                                     <i class="bi bi-box-arrow-right"></i>
-                                    <span>Sign Out</span>
+                                    <span>Sign out</span>
                                 </button>
                             </form>
                         </div>
                     </details>
                 </div>
-
             </header>
 
-            <!-- ---- Main Content Area ---- -->
             <main class="content-container">
                 {% block content %}{% endblock %}
             </main>
         </div>
     </div>
 
-    <!-- Minimum Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', path='js/script.js') }}"></script>
     {% block extra_scripts %}{% endblock %}

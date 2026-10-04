@@ -89,6 +89,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
         context={
             "request": request,
             "active_page": "dashboard",
+            "owner": owner,
             "business": business,
             "appointments": appointments,
             "todays_appointments": todays_appointments,

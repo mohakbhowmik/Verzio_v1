@@ -4,94 +4,97 @@
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="mb-2">
-        <div class="text-uppercase small fw-bold text-muted">Settings</div>
-        <h1 class="h6 fw-bold mb-1">Studio Configuration</h1>
-        <p class="text-muted small mb-0">Booking controls and details.</p>
+    <div class="m-heading">
+        <h1>Settings</h1>
+        <p>Business details, booking rules and hours.</p>
     </div>
 
     {% if message %}
-    <div class="alert alert-success py-2 mb-2 small">{{ message }}</div>
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-0"><i class="bi bi-check-circle-fill"></i>{{ message }}</div>
     {% endif %}
 
-    <form method="post" action="/owner/settings">
-        <div class="owner-mobile-card p-2 mb-2">
-            <label class="small text-muted">Business name</label>
-            <input type="text" class="form-control form-control-sm mt-1" name="business_name" value="{{ business.name }}">
-            <label class="small text-muted mt-2">Public phone</label>
-            <div class="input-group">
-    <input type="text" class="form-control opacity-50 bg-light" name="phone_number" value="{{ business.manager_phone_number }}" readonly>
-      </div>
-      <div class="text-muted mt-1" style="font-size: 11px;">
-          <i class="bi bi-lock-fill"></i> Locked. To change your WhatsApp number, contact Verzio Support.
-      </div>
-            <label class="small text-muted mt-2">Timezone</label>
-            <select class="form-select form-select-sm mt-1" name="timezone">
-                <option value="Asia/Kolkata" {% if business.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata</option>
+    <form method="post" action="/owner/settings" class="d-flex flex-column gap-3">
+        <div class="m-section-title"><h2>Business profile</h2></div>
+        <div class="owner-mobile-card m-card-pad">
+            <label class="m-label" for="business_name">Business name</label>
+            <input type="text" id="business_name" class="form-control" name="business_name" value="{{ business.name }}">
+
+            <label class="m-label" for="phone_number">WhatsApp number</label>
+            <input type="text" id="phone_number" class="form-control" style="background:var(--bg-sunken);color:var(--text-muted);" name="phone_number" value="{{ business.manager_phone_number }}" readonly>
+            <div class="m-hint"><i class="bi bi-lock-fill me-1"></i>To change this number, contact Verzio support.</div>
+
+            <label class="m-label" for="timezone">Time zone</label>
+            <select class="form-select" id="timezone" name="timezone">
+                <option value="Asia/Kolkata" {% if business.timezone == 'Asia/Kolkata' %}selected{% endif %}>India (IST)</option>
                 <option value="UTC" {% if business.timezone == 'UTC' %}selected{% endif %}>UTC</option>
             </select>
         </div>
 
-        <div class="owner-mobile-card p-2 mb-2">
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" name="accept_online_bookings" {% if business.accepting_bookings %}checked{% endif %}>
-                <label class="form-check-label small">Accept online bookings</label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" name="require_owner_approval" {% if business.approval_mode == 'manual' %}checked{% endif %}>
-                <label class="form-check-label small">Manual approval mode</label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" name="show_services_during_booking" {% if business.enable_service_selection %}checked{% endif %}>
-                <label class="form-check-label small">Show service selection</label>
-            </div>
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" name="send_booking_confirmation" {% if business.notification_preferences and business.notification_preferences.get('whatsapp_customer') %}checked{% endif %}>
-                <label class="form-check-label small">Send booking confirmation</label>
-            </div>
+        <div class="m-section-title"><h2>Booking controls</h2></div>
+        <div class="owner-mobile-card">
+            <label class="m-switch-row">
+                <span>Accept WhatsApp bookings</span>
+                <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="accept_online_bookings" {% if business.accepting_bookings %}checked{% endif %}></span>
+            </label>
+            <label class="m-switch-row">
+                <span>Approve bookings manually</span>
+                <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="require_owner_approval" {% if business.approval_mode == 'manual' %}checked{% endif %}></span>
+            </label>
+            <label class="m-switch-row">
+                <span>Let clients pick a service</span>
+                <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="show_services_during_booking" {% if business.enable_service_selection %}checked{% endif %}></span>
+            </label>
+            <label class="m-switch-row">
+                <span>Send booking confirmation</span>
+                <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="send_booking_confirmation" {% if business.notification_preferences and business.notification_preferences.get('whatsapp_customer') %}checked{% endif %}></span>
+            </label>
         </div>
 
-        <div class="owner-mobile-card p-2 mb-2">
-            <div class="small fw-bold text-muted text-uppercase mb-2">Scheduling rules</div>
-            <label class="small text-muted">Slot interval</label>
-            <select class="form-select form-select-sm mt-1 mb-2" name="slot_duration">
-                <option value="5" {% if business.slot_interval == 5 %}selected{% endif %}>5 mins</option>
-                <option value="10" {% if business.slot_interval == 10 %}selected{% endif %}>10 mins</option>
-                <option value="15" {% if business.slot_interval == 15 %}selected{% endif %}>15 mins</option>
-                <option value="30" {% if business.slot_interval == 30 or not business.slot_interval %}selected{% endif %}>30 mins</option>
-                <option value="45" {% if business.slot_interval == 45 %}selected{% endif %}>45 mins</option>
+        <div class="m-section-title"><h2>Scheduling rules</h2></div>
+        <div class="owner-mobile-card m-card-pad">
+            <label class="m-label" for="slot_duration">Slot length</label>
+            <select class="form-select" id="slot_duration" name="slot_duration">
+                <option value="5" {% if business.slot_interval == 5 %}selected{% endif %}>5 min</option>
+                <option value="10" {% if business.slot_interval == 10 %}selected{% endif %}>10 min</option>
+                <option value="15" {% if business.slot_interval == 15 %}selected{% endif %}>15 min</option>
+                <option value="30" {% if business.slot_interval == 30 or not business.slot_interval %}selected{% endif %}>30 min</option>
+                <option value="45" {% if business.slot_interval == 45 %}selected{% endif %}>45 min</option>
                 <option value="60" {% if business.slot_interval == 60 %}selected{% endif %}>1 hour</option>
-                <option value="90" {% if business.slot_interval == 90 %}selected{% endif %}>1 hr 30 mins</option>
+                <option value="90" {% if business.slot_interval == 90 %}selected{% endif %}>1 hr 30 min</option>
                 <option value="120" {% if business.slot_interval == 120 %}selected{% endif %}>2 hours</option>
             </select>
-            <label class="small text-muted">Advance window (days)</label>
-            <input type="number" class="form-control form-control-sm mt-1 mb-2" name="advance_booking_days" value="{{ business.advance_booking_days }}">
-            <label class="small text-muted">Parallel capacity</label>
-            <input type="number" class="form-control form-control-sm mt-1" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
-        </div>
-
-        <div class="owner-mobile-card p-2 mb-2">
-            <div class="small fw-bold text-muted text-uppercase mb-2">Operational hours</div>
-            <div class="d-flex flex-column gap-2">
-                {% for row in hours_rows %}
-                <div class="border rounded-3 p-2">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold">{{ row.label }}</span>
-                        <div class="form-check form-switch m-0">
-                            <input class="form-check-input" type="checkbox" name="hours_{{ row.key }}_enabled" {% if not row.closed %}checked{% endif %}>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <input type="time" class="form-control form-control-sm" name="hours_{{ row.key }}_open" value="{{ row.open }}">
-                        <input type="time" class="form-control form-control-sm" name="hours_{{ row.key }}_close" value="{{ row.close }}">
-                    </div>
+            <div class="row g-2">
+                <div class="col-6">
+                    <label class="m-label" for="advance_booking_days">Days ahead</label>
+                    <input type="number" id="advance_booking_days" class="form-control" name="advance_booking_days" value="{{ business.advance_booking_days }}">
                 </div>
-                {% endfor %}
+                <div class="col-6">
+                    <label class="m-label" for="max_parallel_bookings">Clients at once</label>
+                    <input type="number" id="max_parallel_bookings" class="form-control" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
+                </div>
             </div>
         </div>
 
-        <div class="owner-mobile-card p-2">
-            <button type="submit" class="btn btn-primary btn-sm w-100">Save Changes</button>
+        <div class="m-section-title"><h2>Opening hours</h2></div>
+        <div class="owner-mobile-card">
+            {% for row in hours_rows %}
+            <div class="m-day">
+                <label class="d-flex justify-content-between align-items-center m-0">
+                    <span class="fw-semibold">{{ row.label }}</span>
+                    <span class="form-check form-switch m-0 p-0" style="min-height:0;">
+                        <input class="form-check-input m-0" style="width:2.6em;height:1.45em;float:none;" type="checkbox" name="hours_{{ row.key }}_enabled" aria-label="Open on {{ row.label }}" {% if not row.closed %}checked{% endif %}>
+                    </span>
+                </label>
+                <div class="m-day-times">
+                    <input type="time" class="form-control" name="hours_{{ row.key }}_open" value="{{ row.open }}" aria-label="{{ row.label }} opening time">
+                    <input type="time" class="form-control" name="hours_{{ row.key }}_close" value="{{ row.close }}" aria-label="{{ row.label }} closing time">
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="m-sticky-save">
+            <button type="submit" class="btn btn-primary w-100" style="padding:13px 16px;font-size:15px;">Save changes</button>
         </div>
     </form>
 </section>

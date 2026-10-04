@@ -4,77 +4,81 @@
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="mb-2">
-        <div class="text-uppercase small fw-bold text-muted">Reports</div>
-        <h1 class="h6 fw-bold mb-1">Performance Insights</h1>
-        <p class="text-muted small mb-0">Booking trends and activity.</p>
+    <div class="m-heading">
+        <h1>Reports</h1>
+        <p>How your bookings performed.</p>
     </div>
 
-    <form method="get" action="/owner/reports" class="owner-mobile-card p-2 mb-2">
-        <label class="small text-muted">Date range</label>
-        <div class="d-flex gap-2 mt-1">
-            <input type="date" class="form-control form-control-sm" name="from_date" value="{{ selected_from }}">
-            <input type="date" class="form-control form-control-sm" name="to_date" value="{{ selected_to }}">
+    <form method="get" action="/owner/reports" class="owner-mobile-card m-card-pad">
+        <div class="d-flex gap-2">
+            <div class="flex-fill">
+                <label class="m-label" for="from_date">From</label>
+                <input type="date" id="from_date" class="form-control" name="from_date" value="{{ selected_from }}">
+            </div>
+            <div class="flex-fill">
+                <label class="m-label" for="to_date">To</label>
+                <input type="date" id="to_date" class="form-control" name="to_date" value="{{ selected_to }}">
+            </div>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">Apply</button>
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-outline-primary flex-fill">Update</button>
+            <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn btn-primary flex-fill">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Excel
+            </a>
+        </div>
     </form>
 
-    <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
-        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export to Excel
-    </a>
-
-    <div class="row row-cols-2 g-2 mb-2">
-        <div class="col">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Total</div>
-                <div class="fw-bold">{{ total_count }}</div>
+    <div class="owner-mobile-card m-ledger" aria-label="Bookings in this period">
+        <div class="ledger-cell is-lead">
+            <div>
+                <div class="ledger-label"><span class="tone tone-lead"></span>Total bookings</div>
+                <div class="ledger-note mt-1">in this period</div>
             </div>
+            <div class="ledger-value">{{ total_count }}</div>
         </div>
-        <div class="col">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Completed</div>
-                <div class="fw-bold text-success">{{ completed_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-completed"></span>Completed</div>
+            <div class="ledger-value">{{ completed_count }}</div>
         </div>
-        <div class="col">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Pending</div>
-                <div class="fw-bold text-warning">{{ pending_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-confirmed"></span>Confirmed</div>
+            <div class="ledger-value">{{ confirmed_count }}</div>
         </div>
-        <div class="col">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Confirmed</div>
-                <div class="fw-bold text-accent">{{ confirmed_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-pending"></span>Pending</div>
+            <div class="ledger-value">{{ pending_count }}</div>
         </div>
-        <div class="col">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Cancelled</div>
-                <div class="fw-bold text-danger">{{ cancelled_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-cancelled"></span>Cancelled</div>
+            <div class="ledger-value">{{ cancelled_count }}</div>
         </div>
-        <div class="col">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">No-show</div>
-                <div class="fw-bold text-secondary">{{ no_show_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-no_show"></span>No-shows</div>
+            <div class="ledger-value">{{ no_show_count }}</div>
         </div>
     </div>
 
-    <div class="owner-mobile-card p-2">
-        <h2 class="h6 fw-bold mb-2">Recent Activity</h2>
-        {% set visible_activity = recent_activity|selectattr('event_type', 'ne', 'webhook_received')|selectattr('event_type', 'ne', 'whatsapp_sent')|selectattr('event_type', 'ne', 'webhook_failed')|list %}
-        {% if visible_activity %}
-            {% for event in visible_activity %}
-            <div class="border rounded-3 p-2 mb-2">
-                <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
-                <div class="small text-muted">{{ event.message or 'No log details' }}</div>
+    <div class="m-section-title">
+        <h2>Activity in this period</h2>
+    </div>
+
+    {% set visible_activity = recent_activity|selectattr('event_type', 'ne', 'webhook_received')|selectattr('event_type', 'ne', 'whatsapp_sent')|selectattr('event_type', 'ne', 'webhook_failed')|list %}
+    <div class="owner-mobile-card activity-feed">
+        {% for event in visible_activity %}
+        <div class="activity-item">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <span class="activity-type">{{ event.event_type|replace('_', ' ')|capitalize }}</span>
+                <span class="activity-time">{{ event.created_at.strftime('%d %b') }}</span>
             </div>
-            {% endfor %}
+            <div class="activity-msg">{{ event.message|truncate(100) if event.message else 'No details recorded' }}</div>
+        </div>
         {% else %}
-            <div class="text-center text-muted small py-2">No activity found.</div>
-        {% endif %}
+        <div class="empty-state">
+            <i class="bi bi-graph-up"></i>
+            <strong>No activity in these dates</strong>
+            <p>Choose a wider date range.</p>
+        </div>
+        {% endfor %}
     </div>
 </section>
 {% endblock %}

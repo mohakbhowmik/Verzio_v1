@@ -1,29 +1,35 @@
 {% extends "owner_base_mobile.html" %}
 
-{% block title %}{% if service %}Edit Service{% else %}Add Service{% endif %} — Verzio Studio{% endblock %}
+{% block title %}{% if service %}Edit service{% else %}New service{% endif %} — Verzio Studio{% endblock %}
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="mb-3">
-        <div class="text-uppercase small fw-bold text-muted">Services</div>
-        <h1 class="h4 fw-bold mb-1">{% if service %}Edit Service{% else %}Add Service{% endif %}</h1>
-        <p class="text-muted small mb-0">Configure your booking catalog.</p>
+    <a href="/owner/services" class="text-decoration-none small fw-semibold" style="color:var(--text-muted);"><i class="bi bi-arrow-left me-1"></i>Services</a>
+    <div class="m-heading">
+        <h1>{% if service %}{{ service.name }}{% else %}New service{% endif %}</h1>
+        <p>What clients see when they book.</p>
     </div>
 
-    <form method="post" action="{{ form_action }}" class="owner-mobile-card p-3">
-        <label class="small text-muted">Service name</label>
-        <input type="text" name="name" class="form-control mt-2" required value="{{ service.name if service else '' }}">
-        <label class="small text-muted mt-3">Duration (mins)</label>
-        <input type="number" name="duration" class="form-control mt-2" value="{{ service.duration if service else 30 }}">
-        <label class="small text-muted mt-3">Price</label>
-        <input type="number" name="price" class="form-control mt-2" value="{{ service.price if service and service.price is not none else '' }}">
-        <div class="form-check form-switch mt-3">
-            <input class="form-check-input" type="checkbox" name="is_active" {% if (service.is_active if service else true) %}checked{% endif %}>
-            <label class="form-check-label">Service is active</label>
+    <form method="post" action="{{ form_action }}" class="owner-mobile-card m-card-pad">
+        <label class="m-label" for="svc-name">Service name</label>
+        <input type="text" id="svc-name" name="name" class="form-control" required placeholder="e.g. HydraFacial" value="{{ service.name if service else '' }}">
+        <div class="row g-2">
+            <div class="col-6">
+                <label class="m-label" for="svc-duration">Duration (min)</label>
+                <input type="number" id="svc-duration" name="duration" class="form-control" value="{{ service.duration if service else 30 }}">
+            </div>
+            <div class="col-6">
+                <label class="m-label" for="svc-price">Price (₹)</label>
+                <input type="number" id="svc-price" name="price" class="form-control" value="{{ service.price if service and service.price is not none else '' }}">
+            </div>
         </div>
-        <div class="d-flex gap-2 mt-3">
-            <a href="/owner/services" class="btn btn-outline-secondary flex-grow-1">Cancel</a>
-            <button type="submit" class="btn btn-primary flex-grow-1">Save</button>
+        <label class="m-switch-row px-0 mt-2" style="border-bottom:none;">
+            <span>Offer this service</span>
+            <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_active" {% if (service.is_active if service else true) %}checked{% endif %}></span>
+        </label>
+        <div class="d-flex gap-2 mt-2">
+            <a href="/owner/services" class="btn btn-outline-secondary flex-fill">Cancel</a>
+            <button type="submit" class="btn btn-primary flex-fill">{% if service %}Save changes{% else %}Add service{% endif %}</button>
         </div>
     </form>
 </section>

@@ -81,6 +81,7 @@ async def owner_services_page(
         name=template_name,
         context={
             "active_page": "services",
+            "owner": owner,
             "business": business,
             "services": services,
         },
@@ -97,6 +98,7 @@ async def new_owner_service_form(request: Request, db: Session = Depends(get_db)
         context=_form_context(business) | {
             "form_action": "/owner/services",
             "owner_portal": True,
+                "owner": owner,
         },
     )
 
@@ -118,6 +120,7 @@ async def create_owner_service(request: Request, db: Session = Depends(get_db)):
             | {
                 "form_action": "/owner/services",
                 "owner_portal": True,
+                "owner": owner,
             },
             status_code=400,
         )
@@ -154,6 +157,7 @@ async def edit_owner_service_form(
         | {
             "form_action": f"/owner/services/{service.id}",
             "owner_portal": True,
+                "owner": owner,
         },
     )
 
@@ -188,6 +192,7 @@ async def update_owner_service(
             ) | {
                 "form_action": f"/owner/services/{service.id}",
                 "owner_portal": True,
+                "owner": owner,
             },
             status_code=400,
         )

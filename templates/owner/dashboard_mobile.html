@@ -1,82 +1,92 @@
 {% extends "owner_base_mobile.html" %}
 
-{% block title %}Dashboard — Verzio Studio{% endblock %}
+{% block title %}Today — Verzio Studio{% endblock %}
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="mb-2">
-        <div class="text-uppercase small fw-bold text-muted">Owner Portal</div>
-        <h1 class="h6 fw-bold mb-1">{{ business.name if business else 'Dashboard' }}</h1>
-        <p class="text-muted small mb-0">Live ops and bookings.</p>
+    <div class="m-heading">
+        <h1>{{ business.name if business else 'Today' }}</h1>
+        <p>Today's bookings and approvals.</p>
     </div>
 
-    <div class="row g-2 mb-2">
-        <div class="col-6">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Today</div>
-                <div class="fw-bold">{{ todays_appointments|length }}</div>
+    <div class="owner-mobile-card m-ledger" aria-label="Today at a glance">
+        <div class="ledger-cell is-lead">
+            <div>
+                <div class="ledger-label"><span class="tone tone-lead"></span>Today</div>
+                <div class="ledger-note mt-1">appointments booked</div>
             </div>
+            <div class="ledger-value">{{ todays_appointments|length }}</div>
         </div>
-        <div class="col-6">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Pending</div>
-                <div class="fw-bold">{{ pending_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-pending"></span>To approve</div>
+            <div class="ledger-value">{{ pending_count }}</div>
         </div>
-        <div class="col-6">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Confirmed</div>
-                <div class="fw-bold">{{ confirmed_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-confirmed"></span>Confirmed</div>
+            <div class="ledger-value">{{ confirmed_count }}</div>
         </div>
-        <div class="col-6">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Completed</div>
-                <div class="fw-bold">{{ completed_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone tone-completed"></span>Completed</div>
+            <div class="ledger-value">{{ completed_count }}</div>
         </div>
-        <div class="col-6">
-            <div class="owner-mobile-card p-2">
-                <div class="small text-muted">Services</div>
-                <div class="fw-bold">{{ service_count }}</div>
-            </div>
+        <div class="ledger-cell">
+            <div class="ledger-label"><span class="tone"></span>Services</div>
+            <div class="ledger-value">{{ service_count }}</div>
         </div>
     </div>
 
-    <div class="owner-mobile-card p-2 mb-2">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h2 class="h6 fw-bold mb-0">Today’s Schedule</h2>
-            <a href="/owner/appointments" class="small text-decoration-none text-accent">View</a>
-        </div>
+    <div class="m-section-title">
+        <h2>Today's schedule</h2>
+        <a href="/owner/appointments">All bookings</a>
+    </div>
+
+    <div class="owner-mobile-card m-book">
         {% for appointment in todays_appointments %}
-        <div class="border rounded-3 p-2 mb-2">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-                <div>
-                    <div class="fw-bold small">{{ appointment.customer_name or appointment.customer_phone }}</div>
-                    <div class="small text-muted">{{ appointment.service.name if appointment.service else 'Service removed' }}</div>
-                </div>
-                <span class="badge rounded-pill bg-light text-dark">{{ appointment.status|replace('_', ' ')|capitalize }}</span>
+        <div class="m-book-row">
+            <div class="m-book-time">
+                <strong>{{ appointment.appointment_time.strftime('%I:%M') }}</strong>
+                <span>{{ appointment.appointment_time.strftime('%p') }}</span>
             </div>
-            <div class="small text-muted">{{ appointment.appointment_time.strftime('%d %b, %I:%M %p') }}</div>
+            <div>
+                <div class="m-book-name">{{ appointment.customer_name or appointment.customer_phone }}</div>
+                <div class="m-book-service">{{ appointment.service.name if appointment.service else 'Service removed' }}</div>
+                <div class="m-book-meta">
+                    <span class="status-badge status-{{ appointment.status }}"><span class="dot"></span>{{ appointment.status|replace('_', ' ')|capitalize }}</span>
+                </div>
+            </div>
         </div>
         {% else %}
-        <div class="text-center text-muted small py-2">No appointments found.</div>
+        <div class="empty-state">
+            <i class="bi bi-calendar-heart"></i>
+            <strong>No appointments today</strong>
+            <p>New WhatsApp bookings will appear here.</p>
+        </div>
         {% endfor %}
     </div>
 
-    <div class="owner-mobile-card p-2 mb-2">
-        <h2 class="h6 fw-bold mb-2">Latest Activity</h2>
+    <div class="m-section-title">
+        <h2>Latest activity</h2>
+    </div>
+
+    <div class="owner-mobile-card activity-feed">
         {% for event in recent_activity if event.event_type not in ['webhook_received', 'whatsapp_sent', 'webhook_failed'] %}
-        <div class="border rounded-3 p-2 mb-2">
-            <div class="small fw-bold text-accent">{{ event.event_type|replace('_', ' ')|upper }}</div>
-            <div class="small text-muted">{{ event.message or 'No message' }}</div>
+        <div class="activity-item">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <span class="activity-type">{{ event.event_type|replace('_', ' ')|capitalize }}</span>
+                <span class="activity-time">{{ event.created_at.strftime('%H:%M') }}</span>
+            </div>
+            <div class="activity-msg">{{ event.message|truncate(90) if event.message else 'No details recorded' }}</div>
         </div>
         {% else %}
-        <div class="text-center text-muted small py-2">No recent activity logged.</div>
+        <div class="empty-state">
+            <i class="bi bi-chat-heart"></i>
+            <strong>Nothing new yet</strong>
+            <p>Bookings, approvals and changes will be listed here.</p>
+        </div>
         {% endfor %}
     </div>
 
-    <a href="/owner/appointments/new" class="owner-mobile-fab" aria-label="New Booking">
+    <a href="/owner/appointments/new" class="owner-mobile-fab" aria-label="New booking">
         <i class="bi bi-plus-lg"></i>
     </a>
 </section>

@@ -1,74 +1,52 @@
 {% extends "owner/auth_base.html" %}
 
-{% block title %}Owner Login{% endblock %}
+{% block title %}Sign in — Verzio Studio{% endblock %}
 
 {% block content %}
 
-<h2 class="text-center mb-4">
-    Welcome Back
-</h2>
-
-<p class="text-center text-muted mb-4">
-    Sign in to continue to Verzio Studio
-</p>
+<div class="auth-brand">
+    <h1>Welcome back</h1>
+    <p>Sign in to manage today's bookings.</p>
+</div>
 
 {% if error %}
-<div class="alert alert-danger">
-    {{ error }}
+<div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+    <i class="bi bi-exclamation-circle mt-1"></i>
+    <span>{{ error }}</span>
 </div>
 {% endif %}
 
 <form method="post">
 
     <div class="mb-3">
-        <label class="form-label">
-            Email or Phone
-        </label>
-
+        <label class="form-label" for="identifier">Email or phone</label>
         <input
             type="text"
+            id="identifier"
             name="identifier"
             class="form-control-verzio"
-            placeholder="Enter your email or phone"
+            placeholder="you@yourstudio.com"
+            autocomplete="username"
             required>
     </div>
 
     <div class="mb-3">
-        <label class="form-label">
-            Password
-        </label>
-
+        <label class="form-label" for="password">Password</label>
         <input
             type="password"
+            id="password"
             name="password"
             class="form-control-verzio"
-            placeholder="Enter your password"
+            autocomplete="current-password"
             required>
     </div>
 
     <div class="form-check mb-4">
-        <input
-            class="form-check-input"
-            type="checkbox"
-            id="remember"
-            name="remember_me">
-
-        <label
-            class="form-check-label"
-            for="remember">
-
-            Remember me
-
-        </label>
+        <input class="form-check-input" type="checkbox" id="remember" name="remember_me">
+        <label class="form-check-label" for="remember">Keep me signed in</label>
     </div>
 
-    <button
-        type="submit"
-        class="btn-verzio-primary w-100">
-
-        Sign In
-
-    </button>
+    <button type="submit" class="btn-verzio-primary w-100">Sign in</button>
 
 </form>
 

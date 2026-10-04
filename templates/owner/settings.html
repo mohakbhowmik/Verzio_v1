@@ -4,243 +4,230 @@
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
-<div class="page-header mb-4">
-    <div class="d-flex justify-content-between align-items-end w-100">
-        <div>
-            <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-soft-accent text-accent fw-bold px-2 py-1" style="font-size: 10px;">STUDIO CONFIGURATION</span>
-            </div>
-            <h1 class="page-title" style="margin:0;">Settings & Rules</h1>
-            <p class="page-subtitle" style="margin-top:4px;">Define your business identity and automate your booking logic.</p>
-        </div>
-        <button type="submit" form="settings-form" class="btn-verzio-primary px-4 shadow-sm">
-            <i class="bi bi-check2-circle me-2"></i> Save All Changes
-        </button>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Your business details, booking rules and opening hours.</p>
     </div>
+    <button type="submit" form="settings-form" class="btn-verzio-primary">
+        <i class="bi bi-check2 me-2"></i> Save changes
+    </button>
 </div>
 
 {% if message %}
-<div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-center">
-    <i class="bi bi-check-circle-fill me-2 text-success"></i> {{ message }}
+<div class="alert alert-success mb-4 d-flex align-items-center">
+    <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
 </div>
 {% endif %}
 
 <form method="post" action="/owner/settings" id="settings-form">
     <div class="row g-4">
-        
-        <!-- ROW 1: Identity -->
+
+        <!-- Business profile -->
         <div class="col-12">
-            <div class="section-container shadow-sm">
-                <div class="section-head"><h2 class="section-title">Business Profile</h2></div>
+            <section class="section-container mb-0">
+                <div class="section-head"><h2 class="section-title">Business profile</h2></div>
                 <div class="p-4">
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Business Name</label>
-                            <input type="text" class="form-control-verzio" name="business_name" value="{{ business.name }}">
+                        <div class="col-md-6 col-xl-3">
+                            <label class="form-label" for="business_name">Business name</label>
+                            <input type="text" id="business_name" class="form-control-verzio" name="business_name" value="{{ business.name }}">
                         </div>
-                        <div class="col-md-3">
-                            <div class="d-flex justify-content-between">
-                                <label class="form-label small fw-bold text-muted text-uppercase">Owner Name</label>
-                                <span class="coming-soon-pill">Locked</span>
-                            </div>
-                            <input type="text" class="form-control-verzio opacity-50" value="{{ owner.full_name if owner else 'Owner' }}" disabled>
+                        <div class="col-md-6 col-xl-3">
+                            <label class="form-label d-flex justify-content-between align-items-center">
+                                Owner name <span class="coming-soon-pill">Locked</span>
+                            </label>
+                            <input type="text" class="form-control-verzio" value="{{ owner.full_name if owner else 'Owner' }}" disabled>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Public Phone</label>
-                            <input type="text" class="form-control-verzio" name="phone_number" value="{{ business.manager_phone_number }}">
+                        <div class="col-md-6 col-xl-3">
+                            <label class="form-label" for="phone_number">Public phone</label>
+                            <input type="text" id="phone_number" class="form-control-verzio mono" name="phone_number" value="{{ business.manager_phone_number }}">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Timezone</label>
-                            <select class="form-select-verzio" name="timezone">
-                                <option value="Asia/Kolkata" {% if business.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata (IST)</option>
+                        <div class="col-md-6 col-xl-3">
+                            <label class="form-label" for="timezone">Time zone</label>
+                            <select class="form-select-verzio" id="timezone" name="timezone">
+                                <option value="Asia/Kolkata" {% if business.timezone == 'Asia/Kolkata' %}selected{% endif %}>India (IST)</option>
                                 <option value="UTC" {% if business.timezone == 'UTC' %}selected{% endif %}>UTC</option>
                             </select>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <!-- ROW 2: Booking Controls -->
+        <!-- Booking controls -->
         <div class="col-lg-6">
-            <div class="section-container shadow-sm h-100">
-                <div class="section-head"><h2 class="section-title">Booking Controls</h2></div>
+            <section class="section-container h-100 mb-0">
+                <div class="section-head"><h2 class="section-title">Booking controls</h2></div>
                 <div class="p-4">
-                    <div class="row g-3">
-                        <!-- Functional -->
-                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border bg-light-hover">
-                            <div>
-                                <div class="fw-bold small">Accept Online Bookings</div>
-                                <div class="text-muted" style="font-size: 11px;">Enable/Disable WhatsApp inbound requests.</div>
-                            </div>
-                            <label class="vz-toggle">
-                                <input type="checkbox" name="accept_online_bookings" {% if business.accepting_bookings %}checked{% endif %}>
-                                <span class="vz-toggle-track"></span>
-                            </label>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-row-title">Accept WhatsApp bookings</div>
+                            <div class="setting-row-hint">Turn off to pause new booking requests.</div>
                         </div>
+                        <label class="vz-toggle">
+                            <input type="checkbox" name="accept_online_bookings" aria-label="Accept WhatsApp bookings" {% if business.accepting_bookings %}checked{% endif %}>
+                            <span class="vz-toggle-track"></span>
+                        </label>
+                    </div>
 
-                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border">
-                            <div>
-                                <div class="fw-bold small">Manual Approval Mode</div>
-                                <div class="text-muted" style="font-size: 11px;">Bookings stay 'Pending' until you approve.</div>
-                            </div>
-                            <label class="vz-toggle">
-                                <input type="checkbox" name="require_owner_approval" {% if business.approval_mode == 'manual' %}checked{% endif %}>
-                                <span class="vz-toggle-track"></span>
-                            </label>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-row-title">Approve bookings manually</div>
+                            <div class="setting-row-hint">New bookings stay pending until you approve them.</div>
                         </div>
+                        <label class="vz-toggle">
+                            <input type="checkbox" name="require_owner_approval" aria-label="Approve bookings manually" {% if business.approval_mode == 'manual' %}checked{% endif %}>
+                            <span class="vz-toggle-track"></span>
+                        </label>
+                    </div>
 
-                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border">
-                            <div>
-                                <div class="fw-bold small">Service Selection</div>
-                                <div class="text-muted" style="font-size: 11px;">Show service menu during WhatsApp flow.</div>
-                            </div>
-                            <label class="vz-toggle">
-                                <input type="checkbox" name="show_services_during_booking" {% if business.enable_service_selection %}checked{% endif %}>
-                                <span class="vz-toggle-track"></span>
-                            </label>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-row-title">Let clients pick a service</div>
+                            <div class="setting-row-hint">Show your service menu during the WhatsApp booking.</div>
                         </div>
+                        <label class="vz-toggle">
+                            <input type="checkbox" name="show_services_during_booking" aria-label="Let clients pick a service" {% if business.enable_service_selection %}checked{% endif %}>
+                            <span class="vz-toggle-track"></span>
+                        </label>
+                    </div>
 
-                        <!-- Locked Features -->
-                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border opacity-50 bg-light">
-                            <div>
-                                <div class="fw-bold small">AI Intent Recognition <span class="coming-soon-pill ms-2">Pro</span></div>
-                                <div class="text-muted" style="font-size: 11px;">Let clients book by typing naturally.</div>
-                            </div>
-                            <label class="vz-toggle"><input type="checkbox" disabled><span class="vz-toggle-track"></span></label>
+                    <div class="setting-row is-locked">
+                        <div>
+                            <div class="setting-row-title">Natural-language booking <span class="coming-soon-pill ms-1">Pro</span></div>
+                            <div class="setting-row-hint">Clients book by typing naturally, without menus.</div>
                         </div>
+                        <label class="vz-toggle"><input type="checkbox" disabled aria-label="Natural-language booking (Pro)"><span class="vz-toggle-track"></span></label>
+                    </div>
 
-                        <div class="col-12 d-flex align-items-center justify-content-between p-3 rounded-3 border opacity-50 bg-light">
-                            <div>
-                                <div class="fw-bold small">Automatic Reminders <span class="coming-soon-pill ms-2">Pro</span></div>
-                                <div class="text-muted" style="font-size: 11px;">Send 2-hour-prior pings to reduce no-shows.</div>
-                            </div>
-                            <label class="vz-toggle"><input type="checkbox" disabled><span class="vz-toggle-track"></span></label>
+                    <div class="setting-row is-locked">
+                        <div>
+                            <div class="setting-row-title">Automatic reminders <span class="coming-soon-pill ms-1">Pro</span></div>
+                            <div class="setting-row-hint">Remind clients before their visit to cut no-shows.</div>
                         </div>
+                        <label class="vz-toggle"><input type="checkbox" disabled aria-label="Automatic reminders (Pro)"><span class="vz-toggle-track"></span></label>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <!-- ROW 3: Scheduling Logic -->
+        <!-- Scheduling rules -->
         <div class="col-lg-6">
-            <div class="section-container shadow-sm h-100">
-                <div class="section-head"><h2 class="section-title">Scheduling Rules</h2></div>
+            <section class="section-container h-100 mb-0">
+                <div class="section-head"><h2 class="section-title">Scheduling rules</h2></div>
                 <div class="p-4">
                     <div class="row g-4">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Slot Interval</label>
-                            <select class="form-select-verzio" name="slot_duration">
-                                <option value="5" {% if business.slot_interval == 5 %}selected{% endif %}>5 Mins</option>
-                                <option value="10" {% if business.slot_interval == 10 %}selected{% endif %}>10 Mins</option>
-                                <option value="15" {% if business.slot_interval == 15 %}selected{% endif %}>15 Mins</option>
-                                <option value="30" {% if business.slot_interval == 30 or not business.slot_interval %}selected{% endif %}>30 Mins</option>
-                                <option value="45" {% if business.slot_interval == 45 %}selected{% endif %}>45 Mins</option>
-                                <option value="60" {% if business.slot_interval == 60 %}selected{% endif %}>1 Hour</option>
-                                <option value="90" {% if business.slot_interval == 90 %}selected{% endif %}>1 Hr 30 Mins</option>
-                                <option value="120" {% if business.slot_interval == 120 %}selected{% endif %}>2 Hours</option>
+                            <label class="form-label" for="slot_duration">Slot length</label>
+                            <select class="form-select-verzio" id="slot_duration" name="slot_duration">
+                                <option value="5" {% if business.slot_interval == 5 %}selected{% endif %}>5 min</option>
+                                <option value="10" {% if business.slot_interval == 10 %}selected{% endif %}>10 min</option>
+                                <option value="15" {% if business.slot_interval == 15 %}selected{% endif %}>15 min</option>
+                                <option value="30" {% if business.slot_interval == 30 or not business.slot_interval %}selected{% endif %}>30 min</option>
+                                <option value="45" {% if business.slot_interval == 45 %}selected{% endif %}>45 min</option>
+                                <option value="60" {% if business.slot_interval == 60 %}selected{% endif %}>1 hour</option>
+                                <option value="90" {% if business.slot_interval == 90 %}selected{% endif %}>1 hr 30 min</option>
+                                <option value="120" {% if business.slot_interval == 120 %}selected{% endif %}>2 hours</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Advance Window (Days)</label>
-                            <input type="number" class="form-control-verzio" name="advance_booking_days" value="{{ business.advance_booking_days }}">
+                            <label class="form-label" for="advance_booking_days">Book up to (days ahead)</label>
+                            <input type="number" id="advance_booking_days" class="form-control-verzio" name="advance_booking_days" value="{{ business.advance_booking_days }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted">Parallel Capacity</label>
-                            <input type="number" class="form-control-verzio" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
-                        </div>
-                        
-                        <!-- Locked -->
-                        <div class="col-md-6 opacity-50">
-                            <label class="form-label small fw-bold text-muted">Min. Notice <span class="coming-soon-pill ms-1">Soon</span></label>
-                            <input type="text" class="form-control-verzio" value="2 Hours" disabled>
+                            <label class="form-label" for="max_parallel_bookings">Clients at the same time</label>
+                            <input type="number" id="max_parallel_bookings" class="form-control-verzio" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
                         </div>
                         <div class="col-md-6 opacity-50">
-                            <label class="form-label small fw-bold text-muted">Buffer Time <span class="coming-soon-pill ms-1">Soon</span></label>
-                            <input type="text" class="form-control-verzio" value="15 Mins" disabled>
+                            <label class="form-label">Minimum notice <span class="coming-soon-pill ms-1">Soon</span></label>
+                            <input type="text" class="form-control-verzio" value="2 hours" disabled>
+                        </div>
+                        <div class="col-md-6 opacity-50">
+                            <label class="form-label">Gap between clients <span class="coming-soon-pill ms-1">Soon</span></label>
+                            <input type="text" class="form-control-verzio" value="15 min" disabled>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <!-- ROW 4: Business Hours -->
-<div class="col-12">
-    <div class="section-container shadow-sm">
-        <div class="section-head"><h2 class="section-title">Operational Hours</h2></div>
-        <div class="p-4">
-            <div class="row g-3">
-                {% for row in hours_rows %}
-                <div class="col-md-4 col-xl-3">
-                    <div class="day-card {% if row.closed %}day-off{% endif %}" id="card-{{ row.key }}">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="fw-bold">{{ row.label }}</span>
-                            <label class="vz-toggle">
-                                <input type="checkbox" name="hours_{{ row.key_name if row.key_name else row.key }}_enabled" 
-                                       onchange="document.getElementById('card-{{ row.key }}').classList.toggle('day-off')"
-                                       {% if not row.closed %}checked{% endif %}>
-                                <span class="vz-toggle-track"></span>
-                            </label>
-                        </div>
-                        <div class="row g-2">
-                            <!-- OPENING TIME -->
-                            <div class="col-6">
-                                <div class="time-input-wrapper">
-                                    <i class="bi bi-clock"></i>
-                                    <input type="time" class="form-control-verzio form-control-sm form-control-time" 
-                                           name="hours_{{ row.key_name if row.key_name else row.key }}_open" value="{{ row.open }}">
-                                </div>
-                            </div>
-                            <!-- CLOSING TIME -->
-                            <div class="col-6">
-                                <div class="time-input-wrapper">
-                                    <i class="bi bi-clock-history"></i>
-                                    <input type="time" class="form-control-verzio form-control-sm form-control-time" 
-                                           name="hours_{{ row.key_name if row.key_name else row.key }}_close" value="{{ row.close }}">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</div>
-
-        <!-- ROW 5: Integration & Danger -->
+        <!-- Opening hours -->
         <div class="col-12">
-            <div class="row g-4">
-                <div class="col-md-8">
-                    <div class="section-container shadow-sm h-100">
-                        <div class="section-head"><h2 class="section-title">WhatsApp Integration</h2></div>
-                        <div class="p-4">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="small text-muted mb-1 text-uppercase fw-bold" style="font-size: 10px;">Phone Number ID</div>
-                                    <div class="p-2 border rounded bg-light mono small">{{ business.whatsapp_business_phone_number_id }}</div>
+            <section class="section-container mb-0">
+                <div class="section-head"><h2 class="section-title">Opening hours</h2></div>
+                <div class="p-4">
+                    <div class="row g-3">
+                        {% for row in hours_rows %}
+                        <div class="col-sm-6 col-lg-4 col-xxl-3">
+                            <div class="day-card {% if row.closed %}day-off{% endif %}" id="card-{{ row.key }}">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="fw-semibold">{{ row.label }}</span>
+                                    <label class="vz-toggle">
+                                        <input type="checkbox" name="hours_{{ row.key_name if row.key_name else row.key }}_enabled"
+                                               aria-label="Open on {{ row.label }}"
+                                               onchange="document.getElementById('card-{{ row.key }}').classList.toggle('day-off')"
+                                               {% if not row.closed %}checked{% endif %}>
+                                        <span class="vz-toggle-track"></span>
+                                    </label>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="small text-muted mb-1 text-uppercase fw-bold" style="font-size: 10px;">WhatsApp Bookings</div>
-                                    <div class="small fw-bold">
-                                        {% if business.is_active and business.accepting_bookings %}Accepting bookings{% else %}Paused{% endif %}
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="time-input-wrapper">
+                                            <i class="bi bi-sunrise"></i>
+                                            <input type="time" class="form-control-verzio form-control-time" aria-label="{{ row.label }} opening time"
+                                                   name="hours_{{ row.key_name if row.key_name else row.key }}_open" value="{{ row.open }}">
+                                        </div>
                                     </div>
-                                    <div class="text-muted" style="font-size: 11px;">Problems with messages? Contact Verzio Support.</div>
+                                    <div class="col-6">
+                                        <div class="time-input-wrapper">
+                                            <i class="bi bi-moon"></i>
+                                            <input type="time" class="form-control-verzio form-control-time" aria-label="{{ row.label }} closing time"
+                                                   name="hours_{{ row.key_name if row.key_name else row.key }}_close" value="{{ row.close }}">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="section-container shadow-sm border-danger-subtle h-100">
-                        <div class="section-head"><h2 class="section-title text-danger">Danger Zone</h2></div>
-                        <div class="p-4 d-flex flex-column gap-2">
-                            <button type="button" class="btn btn-outline-danger btn-sm w-100 opacity-50" disabled>Pause All Bookings</button>
-                            <button type="button" class="btn btn-outline-danger btn-sm w-100 opacity-50" disabled>Delete Business Account</button>
+            </section>
+        </div>
+
+        <!-- WhatsApp & account -->
+        <div class="col-lg-8">
+            <section class="section-container h-100 mb-0">
+                <div class="section-head"><h2 class="section-title">WhatsApp connection</h2></div>
+                <div class="p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="form-label">Phone number ID</div>
+                            <div class="readonly-field">{{ business.whatsapp_business_phone_number_id }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-label">Status</div>
+                            <div class="d-flex align-items-center gap-2 fw-semibold">
+                                {% if business.is_active and business.accepting_bookings %}
+                                <span class="live-dot"></span> Taking bookings
+                                {% else %}
+                                <span class="live-dot paused"></span> Paused
+                                {% endif %}
+                            </div>
+                            <div class="setting-row-hint mt-1">Messages not arriving? Contact Verzio support.</div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
+        </div>
+        <div class="col-lg-4">
+            <section class="section-container danger-panel h-100 mb-0">
+                <div class="section-head"><h2 class="section-title">Account</h2></div>
+                <div class="p-4 d-flex flex-column gap-2">
+                    <button type="button" class="btn btn-outline-danger w-100 opacity-50" disabled>Pause all bookings</button>
+                    <button type="button" class="btn btn-outline-danger w-100 opacity-50" disabled>Delete business account</button>
+                </div>
+            </section>
         </div>
 
     </div>

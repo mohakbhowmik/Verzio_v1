@@ -1,171 +1,265 @@
-@media (max-width: 767.98px) {
-	input,
-	select,
-	textarea {
-		font-size: 16px !important;
-	}
+/*
+================================================================
+VERZIO STUDIO — PHONE LAYOUT
+Served to phones by owner_base_mobile.html. Builds on style.css.
+================================================================
+*/
 
-	.sidebar,
-	.topbar {
-		display: none !important;
-	}
+input,
+select,
+textarea { font-size: 16px !important; }
 
-	.app-shell {
-		display: block;
-	}
-
-	.main-col {
-		width: 100%;
-		min-height: 100vh;
-	}
-
-	.content-container {
-		padding: 12px;
-		padding-bottom: 88px;
-	}
-
-	.owner-mobile-page {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.owner-mobile-card {
-		background: #fff;
-		border: 1px solid var(--border-subtle);
-		border-radius: 12px;
-		box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-	}
-
-	.owner-mobile-card .form-control,
-	.owner-mobile-card .form-select,
-	.owner-mobile-card .btn {
-		font-size: 0.9rem;
-	}
-
-	.owner-phone-navbar {
-		border-color: var(--border-subtle) !important;
-	}
-
-	.owner-phone-header {
-		background: #ffffff;
-		border: 1px solid var(--border-subtle);
-		border-radius: 12px;
-		padding: 14px;
-	}
-
-	.owner-phone-eyebrow {
-		font-size: 11px;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--text-muted);
-		margin-bottom: 4px;
-	}
-
-	.owner-phone-title {
-		font-size: 1.2rem;
-		font-weight: 700;
-		color: var(--text-primary);
-	}
-
-	.owner-phone-subtitle {
-		font-size: 0.88rem;
-		color: var(--text-muted);
-	}
-
-	.owner-phone-kpis {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-
-	.owner-phone-kpi-card {
-		background: #fff;
-		border: 1px solid var(--border-subtle);
-		border-radius: 12px;
-		padding: 12px;
-		display: flex;
-		gap: 12px;
-		align-items: center;
-	}
-
-	.owner-phone-kpi-icon {
-		width: 36px;
-		height: 36px;
-		border-radius: 999px;
-		background: #eef5ff;
-		color: var(--accent);
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 1rem;
-		flex-shrink: 0;
-	}
-
-	.owner-phone-kpi-number {
-		font-size: 1.3rem;
-		font-weight: 700;
-		line-height: 1.2;
-		color: var(--text-primary);
-	}
-
-	.owner-phone-kpi-number span {
-		font-size: 0.86rem;
-		font-weight: 600;
-		color: var(--text-muted);
-	}
-
-	.owner-phone-kpi-label {
-		font-size: 0.85rem;
-		color: var(--text-muted);
-	}
-
-	.owner-phone-section-title {
-		font-size: 1rem;
-		font-weight: 700;
-	}
-
-	.owner-phone-appointment {
-		border: 1px solid var(--border-subtle);
-		border-radius: 12px;
-	}
-
-	.owner-phone-field-label {
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: var(--text-muted);
-		margin-bottom: 2px;
-	}
-
-	.owner-phone-field-value {
-		font-size: 0.98rem;
-		color: var(--text-primary);
-		font-weight: 600;
-	}
-
-	.owner-mobile-fab {
-		position: fixed;
-		right: 12px;
-		bottom: 12px;
-		width: 48px;
-		height: 48px;
-		border-radius: 999px;
-		background: linear-gradient(135deg, #5a4bff, #2f7cff);
-		color: #fff;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 1.25rem;
-		box-shadow: 0 12px 24px rgba(47, 124, 255, 0.32);
-		text-decoration: none;
-		z-index: 1100;
-	}
-
-	.owner-mobile-fab:hover,
-	.owner-mobile-fab:focus,
-	.owner-mobile-fab:active {
-		color: #fff;
-		text-decoration: none;
-	}
+.m-body {
+    background: var(--bg-main);
+    min-height: 100vh;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
 }
+
+/* ---- Header ---- */
+.m-header {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+    background: var(--bg-sidebar);
+    color: #fff;
+}
+
+.m-header .sidebar-brand { padding: 0; gap: 10px; }
+.m-header .brand-mark { width: 30px; height: 30px; font-size: 16px; }
+.m-header .brand-word { font-size: 18px; }
+
+.m-header-action {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: transparent;
+    color: rgba(223, 232, 227, 0.85);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.m-main { padding: 20px 16px 24px; }
+
+/* ---- Page heading ---- */
+.owner-mobile-page { display: flex; flex-direction: column; gap: 12px; }
+
+.m-heading { margin-bottom: 6px; }
+
+.m-heading h1 {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.1;
+    margin: 0 0 6px;
+}
+
+.m-heading p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+.m-heading-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+
+.m-section-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 10px 2px 2px;
+}
+
+.m-section-title h2 { font-size: 16px; font-weight: 600; margin: 0; }
+.m-section-title a { font-size: 14px; font-weight: 600; color: var(--accent-ink); text-decoration: none; }
+
+/* ---- Cards ---- */
+.owner-mobile-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+}
+
+.m-card-pad { padding: 16px; }
+
+.m-label { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-main); margin: 14px 0 6px; }
+.m-label:first-child { margin-top: 0; }
+.m-hint { font-size: 12.5px; color: var(--text-muted); margin-top: 6px; }
+
+.owner-mobile-card .form-control,
+.owner-mobile-card .form-select {
+    padding: 11px 14px;
+    background-color: var(--bg-surface);
+}
+
+.owner-mobile-card .btn { padding: 11px 16px; font-size: 15px; }
+
+/* ---- Ledger on phones ---- */
+.m-ledger {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+}
+
+.m-ledger .ledger-cell {
+    padding: 16px;
+    border-left: 1px solid var(--border-subtle);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.m-ledger .ledger-cell:nth-child(2n) { border-left: none; }
+.m-ledger .ledger-cell.is-lead { grid-column: 1 / -1; border: none; display: flex; align-items: center; justify-content: space-between; }
+.m-ledger .ledger-cell.is-lead .ledger-value { margin: 0; font-size: 52px; }
+.m-ledger .ledger-value { font-size: 36px; margin: 10px 0 2px; }
+.m-ledger .ledger-label { font-size: 13px; }
+.m-ledger .ledger-note { font-size: 12.5px; }
+
+/* ---- Appointment book rows ---- */
+.m-book { padding: 4px 0; }
+
+.m-book-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.m-book-row:last-child { border-bottom: none; }
+
+.m-book-time {
+    font-variant-numeric: tabular-nums;
+    border-right: 2px solid var(--brass-soft);
+    padding-right: 10px;
+}
+
+.m-book-time strong { display: block; font-size: 15.5px; font-weight: 600; line-height: 1.2; }
+.m-book-time span { font-size: 12px; color: var(--text-tertiary); }
+
+.m-book-name { font-weight: 600; font-size: 15px; }
+.m-book-service { font-size: 13.5px; color: var(--text-muted); margin-top: 1px; }
+.m-book-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+
+.m-actions { display: flex; gap: 8px; margin-top: 12px; }
+.m-actions form { flex: 1; margin: 0; }
+.m-actions .btn { width: 100%; padding: 10px 12px; font-size: 14px; }
+
+/* ---- Activity ---- */
+.owner-mobile-card .activity-item { padding: 12px 16px 12px 40px; }
+.owner-mobile-card .activity-item::before { left: 18px; top: 18px; }
+
+/* ---- Service list ---- */
+.m-service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.m-service:last-child { border-bottom: none; }
+.m-service-body { flex: 1; min-width: 0; }
+.m-service-name { font-weight: 600; font-size: 15px; }
+.m-service-meta { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.m-service-tools { display: flex; gap: 6px; margin-top: 10px; }
+.m-service-tools form { margin: 0; }
+.m-service-tools .icon-btn { width: 38px; height: 38px; }
+
+/* ---- Switch rows ---- */
+.m-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.m-switch-row:last-child { border-bottom: none; }
+.m-switch-row .form-check { margin: 0; padding: 0; min-height: 0; }
+.m-switch-row .form-check-input { margin: 0; width: 2.6em; height: 1.45em; float: none; }
+.m-switch-row span { font-size: 14.5px; font-weight: 500; }
+
+.m-day {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.m-day:last-child { border-bottom: none; }
+.m-day-times { display: flex; gap: 8px; margin-top: 8px; }
+.m-day-times .form-control { padding: 8px 10px; font-variant-numeric: tabular-nums; }
+
+.m-sticky-save {
+    position: sticky;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    padding: 12px 0 4px;
+    background: linear-gradient(to bottom, rgba(244, 245, 242, 0), var(--bg-main) 35%);
+}
+
+/* ---- Bottom tab bar ---- */
+.m-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1040;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-light);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+
+.m-tabbar a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 0 4px;
+    color: var(--text-tertiary);
+    text-decoration: none;
+    font-size: 11.5px;
+    font-weight: 600;
+    position: relative;
+}
+
+.m-tabbar a i { font-size: 20px; line-height: 1; }
+.m-tabbar a.active { color: var(--accent); }
+
+.m-tabbar a.active::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    width: 22px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--brass);
+}
+
+/* ---- Floating new-booking button ---- */
+.owner-mobile-fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--bg-sidebar);
+    color: #e2c592;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: 0 0 0 4px rgba(180, 138, 74, 0.18), var(--shadow-float);
+    text-decoration: none;
+    z-index: 1035;
+}
+
+.owner-mobile-fab:hover,
+.owner-mobile-fab:focus,
+.owner-mobile-fab:active { color: #fff; text-decoration: none; }

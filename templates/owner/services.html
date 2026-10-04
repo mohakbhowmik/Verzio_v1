@@ -7,20 +7,23 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Services</h1>
-    <div class="page-subtitle">Service catalog for your current tenant only.</div>
+    <p class="page-subtitle">Your treatment menu. Active services are offered to clients when they book on WhatsApp.</p>
   </div>
   <a href="/owner/services/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add service</a>
 </div>
 
 <div class="filter-bar">
-  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search services…" data-table-search="#services-table">
+  <div class="search-field">
+    <i class="bi bi-search"></i>
+    <input type="text" class="form-control-verzio" placeholder="Search services" aria-label="Search services" data-table-search="#services-table">
+  </div>
 </div>
 
 <div class="table-verzio-wrap" id="services-table">
   <table class="table table-verzio align-middle mb-0">
     <thead>
       <tr>
-        <th>Name</th>
+        <th>Service</th>
         <th>Duration</th>
         <th>Price</th>
         <th>Status</th>
@@ -36,8 +39,8 @@
             <div class="cell-primary">{{ service.name }}</div>
           </div>
         </td>
-        <td class="cell-secondary">{{ service.duration }} mins</td>
-        <td class="cell-secondary">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}—{% endif %}</td>
+        <td class="cell-secondary mono">{{ service.duration }} min</td>
+        <td class="cell-primary mono">{% if service.price is not none %}₹{{ '{:,.0f}'.format(service.price) }}{% else %}<span class="cell-muted">Not set</span>{% endif %}</td>
         <td>
           {% if service.is_active %}
             <span class="status-badge status-active"><span class="dot"></span>Active</span>
@@ -47,11 +50,11 @@
         </td>
         <td class="text-end">
           <div class="d-flex align-items-center justify-content-end gap-2">
-            <a href="/owner/services/{{ service.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ service.name }}">
+            <a href="/owner/services/{{ service.id }}/edit" class="icon-btn" aria-label="Edit {{ service.name }}">
               <i class="bi bi-pencil"></i>
             </a>
             <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
-              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
+              <button type="submit" class="icon-btn" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
                 {% if service.is_active %}
                 <i class="bi bi-eye"></i>
                 {% else %}
@@ -64,8 +67,7 @@
                   class="m-0 d-inline-flex">
               <button
                   type="submit"
-                  class="icon-btn"
-                  style="width:30px;height:30px;"
+                  class="icon-btn is-negative"
                   aria-label="Delete {{ service.name }}"
                   title="Delete"
                   onclick="return confirm('Delete this service?');">
@@ -77,8 +79,12 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="5" class="text-center cell-muted py-5">
-          No services found for this tenant.
+        <td colspan="5">
+          <div class="empty-state">
+            <i class="bi bi-stars"></i>
+            <strong>Your menu is empty</strong>
+            <p>Add your first service so clients can choose it when they book.</p>
+          </div>
         </td>
       </tr>
       {% endfor %}

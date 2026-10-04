@@ -91,6 +91,7 @@ async def owner_reports_page(
         name=template_name,
         context={
             "active_page": "reports",
+            "owner": owner,
             "business": business,
             "selected_from": selected_from.isoformat(),
             "selected_to": selected_to.isoformat(),

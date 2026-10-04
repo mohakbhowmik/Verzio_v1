@@ -8,14 +8,14 @@
   <!-- Header / Breadcrumb -->
   <div class="breadcrumb-verzio">
     <a href="{% if owner_portal %}/owner/services{% else %}/admin/services{% endif %}">
-      <i class="bi bi-arrow-left me-2"></i> Back to Services
+      <i class="bi bi-arrow-left me-2"></i> Services
     </a>
   </div>
 
   <div class="page-header mb-4">
     <div>
-      <h1 class="page-title" style="margin:0;">{% if service %}Edit Service{% else %}Add New Service{% endif %}</h1>
-      <p class="page-subtitle" style="margin-top:4px;">Configure service details and availability for WhatsApp bookings.</p>
+      <h1 class="page-title">{% if service %}{{ service.name }}{% else %}New service{% endif %}</h1>
+      <p class="page-subtitle">Set the name, length and price clients see when they book on WhatsApp.</p>
     </div>
   </div>
 
@@ -24,28 +24,28 @@
     <!-- Section: Details -->
     <div class="section-container mb-4">
       <div class="section-head">
-        <h2 class="section-title">Service Details</h2>
+        <h2 class="section-title">Details</h2>
       </div>
       <div class="p-4">
         <div class="mb-4">
-          <label class="form-label fw-bold small text-uppercase text-muted mb-2">Service Name</label>
-          <input type="text" name="name" class="form-control-verzio w-100" required
-                 value="{{ service.name if service else '' }}" placeholder="e.g. Bamboo Massage">
+          <label class="form-label" for="svc-name">Service name</label>
+          <input type="text" name="name" id="svc-name" class="form-control-verzio w-100" required
+                 value="{{ service.name if service else '' }}" placeholder="e.g. HydraFacial">
         </div>
 
         <div class="row g-3">
           <div class="col-md-6">
-            <label class="form-label fw-bold small text-uppercase text-muted mb-2">Duration</label>
+            <label class="form-label" for="svc-duration">Duration</label>
             <div class="input-group-verzio no-prefix">
-              <input type="number" name="duration" class="form-control-verzio" value="{{ service.duration if service else 30 }}">
-              <span class="unit">mins</span>
+              <input type="number" name="duration" id="svc-duration" class="form-control-verzio" value="{{ service.duration if service else 30 }}">
+              <span class="unit">min</span>
             </div>
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-bold small text-uppercase text-muted mb-2">Price</label>
+            <label class="form-label" for="svc-price">Price</label>
             <div class="input-group-verzio">
               <span class="prefix">₹</span>
-              <input type="number" name="price" class="form-control-verzio" value="{{ service.price if service and service.price is not none else '' }}">
+              <input type="number" name="price" id="svc-price" class="form-control-verzio" value="{{ service.price if service and service.price is not none else '' }}">
             </div>
           </div>
         </div>
@@ -59,11 +59,11 @@
       </div>
       <div class="visibility-card-body">
         <div class="visibility-text">
-          <div class="fw-bold">Service is Active</div>
-          <p class="text-muted small mb-0">Inactive services are hidden from customers but kept in your historical reports.</p>
+          <div class="fw-bold">Offer this service</div>
+          <p class="text-muted small mb-0">When off, clients can't book it, but past appointments stay in your reports.</p>
         </div>
         <label class="vz-toggle">
-          <input type="checkbox" name="is_active" {% if (service.is_active if service else true) %}checked{% endif %}>
+          <input type="checkbox" name="is_active" aria-label="Offer this service" {% if (service.is_active if service else true) %}checked{% endif %}>
           <span class="vz-toggle-track"></span>
         </label>
       </div>
@@ -75,7 +75,7 @@
         Cancel
       </a>
       <button type="submit" class="btn-verzio-primary px-4">
-        {% if service %}Update Service{% else %}Create Service{% endif %}
+        {% if service %}Save changes{% else %}Add service{% endif %}
       </button>
     </div>
 

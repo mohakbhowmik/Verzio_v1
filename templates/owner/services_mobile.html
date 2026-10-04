@@ -4,48 +4,49 @@
 
 {% block content %}
 <section class="owner-mobile-page">
-    <div class="d-flex justify-content-between align-items-start mb-2">
+    <div class="m-heading m-heading-row">
         <div>
-            <div class="text-uppercase small fw-bold text-muted">Services</div>
-            <h1 class="h6 fw-bold mb-1">Service Catalog</h1>
-            <p class="text-muted small mb-0">Manage offerings.</p>
+            <h1>Services</h1>
+            <p>Your treatment menu on WhatsApp.</p>
         </div>
-        <a href="/owner/services/new" class="btn btn-primary btn-sm">+ Add</a>
+        <a href="/owner/services/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</a>
     </div>
 
-    <div class="d-flex flex-column gap-2">
+    <div class="owner-mobile-card">
         {% for service in services %}
-        <div class="owner-mobile-card p-2">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-                <div>
-                    <div class="fw-bold small">{{ service.name }}</div>
-                    <div class="small text-muted">{{ service.duration }} mins</div>
+        <div class="m-service">
+            <div class="table-avatar">{{ service.name[:2]|upper }}</div>
+            <div class="m-service-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="m-service-name">{{ service.name }}</div>
+                    {% if service.is_active %}
+                    <span class="status-badge status-active"><span class="dot"></span>Active</span>
+                    {% else %}
+                    <span class="status-badge status-inactive"><span class="dot"></span>Hidden</span>
+                    {% endif %}
                 </div>
-                <span class="badge rounded-pill {% if service.is_active %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">{% if service.is_active %}Active{% else %}Inactive{% endif %}</span>
-            </div>
-            <div class="small text-muted mb-2">{% if service.price is not none %}₹{{ '%.0f'|format(service.price) }}{% else %}Price not set{% endif %}</div>
-            <div class="d-flex justify-content-end gap-2">
-                <a href="/owner/services/{{ service.id }}/edit" class="btn btn-outline-secondary btn-sm p-0" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;" aria-label="Edit {{ service.name }}">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                <form method="post" action="/owner/services/{{ service.id }}/toggle" class="m-0 d-inline-flex">
-                    <button type="submit" class="btn btn-outline-primary btn-sm p-0" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;" aria-label="{% if service.is_active %}Disable{% else %}Enable{% endif %} {{ service.name }}" title="{% if service.is_active %}Disable{% else %}Enable{% endif %}">
-                        {% if service.is_active %}
-                        <i class="bi bi-eye"></i>
-                        {% else %}
-                        <i class="bi bi-eye-slash"></i>
-                        {% endif %}
-                    </button>
-                </form>
-                <form method="post" action="/owner/services/{{ service.id }}/delete" class="m-0 d-inline-flex">
-                    <button type="submit" class="btn btn-outline-danger btn-sm p-0" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;" aria-label="Delete {{ service.name }}" title="Delete" onclick="return confirm('Delete this service?');">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </form>
+                <div class="m-service-meta">{{ service.duration }} min · {% if service.price is not none %}₹{{ '{:,.0f}'.format(service.price) }}{% else %}Price not set{% endif %}</div>
+                <div class="m-service-tools">
+                    <a href="/owner/services/{{ service.id }}/edit" class="icon-btn" aria-label="Edit {{ service.name }}"><i class="bi bi-pencil"></i></a>
+                    <form method="post" action="/owner/services/{{ service.id }}/toggle">
+                        <button type="submit" class="icon-btn" aria-label="{% if service.is_active %}Hide{% else %}Show{% endif %} {{ service.name }}" title="{% if service.is_active %}Hide from clients{% else %}Show to clients{% endif %}">
+                            <i class="bi {% if service.is_active %}bi-eye{% else %}bi-eye-slash{% endif %}"></i>
+                        </button>
+                    </form>
+                    <form method="post" action="/owner/services/{{ service.id }}/delete">
+                        <button type="submit" class="icon-btn is-negative" aria-label="Delete {{ service.name }}" title="Delete" onclick="return confirm('Delete this service?');">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
         {% else %}
-        <div class="owner-mobile-card p-2 text-center text-muted small">No services found.</div>
+        <div class="empty-state">
+            <i class="bi bi-stars"></i>
+            <strong>Your menu is empty</strong>
+            <p>Add your first service so clients can book it.</p>
+        </div>
         {% endfor %}
     </div>
 </section>

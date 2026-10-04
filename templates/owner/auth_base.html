@@ -3,49 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#173b32">
 
     <title>{% block title %}Verzio Studio{% endblock %}</title>
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-          rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap"
-          rel="stylesheet">
-
-    <!-- Main CSS -->
-    <link rel="stylesheet"
-          href="{{ url_for('static', path='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 
     {% block extra_head %}{% endblock %}
 </head>
 
 <body class="auth-body">
 
-    <div class="auth-wrapper">
+    <div class="auth-mobile-brand">
+        <span class="sidebar-brand">
+            <span class="brand-mark">V</span>
+            <span class="brand-word">Verzio<small>Studio</small></span>
+        </span>
+    </div>
 
-        <div class="auth-brand">
-            <h1>Verzio Studio</h1>
-            <p>Sign in to continue</p>
-        </div>
+    <div class="auth-split">
 
-        <div class="auth-card">
+        <aside class="auth-panel">
+            <span class="sidebar-brand">
+                <span class="brand-mark">V</span>
+                <span class="brand-word">Verzio<small>Studio</small></span>
+            </span>
 
-          <div class="auth-form">
+            <div>
+                <p class="auth-quote">Every chair filled. Every booking on WhatsApp.</p>
+                <p class="auth-quote-sub">Appointments, approvals and your day's numbers for salons, spas and clinics, in one place.</p>
+            </div>
 
-          {% block content %}{% endblock %}
+            <div class="auth-panel-foot">Owner portal</div>
+        </aside>
 
-         </div>
-
-       </div>
+        <main class="auth-wrapper">
+            <div class="auth-card">
+                <div class="auth-form">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </main>
 
     </div>
 
