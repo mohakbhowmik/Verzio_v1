@@ -10,6 +10,10 @@ VERZIO STUDIO — APPLICATION ENTRY POINT
 - T5:  Manager approve/reject/no-show buttons are tenant-scoped, sender-checked
        and only allow valid status transitions.
 - T1:  /admin guarded by Basic Auth middleware; API docs off in production.
+- W3:  24-hour window. Every inbound message is recorded; owner requests and
+       status updates fall back to approved templates when the window is
+       closed. Template button taps (type "button") are handled like
+       interactive taps. Failed deliveries reported by Meta are logged.
 """
 import hashlib
 import hmac
@@ -37,7 +41,16 @@ from activity_log import log_event
 from booking_engine import BookingEngineException
 from booking_runtime import BookingRuntime
 from database import ActivityEvent, Appointment, Business, SessionLocal, engine, get_db, init_db
-from whatsapp_client import build_status_message, is_real_phone, mask_phone, normalize_phone, send_whatsapp
+from whatsapp_client import (
+    build_status_message,
+    build_status_template,
+    ensure_window_table,
+    is_real_phone,
+    mask_phone,
+    normalize_phone,
+    record_inbound,
+    send_whatsapp,
+)
 
 from routers.admin_businesses import router as business_router
 from routers.admin_services import router as services_router
@@ -116,6 +129,7 @@ def startup() -> None:
             text("DELETE FROM processed_messages WHERE received_at < :cutoff"),
             {"cutoff": datetime.utcnow() - timedelta(days=7)},
         )
+    ensure_window_table()
 
     if not META_APP_SECRET:
         if IS_PRODUCTION:
@@ -188,6 +202,9 @@ def _profile_name(val: dict, wa_id: str) -> str | None:
 
 
 def _interaction_id(msg: dict) -> str | None:
+    if msg.get("type") == "button":
+        # Quick-reply button on a template message.
+        return (msg.get("button") or {}).get("payload")
     interactive = msg.get("interactive") or {}
     itype = interactive.get("type")
     if itype == "button_reply":
@@ -233,7 +250,8 @@ async def _run_customer_flow(
         await send_whatsapp(phone, tenant_id, resp["customer"], biz.id)
         owner = resp.get("owner") or {}
         if owner.get("recipient") and owner.get("payload"):
-            await send_whatsapp(owner["recipient"], tenant_id, owner["payload"], biz.id)
+            await send_whatsapp(owner["recipient"], tenant_id, owner["payload"], biz.id,
+                                template=owner.get("template"))
     else:
         await send_whatsapp(phone, tenant_id, resp, biz.id)
 
@@ -294,7 +312,10 @@ async def _handle_manager_action(
     if customer_text:
         delivered = False
         if is_real_phone(appt.customer_phone):
-            delivered = await send_whatsapp(appt.customer_phone, tenant_id, {"type": "text", "body": customer_text}, biz.id)
+            delivered = await send_whatsapp(
+                appt.customer_phone, tenant_id, {"type": "text", "body": customer_text}, biz.id,
+                template=build_status_template(appt, biz, previous_status, next_status),
+            )
         note = " Customer notified." if delivered else " We couldn't message the customer, please contact them directly."
 
     await send_whatsapp(
@@ -322,11 +343,12 @@ async def process_message(val: dict, msg: dict) -> None:
             logger.warning("Webhook for unknown phone_number_id %s; ignored.", tenant_id)
             return
         business_id = biz.id
+        record_inbound(business_id, sender)   # opens the 24h window for this person
 
         log_event(db=db, event_type="webhook_received", status="info",
                   message=f"Incoming {msg_type} message", business_id=business_id)
 
-        if msg_type == "interactive":
+        if msg_type in ("interactive", "button"):
             iid = _interaction_id(msg)
             if not iid:
                 logger.info("Unsupported interactive message for business_id=%s", business_id)
@@ -359,6 +381,27 @@ async def process_message(val: dict, msg: dict) -> None:
         db.close()
 
 
+def process_status(val: dict, status: dict) -> None:
+    """Log a delivery failure Meta reported for one of our outbound messages."""
+    db = SessionLocal()
+    try:
+        tenant_id = (val.get("metadata") or {}).get("phone_number_id")
+        biz = db.query(Business).filter(Business.whatsapp_business_phone_number_id == tenant_id).first()
+        error = (status.get("errors") or [{}])[0]
+        code = error.get("code")
+        title = error.get("title") or error.get("message") or "unknown error"
+        message = f"Delivery to {mask_phone(status.get('recipient_id'))} failed: {code} {title}"
+        if code == 131047:
+            message += " (outside the 24-hour window: check this business's message templates are approved)"
+        logger.warning(message)
+        log_event(db=db, event_type="whatsapp_delivery_failed", status="error",
+                  message=message[:500], business_id=biz.id if biz else None)
+    except Exception:
+        logger.exception("Could not process delivery status")
+    finally:
+        db.close()
+
+
 # ------------------------------------------------------------------------
 # Routes
 # ------------------------------------------------------------------------
@@ -386,6 +429,9 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                     background_tasks.add_task(process_message, val, msg)
                 else:
                     logger.info("Duplicate webhook message ignored: %s", msg.get("id"))
+            for status in val.get("statuses") or []:
+                if status.get("status") == "failed" and claim_message(f"status:{status.get('id')}:failed"):
+                    background_tasks.add_task(process_status, val, status)
 
     return {"status": "received"}
 

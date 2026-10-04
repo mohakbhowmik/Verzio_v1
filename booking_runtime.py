@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from booking_engine import BookingEngineException, VerzioSaaSEngine, business_today
 from database import Business, Service
 from runtime_state import RuntimeStateManager
+from whatsapp_client import build_owner_alert_template, build_owner_request_template
 
 logger = logging.getLogger("VERZIO_RUNTIME")
 
@@ -391,9 +392,15 @@ class BookingRuntime:
             )
         response = {"customer": {"type": "text", "body": customer_text}}
 
-        owner_payload = self._owner_notification(biz, appt, service, when)
+        owner_payload, owner_template = self._owner_notification(biz, appt, service, when)
         if owner_payload:
-            response["owner"] = {"recipient": biz.manager_phone_number, "payload": owner_payload}
+            # The owner may not have messaged this number in 24h, so the
+            # template is sent instead whenever their window is closed.
+            response["owner"] = {
+                "recipient": biz.manager_phone_number,
+                "payload": owner_payload,
+                "template": owner_template,
+            }
         return response
 
     def _booking_failed(self, phone: str, biz: Business, service: Service, start: datetime, exc: BookingEngineException):
@@ -438,15 +445,21 @@ class BookingRuntime:
             f"Booking #{appt.id}"
         )
         if appt.status == "pending":
-            return {
-                "type": "buttons",
-                "body": f"📅 New booking request\n\n{details}",
-                "buttons": [
-                    {"id": f"confirm_{appt.id}", "title": "Approve ✅"},
-                    {"id": f"cancel_{appt.id}", "title": "Reject ❌"},
-                ],
-            }
+            return (
+                {
+                    "type": "buttons",
+                    "body": f"📅 New booking request\n\n{details}",
+                    "buttons": [
+                        {"id": f"confirm_{appt.id}", "title": "Approve ✅"},
+                        {"id": f"cancel_{appt.id}", "title": "Reject ❌"},
+                    ],
+                },
+                build_owner_request_template(biz, appt, service.name),
+            )
         prefs = biz.notification_preferences or {}
         if prefs.get("whatsapp_owner", True):
-            return {"type": "text", "body": f"📅 New booking (auto-confirmed)\n\n{details}"}
-        return None
+            return (
+                {"type": "text", "body": f"📅 New booking (auto-confirmed)\n\n{details}"},
+                build_owner_alert_template(biz, appt, service.name),
+            )
+        return None, None

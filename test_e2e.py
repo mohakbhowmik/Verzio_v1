@@ -15,10 +15,17 @@ import server, whatsapp_client, owner.owner_appointments as oa
 from database import SessionLocal, Business, Service, Appointment, UserSession
 from booking_engine import business_today
 
+# Stub only the final HTTP call to Meta, so the real 24h-window and template
+# logic in whatsapp_client.send_whatsapp runs. `template_ok` simulates whether
+# the client's templates are approved yet.
 outbox = []
-async def fake_send(to, pnid, payload, business_id=None):
-    outbox.append({"to": to, "from": pnid, "payload": payload}); return True
-server.send_whatsapp = fake_send; oa.send_whatsapp = fake_send
+meta = {"template_ok": True}
+async def fake_post(recipient, pnid, payload):
+    if payload.get("type") == "template" and not meta["template_ok"]:
+        return "Meta API 404: template name does not exist"
+    outbox.append({"to": recipient, "from": pnid, "payload": payload}); return None
+whatsapp_client._post = fake_post
+tname = lambda m: m["payload"].get("template", {}).get("name") if m["payload"].get("type") == "template" else None
 
 fails = 0
 def check(label, ok, extra=""):
@@ -90,8 +97,15 @@ with TestClient(server.app) as client:
     r, out = webhook(client, "PN_A", P, btn("action_confirm"))
     to_customer = [m for m in out if m["to"] == P]; to_owner = [m for m in out if m["to"] == "910000000001"]
     check("confirm -> customer 'request received'", to_customer and "Request received" in to_customer[0]["payload"]["body"], out)
-    check("confirm -> owner gets Approve/Reject from tenant A", to_owner and to_owner[0]["payload"]["type"] == "buttons"
-          and to_owner[0]["from"] == "PN_A", out)
+    check("owner hasn't messaged in 24h -> gets 'new_booking_request' TEMPLATE from tenant A",
+          to_owner and tname(to_owner[0]) == "new_booking_request" and to_owner[0]["from"] == "PN_A", out)
+    if to_owner and tname(to_owner[0]):
+        comps = to_owner[0]["payload"]["template"]["components"]
+        payloads = [c["parameters"][0]["payload"] for c in comps if c["type"] == "button"]
+        params = [p_["text"] for p_ in comps[0]["parameters"]]
+        check("template has Approve/Reject payloads and clean parameters",
+              payloads[0].startswith("confirm_") and payloads[1].startswith("cancel_")
+              and all("\n" not in x and x for x in params), (payloads, params))
     appt = db.query(Appointment).filter_by(business_id=A.id).first()
     check("appointment saved: pending, name, 10:00", appt and appt.status == "pending" and appt.customer_name == "Priya Sharma"
           and appt.appointment_time.strftime("%H:%M") == "10:00", appt and (appt.status, appt.customer_name))
@@ -104,9 +118,10 @@ with TestClient(server.app) as client:
     r, out = webhook(client, "PN_A", "918888888888", btn(f"confirm_{appt.id}"))
     db.refresh(appt)
     check("stranger tapping Approve is ignored", out == [] and appt.status == "pending", (out, appt.status))
-    r, out = webhook(client, "PN_A", "910000000001", btn(f"confirm_{appt.id}"))
+    tpl_btn = lambda payload: {"type": "button", "button": {"payload": payload, "text": "Approve"}}
+    r, out = webhook(client, "PN_A", "910000000001", tpl_btn(f"confirm_{appt.id}"))
     db.refresh(appt)
-    check("manager Approve -> confirmed", appt.status == "confirmed")
+    check("manager taps Approve on the TEMPLATE -> confirmed", appt.status == "confirmed")
     check("customer notified + manager acknowledged",
           any(m["to"] == P and "confirmed" in m["payload"]["body"] for m in out)
           and any(m["to"] == "910000000001" and "Customer notified" in m["payload"]["body"] for m in out), out)
@@ -131,8 +146,10 @@ with TestClient(server.app) as client:
     webhook(client, "PN_B", P, tap(f"svc_{sb.id}"))
     webhook(client, "PN_B", P, tap(tomorrow_id)); webhook(client, "PN_B", P, tap("time_11:00"))
     r, out = webhook(client, "PN_B", P, btn("action_confirm"))
-    check("auto-confirm business -> 'You're booked' + owner FYI (no buttons)",
-          any(m["to"] == P and "You're booked" in m["payload"]["body"] for m in out)
+    # Tenant B's owner tapped a button earlier in this test, so their window is
+    # open and a normal message is correct (no template charge).
+    check("auto-confirm business -> 'You're booked' + owner FYI (window open -> normal message)",
+          any(m["to"] == P and "You're booked" in m["payload"].get("body", "") for m in out)
           and any(m["to"] == "910000000002" and m["payload"]["type"] == "text" for m in out), out)
     r, out = webhook(client, "PN_B", P, tap(f"svc_{sa.id}"))
     check("tenant A's service id rejected at tenant B", out and "expired" in out[0]["payload"]["body"], out)
@@ -171,8 +188,53 @@ with TestClient(server.app) as client:
     outbox.clear()
     r = client.post(f"/owner/appointments/{pend.id}/reject", follow_redirects=False)
     db.refresh(pend)
-    check("portal Reject -> cancelled + customer messaged", r.status_code == 303 and pend.status == "cancelled"
-          and any(m["to"] == "915555555555" and "couldn't confirm" in m["payload"]["body"] for m in outbox), outbox)
+    check("portal Reject, customer never messaged -> 'booking_declined' TEMPLATE",
+          r.status_code == 303 and pend.status == "cancelled"
+          and any(m["to"] == "915555555555" and tname(m) == "booking_declined" for m in outbox), outbox)
+
+    # --- 24h window: customer inside window gets free-form; after 24h gets a template
+    from whatsapp_client import record_inbound
+    import time as _t
+    pend2 = Appointment(business_id=A.id, service_id=sa.id, customer_phone="914444444444", customer_name="Asha",
+                        appointment_time=walk.appointment_time + timedelta(hours=3), status="pending")
+    db.add(pend2); db.commit()
+    record_inbound(A.id, "914444444444")                        # messaged just now
+    outbox.clear()
+    client.post(f"/owner/appointments/{pend2.id}/approve", follow_redirects=False)
+    check("customer messaged recently -> normal free-form confirmation",
+          any(m["to"] == "914444444444" and m["payload"]["type"] == "text" and "confirmed" in m["payload"]["body"]
+              for m in outbox), outbox)
+    record_inbound(A.id, "914444444444", at=_t.time() - 25 * 3600)   # last message 25h ago
+    outbox.clear()
+    client.post(f"/owner/appointments/{pend2.id}/cancel", follow_redirects=False)
+    check("customer's last message 25h ago -> 'booking_cancelled' TEMPLATE",
+          any(m["to"] == "914444444444" and tname(m) == "booking_cancelled" for m in outbox), outbox)
+
+    # --- template not approved yet -> falls back to a normal message + incident
+    from database import Incident
+    meta["template_ok"] = False
+    pend3 = Appointment(business_id=A.id, service_id=sa.id, customer_phone="913333333333", customer_name="Dev",
+                        appointment_time=walk.appointment_time + timedelta(hours=4), status="pending")
+    db.add(pend3); db.commit()
+    outbox.clear()
+    client.post(f"/owner/appointments/{pend3.id}/approve", follow_redirects=False)
+    check("template not approved -> falls back to normal message",
+          any(m["to"] == "913333333333" and m["payload"]["type"] == "text" for m in outbox), outbox)
+    check("...and records an incident so you notice",
+          db.query(Incident).filter(Incident.title == "Message template not delivered").count() >= 1)
+    meta["template_ok"] = True
+
+    # --- Meta reports a failed delivery (e.g. 131047) -> logged, once
+    from database import ActivityEvent
+    status_body = json.dumps({"entry": [{"changes": [{"value": {"metadata": {"phone_number_id": "PN_A"},
+        "statuses": [{"id": "wamid.out1", "status": "failed", "recipient_id": "913333333333",
+                      "errors": [{"code": 131047, "title": "Re-engagement message"}]}]}}]}]}).encode()
+    sig = "sha256=" + hmac.new(b"test-secret", status_body, hashlib.sha256).hexdigest()
+    for _ in range(2):
+        client.post("/webhook", content=status_body, headers={"X-Hub-Signature-256": sig})
+    failed_logs = db.query(ActivityEvent).filter(ActivityEvent.event_type == "whatsapp_delivery_failed").all()
+    check("failed delivery status logged once with a 24h hint",
+          len(failed_logs) == 1 and "24-hour window" in failed_logs[0].message, [e.message for e in failed_logs])
     db.close()
 
 os.remove(tmp.name)

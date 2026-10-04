@@ -24,7 +24,13 @@ from activity_log import log_event
 from booking_engine import BookingEngineException, VerzioSaaSEngine
 from database import Appointment, Business, Service, get_db
 from owner.owner_auth import is_mobile, resolve_owner_and_business
-from whatsapp_client import build_status_message, is_real_phone, normalize_phone, send_whatsapp
+from whatsapp_client import (
+    build_status_message,
+    build_status_template,
+    is_real_phone,
+    normalize_phone,
+    send_whatsapp,
+)
 
 logger = logging.getLogger("VERZIO_OWNER_APPOINTMENTS")
 
@@ -160,6 +166,7 @@ def _queue_customer_update(
         business.whatsapp_business_phone_number_id,
         {"type": "text", "body": message},
         business.id,
+        template=build_status_template(appointment, business, previous_status, new_status),
     )
 
 
