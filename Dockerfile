@@ -22,5 +22,5 @@ COPY . .
 # Expose internal FastAPI port
 EXPOSE 8000
 
-# Start Uvicorn with proxy headers enabled for HTTPS reverse proxies
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+# One worker only: SQLite allows a single writer. Proxy headers so secure cookies work behind Caddy.
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips=*"]

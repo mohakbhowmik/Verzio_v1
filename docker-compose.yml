@@ -5,10 +5,19 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # Overrides .env: the database must live on the persistent volume,
+      # or every rebuild starts with an empty database.
+      - DATABASE_URL=sqlite:////app/data/verzio_saas.db
     volumes:
       - verzio_sqlite_data:/app/data
     expose:
       - "8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   caddy:
     image: caddy:latest

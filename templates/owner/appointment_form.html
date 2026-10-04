@@ -1,0 +1,87 @@
+{% extends "owner_base_mobile.html" if mobile else "owner/base.html" %}
+
+{% block title %}New Booking — Verzio Studio{% endblock %}
+{% block page_title %}New Booking{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px;">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Add a booking</h1>
+      <p class="page-subtitle">For walk-ins and phone bookings. The slot is blocked on WhatsApp immediately.</p>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger mb-3 d-flex align-items-center">
+    <i class="bi bi-exclamation-circle-fill me-2"></i> {{ error }}
+  </div>
+  {% endif %}
+
+  {% if not services %}
+  <div class="alert alert-warning">
+    You have no active services yet. <a href="/owner/services/new">Add a service</a> first.
+  </div>
+  {% else %}
+  <form method="post" action="/owner/appointments/manual">
+    <section class="section-container mb-3">
+      <div class="section-head"><h2 class="section-title">Customer</h2></div>
+      <div class="p-4">
+        <label class="form-label" for="customer_name">Name</label>
+        <input type="text" id="customer_name" name="customer_name" class="form-control-verzio mb-3"
+               value="{{ values.customer_name }}" placeholder="e.g. Priya Sharma" maxlength="120">
+
+        <label class="form-label" for="customer_phone">Mobile number</label>
+        <input type="tel" id="customer_phone" name="customer_phone" class="form-control-verzio mono"
+               value="{{ values.customer_phone }}" placeholder="e.g. 9876543210" inputmode="tel">
+        <div class="setting-row-hint mt-1">Optional for walk-ins. Needed if you want WhatsApp updates sent to them later.</div>
+      </div>
+    </section>
+
+    <section class="section-container mb-3">
+      <div class="section-head"><h2 class="section-title">Booking</h2></div>
+      <div class="p-4">
+        <label class="form-label" for="service_id">Service</label>
+        <select id="service_id" name="service_id" class="form-select-verzio mb-3" required>
+          <option value="" disabled {% if not values.service_id %}selected{% endif %}>Choose a service</option>
+          {% for s in services %}
+          <option value="{{ s.id }}" {% if values.service_id == s.id|string %}selected{% endif %}>
+            {{ s.name }} · {{ s.duration }} min{% if s.price is not none %} · ₹{{ '%.0f'|format(s.price) }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" for="date">Date</label>
+            <input type="date" id="date" name="date" class="form-control-verzio" value="{{ values.date }}" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="time">Time</label>
+            <input type="time" id="time" name="time" class="form-control-verzio form-control-time" value="{{ values.time }}"
+                   step="{{ (business.slot_interval or 30) * 60 }}" required>
+          </div>
+        </div>
+
+        <div class="setting-row mt-3">
+          <div>
+            <div class="setting-row-title">Override availability checks</div>
+            <div class="setting-row-hint">Only if the customer is already here. Saves even when the slot is full or outside hours.</div>
+          </div>
+          <label class="vz-toggle">
+            <input type="checkbox" name="allow_overbook" aria-label="Override availability checks" {% if allow_overbook %}checked{% endif %}>
+            <span class="vz-toggle-track"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <div class="d-flex gap-2 justify-content-end">
+      <a href="/owner/appointments" class="btn-verzio-outline">Cancel</a>
+      <button type="submit" class="btn-verzio-primary"><i class="bi bi-check2 me-2"></i> Save booking</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
