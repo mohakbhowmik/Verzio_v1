@@ -118,6 +118,7 @@ try:
     # C2 race: two patients grab the last seat at the same moment.
     r = make_biz("Race", "T_R", 1)
     sr = make_svc(r, "Cut", 30)
+    race_service_id = sr.id
     original = VerzioSaaSEngine._day_occupancy
 
     def slow_occupancy(self, *args, **kwargs):
@@ -146,7 +147,12 @@ try:
           sorted(outcomes) == ["ERR_CAPACITY", "booked"])
 finally:
     db.close()
-    os.remove(_tmp.name)
+    from database import engine as _engine
+    _engine.dispose()
+    try:
+        os.remove(_tmp.name)
+    except OSError:
+        pass
 
 print(f"\n{'ALL PASSED' if failures == 0 else f'{failures} FAILED'}")
 raise SystemExit(1 if failures else 0)

@@ -5,6 +5,11 @@ stubs out outbound WhatsApp, so it is safe to run anytime:
 
     python test_e2e.py
 """
+import os
+os.environ["ADMIN_USERNAME"] = "admin"             # must match what the test sends
+os.environ["ADMIN_PASSWORD"] = "verzio-dev-admin"
+os.environ["VERZIO_ENV"] = "development"
+
 import os, sys, json, hmac, hashlib, tempfile, itertools
 tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False); tmp.close()
 os.environ.update(DATABASE_URL=f"sqlite:///{tmp.name}", META_APP_SECRET="test-secret", META_ACCESS_TOKEN="x")
