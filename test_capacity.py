@@ -12,6 +12,7 @@ import tempfile
 
 _tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp.close()
+# Set before any project import, so your real .env can never point the tests at real data.
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}"
 
 import threading
@@ -118,7 +119,7 @@ try:
     # C2 race: two patients grab the last seat at the same moment.
     r = make_biz("Race", "T_R", 1)
     sr = make_svc(r, "Cut", 30)
-    race_service_id = sr.id
+    race_service_id = sr.id      # read once here: threads must not touch the main session
     original = VerzioSaaSEngine._day_occupancy
 
     def slow_occupancy(self, *args, **kwargs):
@@ -132,7 +133,7 @@ try:
     def attempt(phone):
         s = SessionLocal()
         try:
-            VerzioSaaSEngine().validate_and_book(s, "T_R", at(day, "15:00"), phone, sr.id)
+            VerzioSaaSEngine().validate_and_book(s, "T_R", at(day, "15:00"), phone, race_service_id)
             outcomes.append("booked")
         except BookingEngineException as e:
             outcomes.append(e.error_code)
@@ -148,7 +149,7 @@ try:
 finally:
     db.close()
     from database import engine as _engine
-    _engine.dispose()
+    _engine.dispose()            # release the file so Windows can delete it
     try:
         os.remove(_tmp.name)
     except OSError:

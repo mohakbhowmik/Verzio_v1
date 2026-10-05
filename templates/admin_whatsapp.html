@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp · {{ business.name }} — Verzio Studio{% endblock %}
+{% block page_title %}WhatsApp connection{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow"><a href="/admin/businesses">Businesses</a></div>
+    <h1 class="page-title">{{ business.name }}</h1>
+    <div class="page-subtitle">Connect this business's WhatsApp number through Meta's Embedded Signup.</div>
+  </div>
+</div>
+
+{% if config_problems %}
+<div class="alert alert-danger">
+  <strong>Onboarding can't run until these are fixed on the server:</strong>
+  <ul class="mb-0 mt-2">{% for p in config_problems %}<li>{{ p }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if manager_is_business_number %}
+<div class="alert alert-warning">
+  The manager number is the same as the business's WhatsApp number. A number can't message itself, so
+  approval requests won't arrive on WhatsApp. Set a different manager number (the owner's personal
+  WhatsApp) in the business settings, or approve bookings from the owner portal.
+</div>
+{% endif %}
+
+<div class="section-container mb-4">
+  <div class="section-head"><h2 class="section-title">Connection</h2></div>
+  <div class="p-3">
+    {% if account and account.status == "connected" %}
+      <p class="mb-2"><span class="status-badge status-active"><span class="dot"></span>Connected</span></p>
+      <table class="table table-sm mb-0">
+        <tr><th class="text-muted fw-normal" style="width:220px">WhatsApp number</th><td>{{ account.display_phone_number or "—" }}</td></tr>
+        <tr><th class="text-muted fw-normal">Name shown to customers</th><td>{{ account.verified_name or "—" }}</td></tr>
+        <tr><th class="text-muted fw-normal">Type</th><td>{% if account.coexistence %}Existing WhatsApp Business app number (Coexistence){% else %}Cloud API number{% endif %}</td></tr>
+        <tr><th class="text-muted fw-normal">Phone number ID</th><td><code>{{ account.phone_number_id }}</code></td></tr>
+        <tr><th class="text-muted fw-normal">WhatsApp account (WABA) ID</th><td><code>{{ account.waba_id }}</code></td></tr>
+        <tr><th class="text-muted fw-normal">Templates</th><td>{% if account.templates_submitted %}Submitted for review{% else %}Not submitted yet, or failed (see below){% endif %}</td></tr>
+        <tr><th class="text-muted fw-normal">Connected</th><td>{{ account.connected_at.strftime("%d %b %Y, %H:%M") if account.connected_at else "—" }} UTC</td></tr>
+      </table>
+    {% elif account and account.status == "no_number" %}
+      <p class="mb-0"><span class="status-badge status-inactive"><span class="dot"></span>No number yet</span>
+      The WhatsApp account was created, but no phone number was added. Send a new onboarding link and add the number.</p>
+    {% else %}
+      <p class="mb-0 text-muted">Not connected yet. Create an onboarding link below and open it with the business owner.</p>
+    {% endif %}
+    {% if account and account.last_error %}
+      <div class="alert alert-warning mt-3 mb-0 small"><strong>Last warning:</strong> {{ account.last_error }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section-container">
+  <div class="section-head d-flex justify-content-between align-items-center">
+    <h2 class="section-title">Onboarding links</h2>
+    <form method="post" action="/admin/whatsapp/{{ business.id }}/link" class="m-0">
+      <button type="submit" class="btn-verzio-primary">Create onboarding link</button>
+    </form>
+  </div>
+  <div class="p-3">
+    {% for l in links %}
+      <div class="mb-3">
+        <input type="text" class="form-control-verzio w-100" value="{{ l.url }}" readonly onclick="this.select()" aria-label="Onboarding link">
+        <div class="small text-muted mt-1">One-time link. Expires {{ l.expires_at.strftime("%d %b, %H:%M") }} UTC.</div>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No active links. Each link works once and expires after a few days.</p>
+    {% endfor %}
+    <p class="small text-muted mt-3 mb-0">
+      Open the link on the owner's phone or laptop during your visit, or send it to them on WhatsApp.
+      They need their Facebook login, and for an existing number, the WhatsApp Business app on their phone.
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Connect WhatsApp — Verzio</title>
+<style>
+  :root {
+    --bg: #f5f7f6; --card: #ffffff; --ink: #17201c; --muted: #5d6b65; --line: #dfe5e2;
+    --accent: #0f7a5c; --accent-ink: #ffffff; --accent-soft: #e3f2ec; --bad: #b4361f; --bad-soft: #fbe9e5;
+    --warn: #7a5200; --warn-soft: #fbf1db;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111614; --card: #19201d; --ink: #e6ece9; --muted: #9aa9a2; --line: #2b3531;
+      --accent: #4fc79f; --accent-ink: #0d1a15; --accent-soft: #173229; --bad: #f08a74; --bad-soft: #3a1e18;
+      --warn: #e7b450; --warn-soft: #33290f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px 48px; }
+  main { max-width: 480px; margin: 0 auto; display: grid; gap: 16px; }
+  .brand { font-weight: 700; letter-spacing: .02em; color: var(--accent); font-size: .9rem; text-transform: uppercase; }
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 4px 0 0; text-wrap: balance; }
+  p { margin: 0; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
+  .choice { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 12px; padding: 16px; font: inherit; cursor: pointer; display: grid; gap: 4px; }
+  .choice strong { font-size: 1.02rem; }
+  .choice span { color: var(--muted); font-size: .9rem; }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice:disabled { opacity: .55; cursor: wait; }
+  .choice.primary { border-color: var(--accent); background: var(--accent-soft); }
+  ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .status { border-radius: 12px; padding: 14px 16px; }
+  .status.ok { background: var(--accent-soft); }
+  .status.bad { background: var(--bad-soft); color: var(--bad); }
+  .status.warn { background: var(--warn-soft); color: var(--warn); }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; display: inline-block; vertical-align: -3px; margin-right: 8px; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  a { color: var(--accent); }
+  .small { font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <div class="brand">Verzio</div>
+    {% if valid %}
+      <h1>Connect WhatsApp for {{ business_name }}</h1>
+    {% else %}
+      <h1>This link isn't active</h1>
+    {% endif %}
+  </div>
+
+  {% if not valid %}
+    <div class="card"><p>It has expired or was already used. Ask your Verzio contact for a new link.</p></div>
+  {% elif not configured %}
+    <div class="card"><p>WhatsApp connection isn't available right now. Please contact Verzio.</p></div>
+  {% else %}
+    <div class="card" id="intro">
+      <p class="muted">Takes about 5 minutes. You'll need:</p>
+      <ol>
+        <li>Your Facebook login (the one that manages your business)</li>
+        <li>The phone with your business's WhatsApp</li>
+      </ol>
+    </div>
+
+    <div class="card" id="choices">
+      <p><strong>Which number should customers book on?</strong></p>
+      <button class="choice primary" id="btn-coex" type="button" disabled>
+        <strong>My current WhatsApp Business number</strong>
+        <span>Keep using the WhatsApp Business app on your phone. Your chats stay as they are.</span>
+      </button>
+      <button class="choice" id="btn-new" type="button" disabled>
+        <strong>A new number</strong>
+        <span>A number that isn't on WhatsApp yet. You'll verify it with a code.</span>
+      </button>
+      <p class="small muted" id="loading">Loading Facebook…</p>
+    </div>
+
+    <div class="status" id="status" role="status" aria-live="polite" hidden></div>
+  {% endif %}
+
+  <p class="small muted">Verzio only gets access to the WhatsApp account you choose. You can remove access anytime in Meta Business settings.</p>
+</main>
+
+{% if valid and configured %}
+<script>
+(function () {
+  var CONFIG = {
+    appId: {{ app_id|tojson }},
+    configId: {{ config_id|tojson }},
+    sdkVersion: {{ sdk_version|tojson }},
+    completeUrl: "/onboard/" + {{ token|tojson }} + "/complete"
+  };
+  var session = null, code = null, submitted = false, waitTimer = null;
+  var statusEl = document.getElementById("status");
+  var buttons = [document.getElementById("btn-coex"), document.getElementById("btn-new")];
+
+  function show(kind, html) {
+    statusEl.hidden = false;
+    statusEl.className = "status " + kind;
+    statusEl.innerHTML = html;
+  }
+  function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  function setBusy(busy) { buttons.forEach(function (b) { b.disabled = busy; }); }
+
+  // Session details (WhatsApp account, number) arrive as a message from Facebook's pop-up.
+  var FB_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*facebook\.com$/;
+  window.addEventListener("message", function (event) {
+    if (!FB_ORIGIN.test(event.origin)) return;
+    var data;
+    try { data = JSON.parse(event.data); } catch (e) { return; }
+    if (!data || data.type !== "WA_EMBEDDED_SIGNUP") return;
+    if (data.event === "CANCEL") {
+      if (!code) { setBusy(false); show("warn", "Signup was closed before it finished. Tap an option to try again."); }
+      return;
+    }
+    if (data.event === "ERROR") {
+      setBusy(false);
+      show("bad", "Facebook reported a problem: " + esc((data.data && data.data.error_message) || "unknown error") + ". Please try again.");
+      return;
+    }
+    session = Object.assign({ event: data.event }, data.data || {});
+    submit();
+  });
+
+  // The sign-in code expires after 30 seconds, so send it as soon as it arrives.
+  function onLogin(response) {
+    if (response && response.authResponse && response.authResponse.code) {
+      code = response.authResponse.code;
+      if (session) { submit(); }
+      else { waitTimer = setTimeout(function () { submit(true); }, 3000); }  // session message is usually first
+    } else {
+      setBusy(false);
+      if (!statusEl.textContent) show("warn", "Signup was closed before it finished. Tap an option to try again.");
+    }
+  }
+
+  function submit(force) {
+    if (submitted || !code || (!session && !force)) return;
+    submitted = true;
+    clearTimeout(waitTimer);
+    show("", '<span class="spinner" aria-hidden="true"></span>Connecting your WhatsApp. This can take up to a minute…');
+    var body = Object.assign({ code: code }, session || {});
+    fetch(CONFIG.completeUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return { ok: false, error: "Unexpected response." }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          submitted = false; code = null; session = null; setBusy(false);
+          show("bad", esc(res.error || "Something went wrong.") + "<br><br>Tap an option to try again, or contact Verzio.");
+          return;
+        }
+        document.getElementById("choices").hidden = true;
+        document.getElementById("intro").hidden = true;
+        var html = "<strong>✅ Connected" + (res.display_phone_number ? ": " + esc(res.display_phone_number) : "") + "</strong>";
+        if (res.status === "no_number") {
+          html = "<strong>Your WhatsApp account was created, but no phone number was added.</strong><br>Ask Verzio for a new link to add your number.";
+        }
+        html += "<br><br><strong>Next steps</strong><ol>";
+        html += '<li>Add a payment method in <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener">WhatsApp Manager</a>, unless Verzio is adding one for you. WhatsApp needs it to deliver messages.</li>';
+        if (res.coexistence) {
+          html += "<li>Keep the WhatsApp Business app open for a few minutes while your contacts sync.</li>";
+          html += "<li>Open the app at least once every 14 days so the connection stays active.</li>";
+        }
+        html += "<li>Verzio will finish setting up your booking menu.</li></ol>";
+        if (res.manager_is_business_number) {
+          html += "<br>Booking approvals can't be sent to this same number. Verzio will set a different number for approvals, or you can approve in the owner portal.";
+        }
+        if (res.warnings && res.warnings.length) {
+          html += '<br><span class="small">Note for Verzio: ' + esc(res.warnings.join("; ")) + "</span>";
+        }
+        show("ok", html);
+      })
+      .catch(function () {
+        submitted = false; code = null; session = null; setBusy(false);
+        show("bad", "Couldn't reach Verzio. Check your internet connection and try again.");
+      });
+  }
+
+  function launch(coexistence) {
+    session = null; code = null; submitted = false;
+    statusEl.hidden = true; statusEl.textContent = "";
+    setBusy(true);
+    var extras = { setup: {}, sessionInfoVersion: "3" };
+    if (coexistence) extras.featureType = "whatsapp_business_app_onboarding";
+    FB.login(onLogin, {
+      config_id: CONFIG.configId,
+      response_type: "code",
+      override_default_response_type: true,
+      extras: extras
+    });
+  }
+
+  window.fbAsyncInit = function () {
+    FB.init({ appId: CONFIG.appId, autoLogAppEvents: true, xfbml: false, version: CONFIG.sdkVersion });
+    document.getElementById("loading").hidden = true;
+    setBusy(false);
+  };
+  document.getElementById("btn-coex").addEventListener("click", function () { launch(true); });
+  document.getElementById("btn-new").addEventListener("click", function () { launch(false); });
+
+  setTimeout(function () {
+    if (!window.FB) document.getElementById("loading").textContent = "Facebook didn't load. Turn off any ad blocker and refresh this page.";
+  }, 10000);
+})();
+</script>
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+{% endif %}
+</body>
+</html>

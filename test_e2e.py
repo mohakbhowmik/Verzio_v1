@@ -5,14 +5,21 @@ stubs out outbound WhatsApp, so it is safe to run anytime:
 
     python test_e2e.py
 """
-import os
-os.environ["ADMIN_USERNAME"] = "admin"             # must match what the test sends
-os.environ["ADMIN_PASSWORD"] = "verzio-dev-admin"
-os.environ["VERZIO_ENV"] = "development"
-
 import os, sys, json, hmac, hashlib, tempfile, itertools
 tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False); tmp.close()
-os.environ.update(DATABASE_URL=f"sqlite:///{tmp.name}", META_APP_SECRET="test-secret", META_ACCESS_TOKEN="x")
+# Test-only settings, set before any project import. load_dotenv() never
+# overrides variables that already exist, so your real .env is ignored here.
+os.environ.update(
+    DATABASE_URL=f"sqlite:///{tmp.name}",
+    META_APP_SECRET="test-secret",
+    META_ACCESS_TOKEN="x",
+    VERZIO_ENV="development",
+    VERZIO_SECRET_KEY="test-only-secret-key-not-for-production-use",
+    ADMIN_USERNAME="admin",
+    ADMIN_PASSWORD="verzio-dev-admin",
+    COOKIE_SECURE="false",
+    WHATSAPP_TEMPLATES="on",
+)
 sys.path.insert(0, os.getcwd())
 from datetime import timedelta
 from fastapi.testclient import TestClient
@@ -25,7 +32,7 @@ from booking_engine import business_today
 # the client's templates are approved yet.
 outbox = []
 meta = {"template_ok": True}
-async def fake_post(recipient, pnid, payload):
+async def fake_post(recipient, pnid, payload, token=None):
     if payload.get("type") == "template" and not meta["template_ok"]:
         return "Meta API 404: template name does not exist"
     outbox.append({"to": recipient, "from": pnid, "payload": payload}); return None
@@ -242,6 +249,11 @@ with TestClient(server.app) as client:
           len(failed_logs) == 1 and "24-hour window" in failed_logs[0].message, [e.message for e in failed_logs])
     db.close()
 
-os.remove(tmp.name)
+from database import engine as _engine
+_engine.dispose()                # release the file so Windows can delete it
+try:
+    os.remove(tmp.name)
+except OSError:
+    pass
 print(f"\n{'ALL PASSED' if fails == 0 else f'{fails} FAILED'}")
 raise SystemExit(1 if fails else 0)

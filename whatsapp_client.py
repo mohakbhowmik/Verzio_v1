@@ -15,6 +15,11 @@ the webhook (server.py), the booking runtime and the owner portal.
 - Logs success/failure with its OWN database session, so a logging failure can
   never roll back the caller's business transaction.
 - Never logs full phone numbers.
+- Per-client tokens: messages for a business connected through Embedded
+  Signup use that business's own token (whatsapp_accounts.py). Businesses
+  without a stored connection fall back to META_ACCESS_TOKEN.
+- Never messages the business's own WhatsApp number (a number can't message
+  itself; this happens when the manager number is the business number).
 
 Template definitions live in TEMPLATE_DEFINITIONS so the text submitted to Meta
 (create_templates.py) and the parameters sent here can never drift apart.
@@ -375,11 +380,11 @@ def _record_incident(business_id: int | None, to: str, title: str, reason: str, 
         logger.exception("Could not record WhatsApp incident")
 
 
-async def _post(recipient: str, phone_number_id: str, payload: dict) -> str | None:
+async def _post(recipient: str, phone_number_id: str, payload: dict, token: str | None = None) -> str | None:
     """POST one message to Meta. Returns None on success, else an error string."""
-    access_token = os.getenv("META_ACCESS_TOKEN", "")
+    access_token = token or os.getenv("META_ACCESS_TOKEN", "")
     if not access_token or not phone_number_id:
-        return "Missing META_ACCESS_TOKEN or phone_number_id"
+        return "Missing access token or phone_number_id"
 
     try:
         body = build_message_body(recipient, payload)
@@ -430,8 +435,18 @@ async def send_whatsapp(
     if not recipient or not payload:
         return False
 
+    from whatsapp_accounts import account_credentials  # local import avoids a cycle
+    client_token, business_number = account_credentials(business_id)
+    if business_number and normalize_phone(business_number) == recipient:
+        reason = ("Not sent: the recipient is the business's own WhatsApp number. Set a different "
+                  "manager number, or approve bookings in the owner portal.")
+        logger.warning("WhatsApp to %s skipped: %s", mask_phone(recipient), reason)
+        _log(business_id, "whatsapp_skipped", "warning", reason)
+        _record_incident(business_id, recipient, "Manager number is the business number", reason, severity="warning")
+        return False
+
     if template and TEMPLATES_ENABLED and not window_open(business_id, recipient):
-        error = await _post(recipient, phone_number_id, template)
+        error = await _post(recipient, phone_number_id, template, token=client_token)
         if error is None:
             _log(business_id, "whatsapp_sent", "success", f"Sent {_describe(template)} to {mask_phone(recipient)}")
             return True
@@ -441,7 +456,7 @@ async def send_whatsapp(
         _record_incident(business_id, recipient, "Message template not delivered", reason, severity="warning")
         # Fall through: the normal message still reaches anyone inside the window.
 
-    error = await _post(recipient, phone_number_id, payload)
+    error = await _post(recipient, phone_number_id, payload, token=client_token)
     if error is None:
         _log(business_id, "whatsapp_sent", "success", f"Sent {_describe(payload)} to {mask_phone(recipient)}")
         return True

@@ -10,6 +10,10 @@ VERZIO STUDIO — APPLICATION ENTRY POINT
 - T5:  Manager approve/reject/no-show buttons are tenant-scoped, sender-checked
        and only allow valid status transitions.
 - T1:  /admin guarded by Basic Auth middleware; API docs off in production.
+- ES:  Embedded Signup onboarding (routers/whatsapp_onboarding.py).
+- HT:  Human takeover. When the owner replies from the WhatsApp Business app
+       (Coexistence "smb_message_echoes"), the bot stays quiet for that
+       customer for BOT_PAUSE_HOURS.
 - W3:  24-hour window. Every inbound message is recorded; owner requests and
        status updates fall back to approved templates when the window is
        closed. Template button taps (type "button") are handled like
@@ -57,6 +61,9 @@ from routers.admin_services import router as services_router
 from routers.admin_system import router as system_router
 from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
+from routers.whatsapp_onboarding import admin_router as whatsapp_admin_router
+from routers.whatsapp_onboarding import public_router as onboarding_router
+from whatsapp_accounts import BOT_PAUSE_HOURS, bot_paused, ensure_tables as ensure_account_tables, pause_bot
 
 from owner.owner_auth import router as owner_auth_router
 from owner.owner_dashboard import router as owner_dashboard_router
@@ -103,6 +110,8 @@ app.include_router(services_router)
 app.include_router(system_router)
 app.include_router(appointments_router)
 app.include_router(subscriptions_router)
+app.include_router(whatsapp_admin_router)
+app.include_router(onboarding_router)
 
 app.include_router(owner_auth_router)
 app.include_router(owner_dashboard_router)
@@ -130,6 +139,7 @@ def startup() -> None:
             {"cutoff": datetime.utcnow() - timedelta(days=7)},
         )
     ensure_window_table()
+    ensure_account_tables()
 
     if not META_APP_SECRET:
         if IS_PRODUCTION:
@@ -356,11 +366,16 @@ async def process_message(val: dict, msg: dict) -> None:
             match = MANAGER_ACTION_RE.fullmatch(iid)
             if match:
                 await _handle_manager_action(db, biz, tenant_id, sender, match.group(1), int(match.group(2)))
+            elif bot_paused(business_id, sender):
+                logger.info("Bot paused (owner is chatting) for business_id=%s customer=%s", business_id, mask_phone(sender))
             else:
                 await _run_customer_flow(db, biz, tenant_id, sender, iid, val)
 
         elif msg_type == "text":
-            await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
+            if bot_paused(business_id, sender):
+                logger.info("Bot paused (owner is chatting) for business_id=%s customer=%s", business_id, mask_phone(sender))
+            else:
+                await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
 
         elif msg_type in NON_TEXT_REPLY_TYPES:
             await send_whatsapp(
@@ -377,6 +392,27 @@ async def process_message(val: dict, msg: dict) -> None:
                       message=str(exc)[:500], business_id=business_id)
         except Exception:
             pass
+    finally:
+        db.close()
+
+
+def process_echo(val: dict, echo: dict) -> None:
+    """The owner messaged a customer from the WhatsApp Business app: pause the bot for that customer."""
+    db = SessionLocal()
+    try:
+        tenant_id = (val.get("metadata") or {}).get("phone_number_id")
+        biz = db.query(Business).filter(Business.whatsapp_business_phone_number_id == tenant_id).first()
+        customer = echo.get("to")
+        if not biz or not customer:
+            return
+        pause_bot(biz.id, customer)
+        logger.info("Owner replied from the app: bot paused %sh for business_id=%s customer=%s",
+                    BOT_PAUSE_HOURS, biz.id, mask_phone(customer))
+        log_event(db=db, event_type="bot_paused", status="info",
+                  message=f"Owner is chatting with {mask_phone(customer)}; bot paused for {BOT_PAUSE_HOURS:g}h",
+                  business_id=biz.id)
+    except Exception:
+        logger.exception("Could not process message echo")
     finally:
         db.close()
 
@@ -429,6 +465,9 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                     background_tasks.add_task(process_message, val, msg)
                 else:
                     logger.info("Duplicate webhook message ignored: %s", msg.get("id"))
+            for echo in val.get("message_echoes") or []:
+                if claim_message(f"echo:{echo.get('id')}"):
+                    background_tasks.add_task(process_echo, val, echo)
             for status in val.get("statuses") or []:
                 if status.get("status") == "failed" and claim_message(f"status:{status.get('id')}:failed"):
                     background_tasks.add_task(process_status, val, status)
