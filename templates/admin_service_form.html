@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{% if service %}Edit {{ service.name }}{% else %}Add service{% endif %} — Verzio Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">
+      <a href="/admin/services" class="cell-muted"><i class="bi bi-arrow-left me-1"></i>Services</a>
+    </div>
+    <h1 class="page-title">{% if service %}Edit {{ service.name }}{% else %}Add service{% endif %}</h1>
+    <div class="page-subtitle">
+      {% if service %}
+        Update this service's details and where it belongs.
+      {% else %}
+        Add a new item to a business's WhatsApp booking menu.
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if error %}
+<div class="card-verzio p-3 mb-3" style="border-color: var(--danger); background: var(--danger-soft);">
+  <span style="color: var(--danger); font-weight: 550; font-size: 13.5px;">
+    <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
+  </span>
+</div>
+{% endif %}
+
+<form method="post" action="{{ form_action }}">
+  <div class="row g-3">
+    <div class="col-lg-8">
+
+      <div class="settings-panel">
+        <div class="settings-panel-head">
+          <h3>Service details</h3>
+          <p>What customers see and pick from when booking on WhatsApp.</p>
+        </div>
+        <div class="settings-panel-body">
+          <div class="mb-3">
+            <label class="settings-row-label d-block mb-1">Service name</label>
+            <input type="text" name="name" class="form-control-verzio w-100" required
+                   value="{{ service.name if service else '' }}" placeholder="e.g. Haircut">
+          </div>
+
+          <div class="mb-3">
+            <label class="settings-row-label d-block mb-1">Business</label>
+            <select name="business_id" class="form-select-verzio w-100" required>
+              <option value="" disabled {% if not service %}selected{% endif %}>Select a business…</option>
+              {% for b in businesses %}
+              <option value="{{ b.id }}" {% if service and service.business_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="settings-row-sub mt-1">Which tenant this service belongs to.</div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="settings-row-label d-block mb-1">Duration</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="number" name="duration" min="5" step="5" class="form-control-verzio mono w-100"
+                       value="{{ service.duration if service else 30 }}">
+                <span class="cell-muted">min</span>
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="settings-row-label d-block mb-1">Price</label>
+              <div class="d-flex align-items-center gap-2">
+                <span class="cell-muted">₹</span>
+                <input type="number" name="price" min="0" step="0.01" class="form-control-verzio mono w-100"
+                       value="{{ service.price if service and service.price is not none else '' }}"
+                       placeholder="Optional">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-panel">
+        <div class="settings-panel-head">
+          <h3>Visibility</h3>
+          <p>Controls whether this service can be picked in the WhatsApp booking flow.</p>
+        </div>
+        <div class="settings-panel-body">
+          <div class="settings-row">
+            <div>
+              <div class="settings-row-label">Active</div>
+              <div class="settings-row-sub">Inactive services are hidden from customers but keep their booking history</div>
+            </div>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" role="switch" name="is_active"
+                     {% if (service.is_active if service else true) %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-lg-4">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-verzio-primary flex-grow-1">
+          <i class="bi bi-check2 me-1"></i> {% if service %}Save changes{% else %}Create service{% endif %}
+        </button>
+        <a href="/admin/services" class="btn-verzio-outline">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

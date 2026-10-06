@@ -74,7 +74,7 @@ async def list_services(request: Request, db: Session = Depends(get_db)):
 async def new_service_form(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request,
-        name="service_form.html",
+        name="admin_service_form.html",
         context=_form_context(db, svc=None) | {"form_action": "/admin/services"},
     )
 
@@ -89,7 +89,7 @@ async def create_service(request: Request, db: Session = Depends(get_db)):
     if not name or not business_id_raw:
         return templates.TemplateResponse(
             request=request,
-            name="service_form.html",
+            name="admin_service_form.html",
             context=_form_context(db, svc=None, error="Name and business are required.")
             | {"form_action": "/admin/services"},
             status_code=400,
@@ -99,7 +99,7 @@ async def create_service(request: Request, db: Session = Depends(get_db)):
     if not business:
         return templates.TemplateResponse(
             request=request,
-            name="service_form.html",
+            name="admin_service_form.html",
             context=_form_context(db, svc=None, error="Selected business could not be found.")
             | {"form_action": "/admin/services"},
             status_code=400,
@@ -128,7 +128,7 @@ async def edit_service_form(service_id: int, request: Request, db: Session = Dep
 
     return templates.TemplateResponse(
         request=request,
-        name="service_form.html",
+        name="admin_service_form.html",
         context=_form_context(db, svc=svc) | {"form_action": f"/admin/services/{svc.id}"},
     )
 
@@ -147,7 +147,7 @@ async def update_service(service_id: int, request: Request, db: Session = Depend
     if not name or not business_id_raw:
         return templates.TemplateResponse(
             request=request,
-            name="service_form.html",
+            name="admin_service_form.html",
             context=_form_context(db, svc=svc, error="Name and business are required.")
             | {"form_action": f"/admin/services/{svc.id}"},
             status_code=400,
@@ -157,7 +157,7 @@ async def update_service(service_id: int, request: Request, db: Session = Depend
     if not business:
         return templates.TemplateResponse(
             request=request,
-            name="service_form.html",
+            name="admin_service_form.html",
             context=_form_context(db, svc=svc, error="Selected business could not be found.")
             | {"form_action": f"/admin/services/{svc.id}"},
             status_code=400,
