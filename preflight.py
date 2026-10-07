@@ -208,8 +208,11 @@ def check_meta(client: httpx.Client) -> None:
     for scope in info.get("granular_scopes", []):
         if scope.get("scope") == "whatsapp_business_management":
             wabas = scope.get("target_ids") or []
+    if env("WABA_ID") and env("WABA_ID") not in wabas:
+        wabas = [env("WABA_ID")] + list(wabas)
     if not wabas:
-        warn("Webhook subscription + templates", "couldn't find your WhatsApp account from the token; check them in WhatsApp Manager")
+        warn("Webhook subscription + templates",
+             "couldn't find your WhatsApp account from the token. Add WABA_ID=<your WhatsApp account ID> to .env to check them")
         return
 
     from whatsapp_client import TEMPLATE_NAMES
