@@ -22,14 +22,23 @@ Flow:  any text -> services -> dates -> times -> confirm -> booked
 - Manual-approval businesses: the owner gets Approve / Reject buttons.
 """
 import logging
+import os
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from booking_engine import BookingEngineException, VerzioSaaSEngine, business_today
+from booking_engine import (
+    OCCUPYING_STATUSES,
+    BookingEngineException,
+    VerzioSaaSEngine,
+    business_now,
+    business_today,
+    owner_cannot_approve,
+)
+from database import Appointment
 from database import Business, Service
 from runtime_state import RuntimeStateManager
-from whatsapp_client import build_owner_alert_template, build_owner_request_template
+from whatsapp_client import build_owner_alert_template, build_owner_request_template, canonical_phone
 
 logger = logging.getLogger("VERZIO_RUNTIME")
 
@@ -37,8 +46,11 @@ START_IDS = {"action_start", "restart_flow", "menu"}
 CONFIRM_IDS = {"action_confirm", "confirm_booking"}      # second id: buttons sent by an older build
 CANCEL_IDS = {"action_cancel"}
 SESSION_TTL = timedelta(hours=2)
+# Upcoming bookings one WhatsApp number may hold at a business (stops one person blocking a day).
+MAX_UPCOMING_PER_CUSTOMER = int(os.getenv("MAX_UPCOMING_PER_CUSTOMER", "2"))
 MAX_LIST_ROWS = 10           # WhatsApp list limit
 SLOTS_PER_PAGE = 9           # leaves one row for "Later times"
+SERVICES_PER_PAGE = 9        # leaves one row for "More services"
 
 STALE_NOTICE = "That option has expired. Let's start again:"
 
@@ -110,6 +122,9 @@ class BookingRuntime:
         session = self.state.get_or_create_session(phone, business_id=biz.id)
 
         if iid in START_IDS:
+            limit_reply = self._upcoming_limit_reply(phone, biz)
+            if limit_reply:
+                return limit_reply
             return self._render_services(phone, biz, name=customer_name)
 
         expired = (
@@ -121,6 +136,12 @@ class BookingRuntime:
             return self._render_services(phone, biz, notice=STALE_NOTICE)
 
         step = session.step
+        if iid.startswith("svcpage_") and step == "SELECT_SERVICE":
+            try:
+                page = int(iid[len("svcpage_"):])
+            except ValueError:
+                page = 0
+            return self._render_services(phone, biz, name=customer_name, page=page)
         if iid.startswith("svc_") and step == "SELECT_SERVICE":
             return self._on_service(phone, biz, iid)
         if iid.startswith("date_") and step == "SELECT_DATE":
@@ -138,6 +159,47 @@ class BookingRuntime:
         return self._render_services(phone, biz, notice=STALE_NOTICE)
 
     # ------------------------------------------------------------------
+    # Per-customer limit
+    # ------------------------------------------------------------------
+
+    def _upcoming(self, phone: str, biz: Business) -> list:
+        return (
+            self.db.query(Appointment)
+            .filter(
+                Appointment.business_id == biz.id,
+                Appointment.customer_phone == phone,
+                Appointment.status.in_(OCCUPYING_STATUSES),
+                Appointment.appointment_time > business_now(biz),
+            )
+            .order_by(Appointment.appointment_time.asc())
+            .all()
+        )
+
+    def _upcoming_limit_reply(self, phone: str, biz: Business):
+        if MAX_UPCOMING_PER_CUSTOMER <= 0:
+            return None
+        upcoming = self._upcoming(phone, biz)
+        if len(upcoming) < MAX_UPCOMING_PER_CUSTOMER:
+            return None
+        self.state.clear_session(phone, business_id=biz.id)
+        today = business_today(biz)
+        lines = []
+        for appt in upcoming[:5]:
+            service = appt.service.name if appt.service else "Appointment"
+            when = f"{_day_label(appt.appointment_time.date(), today)} at {_clock(appt.appointment_time.strftime('%H:%M'))}"
+            pending = " (waiting for confirmation)" if appt.status == "pending" else ""
+            lines.append(f"• {service}, {when}{pending}")
+        return {
+            "type": "buttons",
+            "body": (
+                f"You already have {len(upcoming)} upcoming bookings at {biz.name}:\n\n"
+                + "\n".join(lines)
+                + "\n\nTo change or cancel one, or to book more, tap below and the team will help."
+            )[:1024],
+            "buttons": [{"id": "action_human", "title": "Talk to us"}],
+        }
+
+    # ------------------------------------------------------------------
     # Step 1: services
     # ------------------------------------------------------------------
 
@@ -150,11 +212,11 @@ class BookingRuntime:
                 Service.is_deleted == False,
             )
             .order_by(Service.name.asc())
-            .limit(MAX_LIST_ROWS)
             .all()
         )
 
-    def _render_services(self, phone: str, biz: Business, notice: str | None = None, name: str | None = None):
+    def _render_services(self, phone: str, biz: Business, notice: str | None = None, name: str | None = None,
+                         page: int = 0):
         services = self._active_services(biz)
         if not services:
             self.state.clear_session(phone, business_id=biz.id)
@@ -169,9 +231,25 @@ class BookingRuntime:
         if not biz.enable_service_selection:
             return self._on_service(phone, biz, f"svc_{services[0].id}", notice=notice)
 
+        # More than 10 services: 9 per page plus "More services" / "Back".
+        pages = [services] if len(services) <= MAX_LIST_ROWS else [
+            services[i:i + SERVICES_PER_PAGE] for i in range(0, len(services), SERVICES_PER_PAGE)
+        ]
+        page = page if 0 <= page < len(pages) else 0
+        chunk = pages[page]
+        rows = [{"id": f"svc_{s.id}", "title": s.name[:24], "description": _service_line(s)[:72]} for s in chunk]
+        if page + 1 < len(pages):
+            rows.append({"id": f"svcpage_{page + 1}", "title": "More services →",
+                         "description": f"Page {page + 2} of {len(pages)}"})
+        elif page > 0:
+            rows.append({"id": "svcpage_0", "title": "← Back to start", "description": "First services"})
+
         first = _first_name(name)
         greeting = f"Hi {first}! 👋 " if first else "Hi! 👋 "
-        body = f"{greeting}Welcome to {biz.name}.\n\nWhich service would you like to book?"
+        if page == 0:
+            body = f"{greeting}Welcome to {biz.name}.\n\nWhich service would you like to book?"
+        else:
+            body = f"More services at {biz.name} (page {page + 1} of {len(pages)}):"
         if notice:
             body = f"{notice}\n\n{body}"
 
@@ -180,13 +258,7 @@ class BookingRuntime:
             "header": biz.name[:60],
             "body": body,
             "button": "View services",
-            "sections": [{
-                "title": "Services",
-                "rows": [
-                    {"id": f"svc_{s.id}", "title": s.name[:24], "description": _service_line(s)[:72]}
-                    for s in services
-                ],
-            }],
+            "sections": [{"title": "Services", "rows": rows[:MAX_LIST_ROWS]}],
         }
 
     def _on_service(self, phone: str, biz: Business, iid: str, notice: str | None = None):
@@ -372,6 +444,10 @@ class BookingRuntime:
             self.state.update_session(phone, business_id=biz.id, step="SELECT_DATE", selected_date=None, selected_time=None)
             return self._render_dates(phone, biz, service, notice="That date is too far ahead. Please pick another:")
 
+        limit_reply = self._upcoming_limit_reply(phone, biz)
+        if limit_reply:
+            return limit_reply
+
         try:
             appt = self.engine.validate_and_book(self.db, tenant_id, start, phone, service.id, customer_name)
         except BookingEngineException as exc:
@@ -397,7 +473,7 @@ class BookingRuntime:
             # The owner may not have messaged this number in 24h, so the
             # template is sent instead whenever their window is closed.
             response["owner"] = {
-                "recipient": biz.manager_phone_number,
+                "recipient": canonical_phone(biz.manager_phone_number, biz.timezone),
                 "payload": owner_payload,
                 "template": owner_template,
             }
@@ -457,6 +533,8 @@ class BookingRuntime:
                 build_owner_request_template(biz, appt, service.name),
             )
         prefs = biz.notification_preferences or {}
+        if owner_cannot_approve(biz):
+            return None, None      # can't message itself; owner sees the booking in the app + portal
         if prefs.get("whatsapp_owner", True):
             return (
                 {"type": "text", "body": f"📅 New booking (auto-confirmed)\n\n{details}"},

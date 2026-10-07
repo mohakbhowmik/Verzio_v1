@@ -6,10 +6,13 @@ from sqlalchemy.orm import Session
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 from fastapi.responses import RedirectResponse
 
+from whatsapp_client import canonical_phone, is_real_phone
+from hours import build_hours, daily_break
 from database import Business, get_db
 
 router = APIRouter(prefix="/owner/settings", tags=["owner-settings"])
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["daily_break"] = daily_break
 
 WEEK_DAYS = [
     ("mon", "Monday"),
@@ -45,13 +48,7 @@ def _business_hours_rows(business: Business | None) -> list[dict]:
 
 
 def _build_operational_hours(form) -> dict:
-    hours = {}
-    for key, _label in WEEK_DAYS:
-        if form.get(f"hours_{key}_enabled") == "on":
-            open_time = form.get(f"hours_{key}_open") or "09:00"
-            close_time = form.get(f"hours_{key}_close") or "18:00"
-            hours[key] = [open_time, close_time]
-    return hours
+    return build_hours(form)    # includes the optional daily break (hours.py)
 
 
 @router.get("")
@@ -103,8 +100,15 @@ async def owner_settings_save(
     form = await request.form()
 
     business.name = (form.get("business_name") or "").strip() or business.name
-    business.manager_phone_number = (form.get("phone_number") or "").strip() or business.manager_phone_number
     business.timezone = (form.get("timezone") or "UTC").strip() or "UTC"
+    phone_error = None
+    submitted_phone = (form.get("phone_number") or "").strip()
+    if submitted_phone:
+        manager = canonical_phone(submitted_phone, business.timezone)
+        if is_real_phone(manager):
+            business.manager_phone_number = manager
+        else:
+            phone_error = "That WhatsApp number doesn't look right. Use the full number, e.g. +91 98765 43210. Other settings were saved."
     business.accepting_bookings = form.get("accept_online_bookings") == "on"
     business.enable_service_selection = form.get("show_services_during_booking") == "on"
     business.max_parallel_bookings = int(form.get("max_parallel_bookings") or business.max_parallel_bookings or 1)
@@ -135,7 +139,7 @@ async def owner_settings_save(
             "owner": owner,
             "business": business,
             "hours_rows": _business_hours_rows(business),
-            "message": "Settings saved successfully.",
-            "error": None,
+            "message": None if phone_error else "Settings saved successfully.",
+            "error": phone_error,
         },
     )

@@ -10,6 +10,7 @@ tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False); tmp.close()
 # Test-only settings, set before any project import. load_dotenv() never
 # overrides variables that already exist, so your real .env is ignored here.
 os.environ.update(
+    SCHEDULER="off",
     DATABASE_URL=f"sqlite:///{tmp.name}",
     META_APP_SECRET="test-secret",
     META_ACCESS_TOKEN="x",
@@ -236,6 +237,64 @@ with TestClient(server.app) as client:
           db.query(Incident).filter(Incident.title == "Message template not delivered").count() >= 1)
     meta["template_ok"] = True
 
+    # --- HX: messages that aren't bookings
+    from customer_inbox import classify_text
+    for phrase in ["hi", "Hii", "hello!", "Namaste", "book", "I want to book a haircut", "any slot tomorrow?", "Good morning"]:
+        check(f"'{phrase}' -> booking", classify_text(phrase) == "book")
+    for phrase in ["I had a facial 3 days ago and my skin is red", "can I reschedule my appointment",
+                   "what is the price of hydrafacial", "where is your clinic located? is there parking near the main road"]:
+        check(f"'{phrase}' -> person", classify_text(phrase) == "other")
+
+    for phrase in ["ok", "Thanks!", "👍", "ok thank you", "🙏"]:
+        check(f"'{phrase}' -> no reply needed", classify_text(phrase) == "ack")
+    r, out = webhook(client, "PN_A", P, text("Thank you!"))
+    check("'Thank you!' after a booking -> silence, not a menu", out == [], out)
+    Q, MGR_A = "917777777777", "910000000001"
+    def mgr_text(m):   # the words the manager sees, template or normal message
+        if tname(m) == "customer_message":
+            return " ".join(p_["text"] for p_ in m["payload"]["template"]["components"][0]["parameters"])
+        return m["payload"].get("body", "")
+    r, out = webhook(client, "PN_A", Q, text("I had a facial 3 days ago and my skin is still red"))
+    check("follow-up question -> 'Book appointment / Talk to us' buttons, NOT the booking list",
+          len(out) == 1 and out[0]["to"] == Q and out[0]["payload"]["type"] == "buttons"
+          and [b_["id"] for b_ in out[0]["payload"]["buttons"]] == ["action_start", "action_human"], out)
+    r, out = webhook(client, "PN_A", Q, btn("action_human"))
+    to_q = [m for m in out if m["to"] == Q]; to_mgr = [m for m in out if m["to"] == MGR_A]
+    check("'Talk to us' -> customer told it's passed on", to_q and "passed your message" in to_q[0]["payload"]["body"], out)
+    check("...manager gets the customer's words with a wa.me link",
+          to_mgr and "skin is still red" in mgr_text(to_mgr[0]) and "wa.me/917777777777" in mgr_text(to_mgr[0]), out)
+    r, out = webhook(client, "PN_A", Q, text("also it itches a bit"))
+    check("while a person handles it, new texts go to the manager, bot stays quiet with the customer",
+          out and all(m["to"] == MGR_A for m in out) and "itches" in mgr_text(out[0]), out)
+    r, out = webhook(client, "PN_A", Q, text("hi"))
+    check("'hi' during the handoff doesn't restart the bot", all(m["to"] == MGR_A for m in out), out)
+    r, out = webhook(client, "PN_A", Q, text("Book"))
+    check("typing 'Book' brings the booking menu back", out and out[0]["to"] == Q and out[0]["payload"]["type"] == "list", out)
+
+    R = "916666666666"
+    webhook(client, "PN_A", R, text("do you do bridal makeup packages for 5 people"))
+    r, out = webhook(client, "PN_A", R, text("for 20th december"))
+    check("two non-booking texts in a row -> handed to a person without asking again",
+          any(m["to"] == R and "passed your message" in m["payload"].get("body", "") for m in out)
+          and any(m["to"] == MGR_A and "bridal" in mgr_text(m) and "20th december" in mgr_text(m) for m in out), out)
+
+    # owner hasn't messaged the business number in 24h -> approved template is used
+    from sqlalchemy import text as sql_text
+    with server.engine.begin() as conn:
+        conn.execute(sql_text("DELETE FROM conversation_windows WHERE phone = :p"), {"p": MGR_A})
+    T = "914444444444"
+    webhook(client, "PN_A", T, text("is the clinic open on diwali"))
+    r, out = webhook(client, "PN_A", T, btn("action_human"))
+    to_mgr = [m for m in out if m["to"] == MGR_A]
+    check("manager outside 24h -> 'customer_message' TEMPLATE with the customer's words",
+          to_mgr and tname(to_mgr[0]) == "customer_message" and "diwali" in mgr_text(to_mgr[0]), out)
+
+    S = "915555555555"
+    r, out = webhook(client, "PN_A", S, {"type": "image", "image": {"id": "MEDIA1", "caption": "is this normal?"}})
+    check("photo -> choice buttons (not 'send Hi')", out and out[0]["payload"]["type"] == "buttons", out)
+    r, out = webhook(client, "PN_A", S, btn("action_start"))
+    check("'Book appointment' tap -> booking list", out and out[0]["payload"]["type"] == "list", out)
+
     # --- Meta reports a failed delivery (e.g. 131047) -> logged, once
     from database import ActivityEvent
     status_body = json.dumps({"entry": [{"changes": [{"value": {"metadata": {"phone_number_id": "PN_A"},
@@ -247,6 +306,194 @@ with TestClient(server.app) as client:
     failed_logs = db.query(ActivityEvent).filter(ActivityEvent.event_type == "whatsapp_delivery_failed").all()
     check("failed delivery status logged once with a 24h hint",
           len(failed_logs) == 1 and "24-hour window" in failed_logs[0].message, [e.message for e in failed_logs])
+    # --- Tier 1 fixes ---------------------------------------------------
+    from whatsapp_client import canonical_phone
+    for raw, tz, want in [("98765 43210", "Asia/Kolkata", "919876543210"), ("+91 98765-43210", "Asia/Kolkata", "919876543210"),
+                          ("09876543210", "Asia/Kolkata", "919876543210"), ("919876543210", "Asia/Kolkata", "919876543210"),
+                          ("07700 900123", "Europe/London", "447700900123"), ("050 123 4567", "Asia/Dubai", "971501234567"),
+                          ("0091 98765 43210", "UTC", "919876543210"), ("9876543210", "UTC", "919876543210")]:
+        check(f"canonical_phone({raw!r}, {tz}) -> {want}", canonical_phone(raw, tz) == want, canonical_phone(raw, tz))
+
+    def book(pnid, phone, day_offset=1, slot_index=0):
+        _, out = webhook(client, pnid, phone, text("hi"))
+        if out[0]["payload"]["type"] != "list":
+            return out
+        _, out = webhook(client, pnid, phone, tap(first_row(out[0]["payload"])))
+        day = f"date_{(business_today(A) + timedelta(days=day_offset)).isoformat()}"
+        _, out = webhook(client, pnid, phone, tap(day))
+        t = out[0]["payload"]["sections"][0]["rows"][slot_index]["id"]
+        webhook(client, pnid, phone, tap(t))
+        return webhook(client, pnid, phone, btn("action_confirm"))[1]
+
+    # manager number saved without country code still gets requests and can approve
+    C = Business(name="Desi Cuts", whatsapp_business_phone_number_id="PN_C", manager_phone_number="98000 00003",
+                 timezone="Asia/Kolkata", operational_hours=ALL, holidays=[], slot_interval=30, max_parallel_bookings=1,
+                 approval_mode="manual", is_active=True, accepting_bookings=True, enable_service_selection=True,
+                 advance_booking_days=14, notification_preferences={"whatsapp_owner": True})
+    db.add(C); db.commit()
+    db.add(Service(business_id=C.id, name="Beard trim", duration=30, price=200, is_active=True)); db.commit()
+    out = book("PN_C", "913000000001", day_offset=2)
+    check("10-digit manager number -> request sent to 91XXXXXXXXXX", any(m["to"] == "919800000003" for m in out), out)
+    appt_c = db.query(Appointment).filter_by(business_id=C.id).first()
+    webhook(client, "PN_C", "919800000003", btn(f"confirm_{appt_c.id}"))
+    db.refresh(appt_c)
+    check("...and the manager's Approve tap is accepted", appt_c.status == "confirmed", appt_c.status)
+    server._normalize_manager_numbers(); db.expire_all()
+    check("startup fixes stored manager numbers", db.get(Business, C.id).manager_phone_number == "919800000003")
+
+    # owner has one phone: manager number == business number -> auto-confirm, nothing sent to itself
+    from whatsapp_accounts import WhatsAppAccount, forget_cached
+    from database import Incident
+    D = Business(name="Solo Spa", whatsapp_business_phone_number_id="PN_D", manager_phone_number="919700000004",
+                 timezone="Asia/Kolkata", operational_hours=ALL, holidays=[], slot_interval=30, max_parallel_bookings=1,
+                 approval_mode="manual", is_active=True, accepting_bookings=True, enable_service_selection=True,
+                 advance_booking_days=14, notification_preferences={"whatsapp_owner": True})
+    db.add(D); db.commit()
+    db.add(Service(business_id=D.id, name="Massage", duration=60, price=1500, is_active=True))
+    db.add(WhatsAppAccount(business_id=D.id, phone_number_id="PN_D", display_phone_number="+91 97000 00004",
+                           coexistence=True, status="error")); db.commit()
+    forget_cached(D.id)
+    incidents_before = db.query(Incident).count()
+    out = book("PN_D", "913000000002", day_offset=2)
+    appt_d = db.query(Appointment).filter_by(business_id=D.id).first()
+    check("one-phone owner + manual approval -> booking confirmed automatically", appt_d and appt_d.status == "confirmed",
+          appt_d and appt_d.status)
+    check("...customer told 'You're booked', nothing sent to the business's own number",
+          any("You're booked" in m["payload"].get("body", "") for m in out) and all(m["to"] != "919700000004" for m in out), out)
+    check("...and no 'manager is business number' incident per booking", db.query(Incident).count() == incidents_before)
+
+    # one number can't block a day: max 2 upcoming bookings per business
+    U = "913000000009"
+    book("PN_B", U, day_offset=3, slot_index=0)
+    book("PN_B", U, day_offset=3, slot_index=2)
+    held = db.query(Appointment).filter(Appointment.business_id == B.id, Appointment.customer_phone == U).count()
+    r, out = webhook(client, "PN_B", U, text("hi"))
+    check("2 bookings held -> 3rd 'hi' lists them and offers 'Talk to us' instead of the menu",
+          held == 2 and out and out[0]["payload"]["type"] == "buttons" and "2 upcoming bookings" in out[0]["payload"]["body"]
+          and out[0]["payload"]["buttons"][0]["id"] == "action_human", (held, out))
+
+    # admin form: number cleaned up, junk refused, Phone Number ID optional
+    auth = ("admin", "verzio-dev-admin")
+    form = {"name": "Form Salon", "manager_phone_number": "98111 22233", "timezone": "Asia/Kolkata",
+            "is_active": "on", "accepting_bookings": "on", "approval_mode": "manual"}
+    r = client.post("/admin/businesses", data=form, auth=auth, follow_redirects=False)
+    fs = db.query(Business).filter_by(name="Form Salon").first()
+    check("admin create: blank Phone Number ID ok, manager saved as 919811122233",
+          r.status_code == 303 and fs and fs.manager_phone_number == "919811122233"
+          and fs.whatsapp_business_phone_number_id.startswith("pending-"), (r.status_code, fs and fs.manager_phone_number))
+    r = client.post("/admin/businesses", data=form | {"name": "Bad Number", "manager_phone_number": "12345"}, auth=auth, follow_redirects=False)
+    check("admin create: junk manager number -> form error, not saved",
+          r.status_code == 400 and not db.query(Business).filter_by(name="Bad Number").first(), r.status_code)
+
+    # --- Launch features ---------------------------------------------------
+    import asyncio, scheduler
+    from datetime import datetime as _dt
+    from booking_engine import business_now
+
+    # more than 10 services -> paged list, every service reachable
+    E = Business(name="Big Salon", whatsapp_business_phone_number_id="PN_E", manager_phone_number="919600000005",
+                 timezone="Asia/Kolkata", operational_hours={d: ["09:00", "18:00", "13:00", "14:00"] for d in ALL},
+                 holidays=[], slot_interval=30, max_parallel_bookings=1, approval_mode="manual", is_active=True,
+                 accepting_bookings=True, enable_service_selection=True, advance_booking_days=14,
+                 notification_preferences={"whatsapp_owner": True})
+    db.add(E); db.commit()
+    for i in range(23):
+        db.add(Service(business_id=E.id, name=f"Service {i:02d}", duration=30, price=100 + i, is_active=True))
+    db.commit()
+    V = "912000000001"
+    _, out = webhook(client, "PN_E", V, text("hi"))
+    rows = out[0]["payload"]["sections"][0]["rows"]
+    check("23 services -> page 1 shows 9 + 'More services'", len(rows) == 10 and rows[-1]["id"] == "svcpage_1", [r_["id"] for r_ in rows])
+    seen = [r_["id"] for r_ in rows if r_["id"].startswith("svc_")]
+    _, out = webhook(client, "PN_E", V, tap("svcpage_1")); rows = out[0]["payload"]["sections"][0]["rows"]
+    seen += [r_["id"] for r_ in rows if r_["id"].startswith("svc_")]
+    _, out = webhook(client, "PN_E", V, tap("svcpage_2")); rows = out[0]["payload"]["sections"][0]["rows"]
+    seen += [r_["id"] for r_ in rows if r_["id"].startswith("svc_")]
+    check("...all 23 services reachable across pages, last page has 'Back'", len(set(seen)) == 23 and rows[-1]["id"] == "svcpage_0", len(set(seen)))
+    _, out = webhook(client, "PN_E", V, tap(seen[-1]))
+    check("picking a service from page 3 -> date list", out[0]["payload"]["sections"][0]["rows"][0]["id"].startswith("date_"), out)
+
+    # break 13:00-14:00 -> no slot that overlaps it
+    tomorrow = business_today(E) + timedelta(days=1)
+    _, out = webhook(client, "PN_E", V, tap(f"date_{tomorrow.isoformat()}"))
+    times = []
+    for page in range(4):
+        rows = out[0]["payload"]["sections"][0]["rows"]
+        times += [r_["id"][5:] for r_ in rows if r_["id"].startswith("time_")]
+        nxt = [r_["id"] for r_ in rows if r_["id"].startswith("page_") and r_["id"] != "page_0"]
+        if not nxt: break
+        _, out = webhook(client, "PN_E", V, tap(nxt[0]))
+    check("break 13:00-14:00: 12:30 and 14:00 offered, 13:00 and 13:30 not",
+          "12:30" in times and "14:00" in times and "13:00" not in times and "13:30" not in times, times)
+    from booking_engine import VerzioSaaSEngine, BookingEngineException as BEE
+    try:
+        VerzioSaaSEngine().validate_and_book(db, "PN_E", _dt.combine(tomorrow, _dt.strptime("13:00", "%H:%M").time()),
+                                             "912000000002", int(seen[0][4:]))
+        check("booking inside the break is refused by the engine", False)
+    except BEE as exc:
+        check("booking inside the break is refused by the engine", exc.error_code == "ERR_OUTSIDE_HOURS", exc.error_code)
+    from hours import build_hours
+    h = build_hours({"hours_mon_enabled": "on", "hours_mon_open": "09:00", "hours_mon_close": "18:00",
+                     "break_start": "13:00", "break_end": "14:00", "hours_tue_enabled": "on",
+                     "hours_tue_open": "14:00", "hours_tue_close": "20:00"})
+    check("form: break saved on days it fits, skipped where it doesn't", h == {"mon": ["09:00", "18:00", "13:00", "14:00"], "tue": ["14:00", "20:00"]}, h)
+
+    # scheduler -------------------------------------------------------------
+    scheduler.QUIET_START, scheduler.QUIET_END = 24, 0          # any hour is fine in tests
+    scheduler.SUMMARY_HOUR, scheduler.SUMMARY_LATEST_HOUR = 0, 24
+    svc_e = db.query(Service).filter_by(business_id=E.id).first()
+    now_e = business_now(E)
+    def appt(when, status, phone, created_hours_ago=10, name="Kiran Rao"):
+        a = Appointment(business_id=E.id, service_id=svc_e.id, customer_phone=phone, customer_name=name,
+                        appointment_time=when.replace(second=0, microsecond=0), status=status,
+                        created_at=_dt.utcnow() - timedelta(hours=created_hours_ago))
+        db.add(a); db.commit(); return a
+    remind = appt(now_e + timedelta(hours=20), "confirmed", "912100000001")
+    fresh = appt(now_e + timedelta(hours=20), "confirmed", "912100000002", created_hours_ago=0.5)
+    far = appt(now_e + timedelta(hours=40), "confirmed", "912100000003")
+    old_pending = appt(now_e + timedelta(hours=30), "pending", "912100000004", created_hours_ago=3)
+    late_pending = appt(now_e + timedelta(minutes=30), "pending", "912100000005", created_hours_ago=3)
+    today_appt = appt(now_e.replace(hour=23, minute=0) if now_e.hour < 22 else now_e + timedelta(minutes=90), "confirmed", "912100000006")
+
+    outbox.clear()
+    result = asyncio.run(scheduler.tick())
+    sent = list(outbox)
+    to = lambda ph: [m for m in sent if m["to"] == ph]
+    check("reminder sent ~20h ahead, with I'll be there / Cancel", to("912100000001")
+          and (tname(to("912100000001")[0]) == "appointment_reminder"
+               or [b_["id"] for b_ in to("912100000001")[0]["payload"].get("buttons", [])] == [f"remind_ok_{remind.id}", f"remind_cancel_{remind.id}"]),
+          to("912100000001"))
+    rem = to("912100000001")[0] if to("912100000001") else None
+    if rem and tname(rem):
+        payloads = [c["parameters"][0]["payload"] for c in rem["payload"]["template"]["components"] if c["type"] == "button"]
+        check("...reminder template carries the booking's button ids", payloads == [f"remind_ok_{remind.id}", f"remind_cancel_{remind.id}"], payloads)
+    check("no reminder for a booking made 30 min ago", not to("912100000002"))
+    check("no reminder 40h ahead (too early)", not to("912100000003"))
+    mgr_e = to("919600000005")
+    check("owner nudged about a request waiting 3h", any(str(old_pending.id) in json.dumps(m["payload"]) for m in mgr_e), mgr_e)
+    db.refresh(late_pending)
+    check("request still pending 30 min before -> declined automatically", late_pending.status == "cancelled", late_pending.status)
+    check("...and that customer is told", bool(to("912100000005")), sent)
+    check("morning summary sent to the owner", any(tname(m) == "daily_summary" or "Good morning" in m["payload"].get("body", "") for m in mgr_e), mgr_e)
+
+    outbox.clear()
+    asyncio.run(scheduler.tick())
+    check("second tick sends nothing again (no duplicate reminders, nudges, summaries)", outbox == [], outbox)
+
+    # customer answers the reminder
+    _, out = webhook(client, "PN_E", "912100000001", {"type": "button", "button": {"payload": f"remind_ok_{remind.id}", "text": "I'll be there"}})
+    check("'I'll be there' -> thanks, booking stays confirmed", out and "See you" in out[0]["payload"]["body"], out)
+    _, out = webhook(client, "PN_E", "918888800000", {"type": "button", "button": {"payload": f"remind_cancel_{remind.id}", "text": "Cancel"}})
+    db.refresh(remind)
+    check("someone else can't cancel it", out == [] and remind.status == "confirmed", (out, remind.status))
+    _, out = webhook(client, "PN_E", "912100000001", {"type": "button", "button": {"payload": f"remind_cancel_{remind.id}", "text": "Cancel booking"}})
+    db.refresh(remind)
+    check("'Cancel booking' -> cancelled, customer told, owner told", remind.status == "cancelled"
+          and any(m["to"] == "912100000001" and "cancelled" in m["payload"]["body"] for m in out)
+          and any(m["to"] == "919600000005" for m in out), out)
+    _, out = webhook(client, "PN_E", "912100000001", {"type": "button", "button": {"payload": f"remind_cancel_{remind.id}", "text": "Cancel booking"}})
+    check("tapping Cancel again -> 'already cancelled'", out and "already cancelled" in out[0]["payload"]["body"], out)
+
     db.close()
 
 from database import engine as _engine

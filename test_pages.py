@@ -8,7 +8,8 @@ and vice versa) and its key content. Throwaway database; safe to run anytime:
 import os, tempfile
 tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False); tmp.close()
 from cryptography.fernet import Fernet
-os.environ.update(DATABASE_URL=f"sqlite:///{tmp.name}", META_APP_SECRET="s", META_ACCESS_TOKEN="x", META_APP_ID="1",
+os.environ.update(
+    SCHEDULER="off",DATABASE_URL=f"sqlite:///{tmp.name}", META_APP_SECRET="s", META_ACCESS_TOKEN="x", META_APP_ID="1",
     META_ES_CONFIG_ID="c", TOKEN_ENCRYPTION_KEY=Fernet.generate_key().decode(), VERZIO_ENV="development",
     VERZIO_SECRET_KEY="test-only-secret-key-not-for-production-use", ADMIN_USERNAME="admin",
     ADMIN_PASSWORD="verzio-dev-admin", COOKIE_SECURE="false")
@@ -45,7 +46,7 @@ with TestClient(server.app) as c:
     admin_pages = {
         "/admin": ["Paused Spa", "test failure", "Businesses needing attention"],
         "/admin/businesses": ["Glow Salon", "Add business", "WhatsApp"],
-        "/admin/businesses/new": ["<form"],
+        "/admin/businesses/new": ["<form", 'name="break_start"'],
         f"/admin/businesses/{b.id}/edit": ["Glow Salon"],
         "/admin/services": ["Haircut"],
         "/admin/services/new": ['name="business_id"', "Glow Salon"],
@@ -74,6 +75,17 @@ with TestClient(server.app) as c:
                  "/owner/services/new", f"/owner/services/{s.id}/edit", "/owner/reports", "/owner/settings"]:
         r = c.get(path)
         check(f"owner {path:32} loads (no admin nav)", r.status_code == 200 and ADMIN_MARK not in r.text, r.status_code)
+    r = c.get("/owner/settings")
+    check("owner settings has the daily break fields", 'name="break_start"' in r.text and 'name="break_end"' in r.text)
+    r = c.get("/owner/settings", headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile"})
+    check("owner settings (phone) has the daily break fields", r.status_code == 200 and 'name="break_start"' in r.text)
+    form = {"business_name": "Glow Salon", "phone_number": "98000 11111", "timezone": "Asia/Kolkata",
+            "accept_online_bookings": "on", "slot_duration": "30", "hours_mon_enabled": "on",
+            "hours_mon_open": "10:00", "hours_mon_close": "19:00", "break_start": "13:30", "break_end": "14:30"}
+    r = c.post("/owner/settings", data=form)
+    db.expire_all(); saved = db.get(Business, b.id)
+    check("owner saves a break + a 10-digit number", r.status_code == 200 and saved.operational_hours.get("mon") == ["10:00", "19:00", "13:30", "14:30"]
+          and saved.manager_phone_number == "919800011111", (saved.operational_hours, saved.manager_phone_number))
     db.close()
 from database import engine; engine.dispose()
 try:

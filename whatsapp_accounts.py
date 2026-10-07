@@ -159,6 +159,17 @@ def account_credentials(business_id: int | None) -> tuple[str | None, str | None
     return token, display
 
 
+def manager_is_business_number(biz) -> bool:
+    """True when the manager number is the business's own WhatsApp number.
+    WhatsApp can't message itself, so approval requests can never arrive."""
+    from whatsapp_client import canonical_phone  # local import avoids a cycle
+    if not biz or not getattr(biz, "id", None):
+        return False
+    _, display = account_credentials(biz.id)
+    manager = canonical_phone(biz.manager_phone_number, biz.timezone)
+    return bool(display and manager and canonical_phone(display, biz.timezone) == manager)
+
+
 # ------------------------------------------------------------------------
 # Onboarding links
 # ------------------------------------------------------------------------

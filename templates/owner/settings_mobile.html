@@ -91,6 +91,15 @@
                 </div>
             </div>
             {% endfor %}
+            {% set brk = daily_break(business) %}
+            <div class="m-day">
+                <span class="fw-semibold">Daily break <span class="text-muted fw-normal">(optional)</span></span>
+                <div class="m-day-times">
+                    <input type="time" class="form-control" name="break_start" value="{{ brk[0] }}" aria-label="Break starts">
+                    <input type="time" class="form-control" name="break_end" value="{{ brk[1] }}" aria-label="Break ends">
+                </div>
+                <div class="small text-muted mt-1">No bookings during this time, e.g. lunch. Leave empty for none.</div>
+            </div>
         </div>
 
         <div class="m-sticky-save">

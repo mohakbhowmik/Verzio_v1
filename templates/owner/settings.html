@@ -191,6 +191,16 @@
                         </div>
                         {% endfor %}
                     </div>
+                    {% set brk = daily_break(business) %}
+                    <div class="mt-4">
+                        <div class="form-label">Daily break <span class="text-muted fw-normal">(optional)</span></div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <input type="time" class="form-control-verzio form-control-time" style="max-width:160px" name="break_start" value="{{ brk[0] }}" aria-label="Break starts">
+                            <span class="text-muted">to</span>
+                            <input type="time" class="form-control-verzio form-control-time" style="max-width:160px" name="break_end" value="{{ brk[1] }}" aria-label="Break ends">
+                        </div>
+                        <div class="small text-muted mt-1">No WhatsApp bookings during this time on any open day, e.g. lunch. Leave empty for no break.</div>
+                    </div>
                 </div>
             </section>
         </div>

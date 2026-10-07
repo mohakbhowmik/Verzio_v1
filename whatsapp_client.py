@@ -95,6 +95,41 @@ TEMPLATE_DEFINITIONS = {
         ),
         "example": ["Glow Salon", "Priya Sharma (+919876543210)", "Haircut", "Sat, 04 Oct at 3:00 PM"],
     },
+    "customer_message": {
+        "text": (
+            "New message for {{1}} from {{2}}:\n\n{{3}}\n\n"
+            "Reply to them on WhatsApp: {{4}}\n\n"
+            "The booking bot has stepped back for this customer."
+        ),
+        "example": ["Glow Salon", "Priya Sharma (+919876543210)",
+                    "I had a facial on Monday and my skin is still red. Is that normal?",
+                    "https://wa.me/919876543210"],
+    },
+    "appointment_reminder": {
+        "text": (
+            "Hi {{1}}, this is a reminder of your appointment at {{2}}.\n\n"
+            "Service: {{3}}\nWhen: {{4}}\n\n"
+            "Please tap a button below to let us know if you are coming."
+        ),
+        "example": ["Priya", "Glow Salon", "Haircut", "Sat, 04 Oct at 3:00 PM"],
+        "buttons": ["I'll be there", "Cancel booking"],
+    },
+    "customer_cancelled": {
+        "text": (
+            "Booking cancelled at {{1}}.\n\n"
+            "Customer: {{2}}\nService: {{3}}\nWhen: {{4}}\n\n"
+            "The customer cancelled from their reminder. The time is open for new bookings again."
+        ),
+        "example": ["Glow Salon", "Priya Sharma (+919876543210)", "Haircut", "Sat, 04 Oct at 3:00 PM"],
+    },
+    "daily_summary": {
+        "text": (
+            "Good morning! Your day at {{1}}.\n\n"
+            "Bookings today: {{2}}\nSchedule: {{3}}\nWaiting for your approval: {{4}}\n\n"
+            "Open your Verzio owner portal for full details."
+        ),
+        "example": ["Glow Salon", "5", "10:00 AM Haircut (Priya) · 11:30 AM Facial (Anita) · 4:00 PM Manicure (Ritu)", "1"],
+    },
 }
 
 # Names can be overridden per environment, e.g. WA_TEMPLATE_BOOKING_CONFIRMED=booking_confirmed_v2
@@ -108,6 +143,40 @@ TEMPLATE_NAMES = {key: os.getenv(f"WA_TEMPLATE_{key.upper()}", key) for key in T
 def normalize_phone(raw: str | None) -> str:
     """Digits only. '+91 98765-43210' -> '919876543210'."""
     return re.sub(r"\D", "", raw or "")
+
+
+# Country calling code per business timezone. India is the default market.
+_TZ_COUNTRY_CODE = {
+    "Asia/Kolkata": "91", "Asia/Calcutta": "91",
+    "Europe/London": "44",
+    "Asia/Dubai": "971",
+}
+
+
+def canonical_phone(raw: str | None, timezone: str | None = None) -> str:
+    """Digits with country code, as WhatsApp uses them.
+    '98765 43210' (India) -> '919876543210', '07700 900123' (UK) -> '447700900123',
+    '050 123 4567' (UAE) -> '971501234567'. Numbers already in international
+    form are left alone. Returns '' for empty input."""
+    text_ = (raw or "").strip()
+    digits = normalize_phone(text_)
+    if not digits:
+        return ""
+    if text_.startswith("+"):
+        return digits
+    if digits.startswith("00"):
+        return digits[2:]
+    cc = _TZ_COUNTRY_CODE.get((timezone or "").strip(), "91")
+    if digits.startswith("0"):
+        national = digits.lstrip("0")
+        return cc + national if national else digits
+    if cc == "91" and len(digits) == 10 and digits[0] in "6789":
+        return "91" + digits
+    if cc == "44" and len(digits) == 10 and digits[0] == "7":
+        return "44" + digits
+    if cc == "971" and len(digits) == 9 and digits[0] == "5":
+        return "971" + digits
+    return digits
 
 
 def is_real_phone(raw: str | None) -> bool:
@@ -342,6 +411,21 @@ def build_owner_request_template(business, appointment, service_name: str) -> di
         [business.name, _customer_label(appointment), service_name,
          format_when(appointment.appointment_time), appointment.id],
         button_payloads=[f"confirm_{appointment.id}", f"cancel_{appointment.id}"],
+    )
+
+
+def build_reminder_template(business, appointment, service_name: str) -> dict:
+    return build_template(
+        "appointment_reminder",
+        [_first_name(appointment.customer_name), business.name, service_name, format_when(appointment.appointment_time)],
+        button_payloads=[f"remind_ok_{appointment.id}", f"remind_cancel_{appointment.id}"],
+    )
+
+
+def build_customer_cancelled_template(business, appointment, service_name: str) -> dict:
+    return build_template(
+        "customer_cancelled",
+        [business.name, _customer_label(appointment), service_name, format_when(appointment.appointment_time)],
     )
 
 

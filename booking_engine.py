@@ -54,6 +54,19 @@ class BookingEngineException(Exception):
         return self.error_code
 
 
+def owner_cannot_approve(biz: Business) -> bool:
+    """Manual approval only works if the owner can receive the request. When the
+    manager number is the business's own WhatsApp number (common: one phone),
+    requests can't be delivered, so bookings are confirmed automatically. The
+    owner still sees each booking in the WhatsApp Business app and the portal."""
+    try:
+        from whatsapp_accounts import manager_is_business_number
+        return manager_is_business_number(biz)
+    except Exception:
+        logger.exception("Could not check the manager number for business_id=%s", getattr(biz, "id", None))
+        return False
+
+
 # ------------------------------------------------------------------------
 # Time helpers
 # ------------------------------------------------------------------------
@@ -152,6 +165,23 @@ class VerzioSaaSEngine:
             return None  # overnight hours are not supported
         return datetime.combine(day, open_t), datetime.combine(day, close_t)
 
+    @staticmethod
+    def day_breaks(biz: Business, day) -> list[tuple[datetime, datetime]]:
+        """Break periods (no bookings) as naive local datetimes."""
+        day = _as_date(day)
+        hours = (biz.operational_hours or {}).get(day.strftime("%a").lower()[:3]) or []
+        if len(hours) < 4:
+            return []
+        try:
+            start = datetime.combine(day, datetime.strptime(hours[2], "%H:%M").time())
+            end = datetime.combine(day, datetime.strptime(hours[3], "%H:%M").time())
+        except (TypeError, ValueError):
+            return []
+        return [(start, end)] if start < end else []
+
+    def overlaps_break(self, biz: Business, start: datetime, end: datetime) -> bool:
+        return any(s < end and start < e for s, e in self.day_breaks(biz, start))
+
     def is_open_day(self, biz: Business, day) -> bool:
         return not self.is_holiday(biz, day) and self.day_window(biz, day) is not None
 
@@ -224,11 +254,13 @@ class VerzioSaaSEngine:
         step = timedelta(minutes=self.interval_minutes(biz))
         length = timedelta(minutes=self.service_minutes(biz, service))
         intervals = self._day_occupancy(db, biz, day)
+        breaks = self.day_breaks(biz, day)
 
         slots = []
         curr = open_dt
         while curr + length <= close_dt:          # the service must FINISH by closing
-            if curr > now_local and self._fits(biz, intervals, curr, curr + length):
+            in_break = any(s < curr + length and curr < e for s, e in breaks)
+            if curr > now_local and not in_break and self._fits(biz, intervals, curr, curr + length):
                 slots.append(curr.strftime("%H:%M"))
             curr += step
         return slots
@@ -293,13 +325,13 @@ class VerzioSaaSEngine:
                 raise BookingEngineException("Business is closed on this date.", ERR_HOLIDAY)
 
             window = self.day_window(biz, start)
-            if window is None or start < window[0] or end > window[1]:
+            if window is None or start < window[0] or end > window[1] or self.overlaps_break(biz, start, end):
                 raise BookingEngineException("Selected time is outside business hours.", ERR_OUTSIDE_HOURS)
 
             if not self._fits(biz, self._day_occupancy(db, biz, start), start, end):
                 raise BookingEngineException("This slot just reached full capacity.", ERR_CAPACITY)
 
-            status = "confirmed" if biz.approval_mode == "automatic" else "pending"
+            status = "confirmed" if (biz.approval_mode == "automatic" or owner_cannot_approve(biz)) else "pending"
             appt = Appointment(
                 business_id=biz.id,
                 service_id=service.id,

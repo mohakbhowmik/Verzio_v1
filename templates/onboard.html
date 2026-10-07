@@ -167,7 +167,7 @@
         }
         html += "<li>Verzio will finish setting up your booking menu.</li></ol>";
         if (res.manager_is_business_number) {
-          html += "<br>Booking approvals can't be sent to this same number. Verzio will set a different number for approvals, or you can approve in the owner portal.";
+          html += "<br>Bookings will be confirmed automatically, because approval requests can't be sent to this same number. You'll see every booking in the WhatsApp Business app and your owner portal.";
         }
         if (res.warnings && res.warnings.length) {
           html += '<br><span class="small">Note for Verzio: ' + esc(res.warnings.join("; ")) + "</span>";
