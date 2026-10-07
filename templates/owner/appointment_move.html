@@ -1,0 +1,81 @@
+{% extends "owner_base_mobile.html" if mobile else "owner/base.html" %}
+
+{% block title %}Change time — Verzio Studio{% endblock %}
+{% block page_title %}Change time{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px;">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Change booking time</h1>
+      <p class="page-subtitle">The customer gets a WhatsApp message with the new time. The old time becomes free.</p>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger mb-3 d-flex align-items-center">
+    <i class="bi bi-exclamation-circle-fill me-2"></i> {{ error }}
+  </div>
+  {% endif %}
+
+  <section class="section-container mb-3">
+    <div class="section-head"><h2 class="section-title">Booking #{{ appointment.id }}</h2></div>
+    <div class="p-4">
+      <div class="fw-semibold">{{ appointment.customer_name or appointment.customer_phone }}</div>
+      <div class="text-muted">{{ appointment.service.name if appointment.service else "Service removed" }}</div>
+      <div class="mt-2">Now: <strong>{{ current_when }}</strong>
+        <span class="status-badge status-{{ appointment.status }} ms-2"><span class="dot"></span>{{ appointment.status|capitalize }}</span>
+      </div>
+    </div>
+  </section>
+
+  <form method="post" action="/owner/appointments/{{ appointment.id }}/move">
+    <section class="section-container mb-3">
+      <div class="section-head"><h2 class="section-title">New time</h2></div>
+      <div class="p-4">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" for="date">Date</label>
+            <input type="date" id="date" name="date" class="form-control-verzio" value="{{ date_value }}" required
+                   onchange="window.location='/owner/appointments/{{ appointment.id }}/move?date=' + this.value">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="time">Time</label>
+            <input type="time" id="time" name="time" class="form-control-verzio form-control-time" value="{{ time_value }}"
+                   step="{{ (business.slot_interval or 30) * 60 }}" required>
+          </div>
+        </div>
+
+        <div class="form-label mt-3">Free times that day</div>
+        {% if free_times %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for value, label in free_times %}
+          <button type="button" class="btn-verzio-outline" style="padding:6px 12px;"
+                  onclick="document.getElementById('time').value='{{ value }}'">{{ label }}</button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="setting-row-hint">No free times on this day. Pick another date, or use the override below.</div>
+        {% endif %}
+
+        <div class="setting-row mt-3">
+          <div>
+            <div class="setting-row-title">Override availability checks</div>
+            <div class="setting-row-hint">Save even if the time is full, in a break or outside opening hours.</div>
+          </div>
+          <label class="vz-toggle">
+            <input type="checkbox" name="allow_overbook" aria-label="Override availability checks" {% if override %}checked{% endif %}>
+            <span class="vz-toggle-track"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <div class="d-flex gap-2 justify-content-end">
+      <a href="/owner/appointments" class="btn-verzio-outline">Back</a>
+      <button type="submit" class="btn-verzio-primary"><i class="bi bi-clock-history me-2"></i> Move booking</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

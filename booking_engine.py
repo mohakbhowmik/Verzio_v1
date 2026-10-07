@@ -198,10 +198,11 @@ class VerzioSaaSEngine:
                 break
         return dates
 
-    def _day_occupancy(self, db: Session, biz: Business, day) -> list[tuple[datetime, datetime]]:
-        """All seat-holding appointments for this business on this day, as (start, end)."""
+    def _day_occupancy(self, db: Session, biz: Business, day, exclude_id: int | None = None) -> list[tuple[datetime, datetime]]:
+        """All seat-holding appointments for this business on this day, as (start, end).
+        `exclude_id` leaves one booking out (used when moving it)."""
         day = _as_date(day)
-        rows = (
+        query = (
             db.query(Appointment.appointment_time, Service.duration)
             .outerjoin(Service, Appointment.service_id == Service.id)
             .filter(
@@ -210,8 +211,10 @@ class VerzioSaaSEngine:
                 Appointment.appointment_time >= datetime.combine(day, dt_time.min),
                 Appointment.appointment_time <= datetime.combine(day, dt_time.max),
             )
-            .all()
         )
+        if exclude_id is not None:
+            query = query.filter(Appointment.id != exclude_id)
+        rows = query.all()
         fallback = self.interval_minutes(biz)
         intervals = []
         for start, duration in rows:
@@ -240,8 +243,10 @@ class VerzioSaaSEngine:
         biz: Business,
         target_date,
         service: Service | None = None,
+        exclude_id: int | None = None,
     ) -> list[str]:
-        """Start times ("HH:MM") where `service` fits, in business-local time."""
+        """Start times ("HH:MM") where `service` fits, in business-local time.
+        `exclude_id`: ignore this booking's own seat (when moving it)."""
         day = _as_date(target_date)
         if self.is_holiday(biz, day):
             return []
@@ -253,7 +258,7 @@ class VerzioSaaSEngine:
         now_local = business_now(biz)
         step = timedelta(minutes=self.interval_minutes(biz))
         length = timedelta(minutes=self.service_minutes(biz, service))
-        intervals = self._day_occupancy(db, biz, day)
+        intervals = self._day_occupancy(db, biz, day, exclude_id=exclude_id)
         breaks = self.day_breaks(biz, day)
 
         slots = []
@@ -351,6 +356,57 @@ class VerzioSaaSEngine:
 
         db.refresh(appt)
         logger.info("Booked appointment #%s for business_id=%s (%s)", appt.id, appt.business_id, appt.status)
+        return appt
+
+    def validate_and_move(
+        self,
+        db: Session,
+        business_id: int,
+        appointment_id: int,
+        target_dt: datetime,
+        override: bool = False,
+    ) -> Appointment:
+        """Move an existing pending/confirmed booking to a new time, atomically.
+        The booking keeps its id and status. `override` (owner only) skips the
+        hours/capacity checks, like the walk-in override."""
+        try:
+            self._acquire_write_lock(db, business_id)
+        except Exception as exc:
+            db.rollback()
+            raise BookingEngineException("The calendar is busy, please try again.", ERR_BUSY) from exc
+
+        try:
+            biz = db.get(Business, business_id)
+            appt = (
+                db.query(Appointment)
+                .filter(Appointment.id == appointment_id, Appointment.business_id == business_id)
+                .first()
+            )
+            if biz is None or appt is None or appt.status not in OCCUPYING_STATUSES:
+                raise BookingEngineException("This booking can't be changed.", ERR_NOT_FOUND)
+            service = appt.service
+            start = target_dt.replace(second=0, microsecond=0)
+            end = start + timedelta(minutes=self.service_minutes(biz, service))
+
+            if not override:
+                if start <= business_now(biz):
+                    raise BookingEngineException("This appointment time is in the past.", ERR_PAST_TIME)
+                if self.is_holiday(biz, start):
+                    raise BookingEngineException("Business is closed on this date.", ERR_HOLIDAY)
+                window = self.day_window(biz, start)
+                if window is None or start < window[0] or end > window[1] or self.overlaps_break(biz, start, end):
+                    raise BookingEngineException("Selected time is outside business hours.", ERR_OUTSIDE_HOURS)
+                if not self._fits(biz, self._day_occupancy(db, biz, start, exclude_id=appt.id), start, end):
+                    raise BookingEngineException("This slot just reached full capacity.", ERR_CAPACITY)
+
+            appt.appointment_time = start
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+        db.refresh(appt)
+        logger.info("Moved appointment #%s for business_id=%s to %s", appt.id, business_id, start)
         return appt
 
 

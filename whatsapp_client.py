@@ -105,14 +105,31 @@ TEMPLATE_DEFINITIONS = {
                     "I had a facial on Monday and my skin is still red. Is that normal?",
                     "https://wa.me/919876543210"],
     },
-    "appointment_reminder": {
+    # v2: adds "Reschedule". (v1 with two buttons may exist on Meta; it's unused.)
+    "appointment_reminder_v2": {
         "text": (
             "Hi {{1}}, this is a reminder of your appointment at {{2}}.\n\n"
             "Service: {{3}}\nWhen: {{4}}\n\n"
             "Please tap a button below to let us know if you are coming."
         ),
         "example": ["Priya", "Glow Salon", "Haircut", "Sat, 04 Oct at 3:00 PM"],
-        "buttons": ["I'll be there", "Cancel booking"],
+        "buttons": ["I'll be there", "Reschedule", "Cancel booking"],
+    },
+    "booking_rescheduled": {
+        "text": (
+            "Hi {{1}}, your booking at {{2}} has been moved.\n\n"
+            "Service: {{3}}\nNew time: {{4}}\n\n"
+            "Reply to this message if the new time doesn't work for you."
+        ),
+        "example": ["Priya", "Glow Salon", "Haircut", "Sat, 04 Oct at 5:00 PM"],
+    },
+    "customer_rescheduled": {
+        "text": (
+            "Booking moved at {{1}}.\n\n"
+            "Customer: {{2}}\nService: {{3}}\nNew time: {{4}}\nWas: {{5}}\n\n"
+            "The customer rescheduled on WhatsApp. The old time is open for new bookings again."
+        ),
+        "example": ["Glow Salon", "Priya Sharma (+919876543210)", "Haircut", "Sat, 04 Oct at 5:00 PM", "Sat, 04 Oct at 3:00 PM"],
     },
     "customer_cancelled": {
         "text": (
@@ -416,9 +433,26 @@ def build_owner_request_template(business, appointment, service_name: str) -> di
 
 def build_reminder_template(business, appointment, service_name: str) -> dict:
     return build_template(
-        "appointment_reminder",
+        "appointment_reminder_v2",
         [_first_name(appointment.customer_name), business.name, service_name, format_when(appointment.appointment_time)],
-        button_payloads=[f"remind_ok_{appointment.id}", f"remind_cancel_{appointment.id}"],
+        button_payloads=[f"remind_ok_{appointment.id}", f"remind_move_{appointment.id}", f"remind_cancel_{appointment.id}"],
+    )
+
+
+def build_rescheduled_template(business, appointment, service_name: str) -> dict:
+    """To the customer: the owner moved their booking."""
+    return build_template(
+        "booking_rescheduled",
+        [_first_name(appointment.customer_name), business.name, service_name, format_when(appointment.appointment_time)],
+    )
+
+
+def build_customer_rescheduled_template(business, appointment, service_name: str, old_time) -> dict:
+    """To the owner: the customer moved their booking."""
+    return build_template(
+        "customer_rescheduled",
+        [business.name, _customer_label(appointment), service_name,
+         format_when(appointment.appointment_time), format_when(old_time)],
     )
 
 

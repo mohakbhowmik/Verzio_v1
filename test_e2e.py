@@ -459,14 +459,15 @@ with TestClient(server.app) as client:
     result = asyncio.run(scheduler.tick())
     sent = list(outbox)
     to = lambda ph: [m for m in sent if m["to"] == ph]
-    check("reminder sent ~20h ahead, with I'll be there / Cancel", to("912100000001")
-          and (tname(to("912100000001")[0]) == "appointment_reminder"
-               or [b_["id"] for b_ in to("912100000001")[0]["payload"].get("buttons", [])] == [f"remind_ok_{remind.id}", f"remind_cancel_{remind.id}"]),
+    ids3 = [f"remind_ok_{remind.id}", f"remind_move_{remind.id}", f"remind_cancel_{remind.id}"]
+    check("reminder sent ~20h ahead, with I'll be there / Reschedule / Cancel", to("912100000001")
+          and (tname(to("912100000001")[0]) == "appointment_reminder_v2"
+               or [b_["id"] for b_ in to("912100000001")[0]["payload"].get("buttons", [])] == ids3),
           to("912100000001"))
     rem = to("912100000001")[0] if to("912100000001") else None
     if rem and tname(rem):
         payloads = [c["parameters"][0]["payload"] for c in rem["payload"]["template"]["components"] if c["type"] == "button"]
-        check("...reminder template carries the booking's button ids", payloads == [f"remind_ok_{remind.id}", f"remind_cancel_{remind.id}"], payloads)
+        check("...reminder template carries the booking's button ids", payloads == ids3, payloads)
     check("no reminder for a booking made 30 min ago", not to("912100000002"))
     check("no reminder 40h ahead (too early)", not to("912100000003"))
     mgr_e = to("919600000005")
@@ -493,6 +494,120 @@ with TestClient(server.app) as client:
           and any(m["to"] == "919600000005" for m in out), out)
     _, out = webhook(client, "PN_E", "912100000001", {"type": "button", "button": {"payload": f"remind_cancel_{remind.id}", "text": "Cancel booking"}})
     check("tapping Cancel again -> 'already cancelled'", out and "already cancelled" in out[0]["payload"]["body"], out)
+
+    # --- Reschedule ------------------------------------------------------
+    import scheduler as _sch
+    W = "912300000001"
+    mv = appt(now_e.replace(hour=10, minute=0) + timedelta(days=2), "confirmed", W, name="Meera Iyer")
+    _sch.claim("reminder", mv.id)                       # pretend its reminder already went out
+    old_time = mv.appointment_time
+    btn_tpl = lambda p_: {"type": "button", "button": {"payload": p_, "text": "Reschedule"}}
+    _, out = webhook(client, "PN_E", W, btn_tpl(f"remind_move_{mv.id}"), name="Meera Iyer")
+    check("reminder 'Reschedule' -> date list for the same service, saying what's being moved",
+          out and out[0]["payload"]["type"] == "list" and "Let's move your" in out[0]["payload"]["body"], out)
+    new_day = (old_time + timedelta(days=1)).date()
+    _, out = webhook(client, "PN_E", W, tap(f"date_{new_day.isoformat()}"))
+    _, out = webhook(client, "PN_E", W, tap("time_11:00"))
+    check("confirm screen says 'Move your booking' with Confirm new time / Keep old time",
+          out and "Move your booking" in out[0]["payload"]["body"]
+          and [b_["title"] for b_ in out[0]["payload"]["buttons"]] == ["Confirm new time", "Keep old time"], out)
+    before = db.query(Appointment).filter_by(business_id=E.id).count()
+    _, out = webhook(client, "PN_E", W, btn("action_confirm"))
+    db.refresh(mv)
+    check("booking moved in place: same id, new time, still confirmed, no new booking",
+          mv.appointment_time.date() == new_day and mv.appointment_time.strftime("%H:%M") == "11:00"
+          and mv.status == "confirmed" and db.query(Appointment).filter_by(business_id=E.id).count() == before,
+          (mv.appointment_time, mv.status))
+    check("customer told it's moved; owner told with old + new time",
+          any(m["to"] == W and "moved" in m["payload"]["body"] for m in out)
+          and any(m["to"] == "919600000005" and ("Was:" in json.dumps(m["payload"]) or tname(m) == "customer_rescheduled") for m in out), out)
+    eng = VerzioSaaSEngine()
+    check("old 10:00 slot is free again, new 11:00 is taken",
+          "10:00" in eng.get_available_slots(db, E, old_time.date(), svc_e)
+          and "11:00" not in eng.get_available_slots(db, E, new_day, svc_e))
+    check("reminder will be sent again for the new time", not _sch.already_claimed("reminder", mv.id))
+
+    # 'Keep old time' leaves it alone
+    webhook(client, "PN_E", W, btn_tpl(f"remind_move_{mv.id}"))
+    webhook(client, "PN_E", W, tap(f"date_{new_day.isoformat()}"))
+    webhook(client, "PN_E", W, tap("time_15:00"))
+    _, out = webhook(client, "PN_E", W, btn("action_cancel"))
+    db.refresh(mv)
+    check("'Keep old time' -> unchanged and says so", mv.appointment_time.strftime("%H:%M") == "11:00"
+          and "stays" in out[0]["payload"]["body"], out)
+
+    # moving to a slot overlapping its own current time works (own seat ignored)
+    webhook(client, "PN_E", W, btn_tpl(f"remind_move_{mv.id}"))
+    _, out = webhook(client, "PN_E", W, tap(f"date_{new_day.isoformat()}"))
+    times_now = []
+    for _p in range(4):
+        rws = out[0]["payload"]["sections"][0]["rows"]; times_now += [r_["id"] for r_ in rws]
+        nx = [r_["id"] for r_ in rws if r_["id"].startswith("page_") and r_["id"] != "page_0"]
+        if not nx: break
+        _, out = webhook(client, "PN_E", W, tap(nx[0]))
+    check("its own current time (11:00) is offered when moving it", "time_11:00" in times_now and "time_11:30" in times_now, times_now)
+    webhook(client, "PN_E", W, text("hi"))                       # abandon: fresh Hi is a normal booking again
+    from reschedule import get_intent
+    check("a fresh 'Hi' forgets the reschedule", get_intent(db, E.id, W) is None)
+
+    # typed requests
+    _, out = webhook(client, "PN_E", W, text("Hi, I need to reschedule my appointment please"))
+    check("typed 'reschedule' with one booking -> Pick a new time / Cancel / Talk to us",
+          out and out[0]["payload"]["type"] == "buttons"
+          and [b_["id"] for b_ in out[0]["payload"]["buttons"]] == [f"remind_move_{mv.id}", f"remind_cancel_{mv.id}", "action_human"], out)
+    mv2 = appt(now_e.replace(hour=16, minute=0) + timedelta(days=3), "confirmed", W, name="Meera Iyer")
+    _, out = webhook(client, "PN_E", W, text("sorry I can't come, please cancel"))
+    rows_ = out[0]["payload"]["sections"][0]["rows"] if out and out[0]["payload"]["type"] == "list" else []
+    check("typed 'cancel' with two bookings -> list to pick which one",
+          [r_["id"] for r_ in rows_][:2] == [f"remind_cancel_{mv.id}", f"remind_cancel_{mv2.id}"], out)
+    _, out = webhook(client, "PN_E", W, tap(f"remind_cancel_{mv2.id}"))
+    db.refresh(mv2)
+    check("picking it cancels that one only", mv2.status == "cancelled" and db.get(Appointment, mv.id).status == "confirmed")
+    _, out = webhook(client, "PN_E", "912399999999", text("I want to reschedule"))
+    check("typed 'reschedule' with no bookings -> normal choice buttons", out and out[0]["payload"]["type"] == "buttons"
+          and out[0]["payload"]["buttons"][-1]["id"] == "action_human", out)
+
+    # pending request moved -> owner gets Approve/Reject again for the new time
+    pend = appt(now_e.replace(hour=10, minute=0) + timedelta(days=4), "pending", "912300000002", created_hours_ago=0.2)
+    webhook(client, "PN_E", "912300000002", btn_tpl(f"remind_move_{pend.id}"))
+    webhook(client, "PN_E", "912300000002", tap(f"date_{(pend.appointment_time + timedelta(days=1)).date().isoformat()}"))
+    webhook(client, "PN_E", "912300000002", tap("time_12:00"))
+    _, out = webhook(client, "PN_E", "912300000002", btn("action_confirm"))
+    db.refresh(pend)
+    owner_msgs = [m for m in out if m["to"] == "919600000005"]
+    check("moved pending request stays pending; owner gets Approve/Reject for the new time",
+          pend.status == "pending" and owner_msgs and (tname(owner_msgs[0]) == "new_booking_request"
+          or owner_msgs[0]["payload"]["buttons"][0]["id"] == f"confirm_{pend.id}"), out)
+
+    # owner portal: Change time (cookie for Glow Salon = business A is still set)
+    oday = business_today(A) + timedelta(days=5)
+    om = Appointment(business_id=A.id, service_id=sa.id, customer_phone="912400000001", customer_name="Nisha",
+                     appointment_time=_dt.combine(oday, _dt.strptime("10:00", "%H:%M").time()), status="confirmed")
+    blocker = Appointment(business_id=A.id, service_id=sa.id, customer_phone="912400000002", customer_name="Blocker",
+                          appointment_time=_dt.combine(oday, _dt.strptime("15:00", "%H:%M").time()), status="confirmed")
+    db.add_all([om, blocker]); db.commit()
+    r = client.get(f"/owner/appointments/{om.id}/move")
+    check("owner 'Change time' page shows the booking and free times",
+          r.status_code == 200 and "Booking #" in r.text and "'11:00'" in r.text and "11:00 AM" in r.text, r.status_code)
+    r = client.get("/owner/appointments")
+    check("appointments list has a Change time link", f"/owner/appointments/{om.id}/move" in r.text)
+    outbox.clear()
+    r = client.post(f"/owner/appointments/{om.id}/move", data={"date": oday.isoformat(), "time": "15:00"}, follow_redirects=False)
+    db.refresh(om)
+    check("moving onto a full time -> form error, booking unchanged", r.status_code == 400 and "fully booked" in r.text
+          and om.appointment_time.strftime("%H:%M") == "10:00", r.status_code)
+    outbox.clear()
+    r = client.post(f"/owner/appointments/{om.id}/move", data={"date": oday.isoformat(), "time": "11:30"}, follow_redirects=False)
+    db.refresh(om)
+    check("owner moves booking -> new time saved, status kept", r.status_code == 303
+          and om.appointment_time.strftime("%H:%M") == "11:30" and om.status == "confirmed", (r.status_code, om.appointment_time))
+    msg = [m for m in outbox if m["to"] == "912400000001"]
+    check("...customer gets 'moved' (template, as they never messaged), not 'cancelled'",
+          msg and tname(msg[0]) == "booking_rescheduled", outbox)
+    outbox.clear()
+    r = client.post(f"/owner/appointments/{om.id}/move", data={"date": oday.isoformat(), "time": "15:00", "allow_overbook": "on"}, follow_redirects=False)
+    db.refresh(om)
+    check("override lets the owner double up deliberately", r.status_code == 303 and om.appointment_time.strftime("%H:%M") == "15:00")
 
     db.close()
 

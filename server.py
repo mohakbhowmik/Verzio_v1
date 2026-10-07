@@ -53,6 +53,7 @@ from database import ActivityEvent, Appointment, Business, SessionLocal, UserSes
 import scheduler
 from customer_inbox import MEDIA_LABELS, classify_text, save_message, take_unforwarded
 from customer_inbox import ensure_tables as ensure_inbox_tables
+from reschedule import ensure_tables as ensure_reschedule_tables
 from whatsapp_client import (
     build_status_message,
     build_customer_cancelled_template,
@@ -109,7 +110,10 @@ HUMAN_ID = "action_human"
 RESUME_WORDS = {"book", "booking", "menu", "book appointment"}
 
 MANAGER_ACTION_RE = re.compile(r"(confirm|cancel|noshow)_(\d+)")
-REMINDER_ACTION_RE = re.compile(r"remind_(ok|cancel)_(\d+)")
+REMINDER_ACTION_RE = re.compile(r"remind_(ok|move|cancel)_(\d+)")
+# Typed requests about an existing booking.
+RESCHEDULE_RE = re.compile(r"\b(re-?schedul\w*|postpone\w*|prepone\w*|change\s+(?:my\s+|the\s+)?(?:time|timing|slot|date|day|booking|appointment)|move\s+my|another\s+(?:time|day|slot)|different\s+(?:time|day|slot))\b", re.I)
+CANCEL_RE = re.compile(r"\b(cancel\w*|can't\s+come|cannot\s+come|won't\s+be\s+able)\b", re.I)
 MANAGER_TRANSITIONS = {
     #  action     allowed from              new status     event type             event status
     "confirm": ({"pending"},              "confirmed", "booking_confirmed",   "success"),
@@ -168,6 +172,7 @@ def startup() -> None:
     ensure_window_table()
     ensure_account_tables()
     ensure_inbox_tables()
+    ensure_reschedule_tables()
     _normalize_manager_numbers()
     if scheduler.enabled():
         app.state.scheduler_task = asyncio.create_task(scheduler.run_forever())
@@ -356,6 +361,9 @@ async def _handle_free_message(
             logger.info("Bot paused (a person is chatting) for business_id=%s customer=%s", biz.id, mask_phone(sender))
         return
 
+    if not is_media and await _offer_booking_changes(db, biz, tenant_id, sender, body):
+        return
+
     intent = "other" if is_media else classify_text(body)
     if intent == "ack":
         logger.info("Acknowledgement from %s for business_id=%s; no reply needed", mask_phone(sender), biz.id)
@@ -370,6 +378,61 @@ async def _handle_free_message(
         await _hand_to_human(db, biz, tenant_id, sender, val)
         return
     await send_whatsapp(sender, tenant_id, _choice_payload(biz, name), biz.id)
+
+
+async def _offer_booking_changes(db: Session, biz: Business, tenant_id: str, sender: str, body: str) -> bool:
+    """'I need to reschedule' / 'cancel my booking' from someone with upcoming
+    bookings: let them pick the booking and do it themselves. Returns True if handled."""
+    wants_move = bool(RESCHEDULE_RE.search(body or ""))
+    wants_cancel = not wants_move and bool(CANCEL_RE.search(body or ""))
+    if not (wants_move or wants_cancel):
+        return False
+    from booking_engine import business_now
+    upcoming = (
+        db.query(Appointment)
+        .filter(Appointment.business_id == biz.id,
+                Appointment.customer_phone.in_({sender, normalize_phone(sender)}),
+                Appointment.status.in_(("pending", "confirmed")),
+                Appointment.appointment_time > business_now(biz))
+        .order_by(Appointment.appointment_time.asc())
+        .limit(9)
+        .all()
+    )
+    if not upcoming:
+        return False                           # nothing to change: let a person handle it
+    action, verb = ("move", "reschedule") if wants_move else ("cancel", "cancel")
+
+    def label(a):
+        service = a.service.name if a.service else "Appointment"
+        return service, format_when(a.appointment_time)
+
+    if len(upcoming) == 1:
+        service, when = label(upcoming[0])
+        payload = {
+            "type": "buttons",
+            "body": f"Your booking at {biz.name}:\n\n{service}\n{when}\n\nWhat would you like to do?",
+            "buttons": (
+                [{"id": f"remind_move_{upcoming[0].id}", "title": "Pick a new time"},
+                 {"id": f"remind_cancel_{upcoming[0].id}", "title": "Cancel booking"}]
+                if wants_move else
+                [{"id": f"remind_cancel_{upcoming[0].id}", "title": "Yes, cancel it"},
+                 {"id": f"remind_move_{upcoming[0].id}", "title": "Reschedule instead"}]
+            ) + [{"id": HUMAN_ID, "title": "Talk to us"}],
+        }
+    else:
+        rows = []
+        for a in upcoming:
+            service, when = label(a)
+            rows.append({"id": f"remind_{action}_{a.id}", "title": service[:24], "description": when[:72]})
+        payload = {
+            "type": "list",
+            "header": f"Your bookings",
+            "body": f"Which booking at {biz.name} would you like to {verb}?",
+            "button": "Choose booking",
+            "sections": [{"title": "Upcoming", "rows": rows[:9] + [{"id": HUMAN_ID, "title": "Talk to us", "description": "Something else"}]}],
+        }
+    await send_whatsapp(sender, tenant_id, payload, biz.id)
+    return True
 
 
 async def _hand_to_human(db: Session, biz: Business, tenant_id: str, sender: str, val: dict) -> None:
@@ -411,7 +474,8 @@ async def _forward_to_manager(db: Session, biz: Business, tenant_id: str, sender
 async def _handle_reminder_reply(
     db: Session, biz: Business, tenant_id: str, sender: str, action: str, appointment_id: int
 ) -> None:
-    """Customer tapped "I'll be there" / "Cancel booking" on their reminder."""
+    """Customer tapped "I'll be there" / "Reschedule" / "Cancel booking" (on a
+    reminder, or on the list we send when they type "reschedule" / "cancel")."""
     appt = (
         db.query(Appointment)
         .filter(Appointment.id == appointment_id, Appointment.business_id == biz.id)
@@ -423,9 +487,19 @@ async def _handle_reminder_reply(
     service = appt.service.name if appt.service else "your appointment"
     when = format_when(appt.appointment_time)
     from booking_engine import business_now
-    if appt.status not in ("pending", "confirmed") or appt.appointment_time <= business_now(biz):
+    if appt.status not in ("pending", "confirmed"):
         await send_whatsapp(sender, tenant_id, {"type": "text", "body":
             f"This booking ({service}, {when}) is already {appt.status.replace('_', ' ')}. Send \"Hi\" to make a new booking."}, biz.id)
+        return
+    if appt.appointment_time <= business_now(biz):
+        await send_whatsapp(sender, tenant_id, {"type": "text", "body":
+            f"The time for this booking ({service}, {when}) has already passed. Send \"Hi\" to make a new booking."}, biz.id)
+        return
+
+    if action == "move":
+        resume_bot(biz.id, sender)                # they're using the bot again
+        runtime = BookingRuntime(db)
+        await send_whatsapp(sender, tenant_id, runtime.start_reschedule(sender, biz, appt), biz.id)
         return
 
     if action == "ok":

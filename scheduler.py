@@ -89,6 +89,13 @@ def claim(kind: str, ref: str) -> bool:
         return conn.execute(text(sql), {"k": kind, "r": str(ref), "t": int(time.time())}).rowcount == 1
 
 
+def release(kind: str, ref: str) -> None:
+    """Forget a claim, e.g. a moved booking should get a fresh reminder."""
+    _ensure_table()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM scheduled_sends WHERE kind = :k AND ref = :r"), {"k": kind, "r": str(ref)})
+
+
 def already_claimed(kind: str, ref: str) -> bool:
     _ensure_table()
     with engine.connect() as conn:
@@ -158,6 +165,7 @@ async def send_reminders(db) -> int:
                 "body": body,
                 "buttons": [
                     {"id": f"remind_ok_{appt.id}", "title": "I'll be there"},
+                    {"id": f"remind_move_{appt.id}", "title": "Reschedule"},
                     {"id": f"remind_cancel_{appt.id}", "title": "Cancel booking"},
                 ],
             }
