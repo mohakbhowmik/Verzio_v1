@@ -49,7 +49,8 @@ from whatsapp_client import (
 
 logger = logging.getLogger("VERZIO_RUNTIME")
 
-START_IDS = {"action_start", "restart_flow", "menu"}
+START_IDS = {"action_start", "action_book_new", "restart_flow", "menu"}
+HELLO_ID = "action_hello"      # a typed greeting: mention their upcoming booking first
 CONFIRM_IDS = {"action_confirm", "confirm_booking"}      # second id: buttons sent by an older build
 CANCEL_IDS = {"action_cancel"}
 SESSION_TTL = timedelta(hours=2)
@@ -130,11 +131,15 @@ class BookingRuntime:
         session = self.state.get_or_create_session(phone, business_id=biz.id)
         self._move_id = get_intent(self.db, biz.id, phone)
 
-        if iid in START_IDS:
+        if iid in START_IDS or iid == HELLO_ID:
             self._forget_move(phone, biz)          # a fresh "Hi" is a new booking
             limit_reply = self._upcoming_limit_reply(phone, biz)
             if limit_reply:
                 return limit_reply
+            if iid == HELLO_ID:
+                welcome_back = self._welcome_back(phone, biz, customer_name)
+                if welcome_back:
+                    return welcome_back
             return self._render_services(phone, biz, name=customer_name)
 
         expired = (
@@ -221,6 +226,32 @@ class BookingRuntime:
             .order_by(Appointment.appointment_time.asc())
             .all()
         )
+
+    def _welcome_back(self, phone: str, biz: Business, customer_name: str | None):
+        """'Hi' from someone who already has a booking: show it before the menu."""
+        upcoming = self._upcoming(phone, biz)
+        if not upcoming:
+            return None
+        appt = upcoming[0]
+        self.state.clear_session(phone, business_id=biz.id)
+        service = appt.service.name if appt.service else "Appointment"
+        status = "✅ confirmed" if appt.status == "confirmed" else "⏳ waiting for confirmation"
+        first = _first_name(customer_name)
+        extra = len(upcoming) - 1
+        more = f"\n(+{extra} more booking{'s' if extra != 1 else ''})" if extra else ""
+        return {
+            "type": "buttons",
+            "body": (
+                f"Hi{(' ' + first) if first else ''}! You have a booking at {biz.name}:\n\n"
+                f"{service}\n{self._when(appt.appointment_time, biz)}\n{status}{more}\n\n"
+                f"What would you like to do?"
+            ),
+            "buttons": [
+                {"id": "action_book_new", "title": "Book another"},
+                {"id": f"remind_move_{appt.id}", "title": "Reschedule"},
+                {"id": f"remind_cancel_{appt.id}", "title": "Cancel booking"},
+            ],
+        }
 
     def _upcoming_limit_reply(self, phone: str, biz: Business):
         if MAX_UPCOMING_PER_CUSTOMER <= 0:

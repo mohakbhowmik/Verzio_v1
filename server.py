@@ -74,6 +74,7 @@ from routers.admin_services import router as services_router
 from routers.admin_system import router as system_router
 from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
+from routers.admin_messages import router as messages_router
 from routers.whatsapp_onboarding import admin_router as whatsapp_admin_router
 from routers.whatsapp_onboarding import public_router as onboarding_router
 from whatsapp_accounts import (
@@ -104,7 +105,7 @@ NON_TEXT_REPLY_TYPES = set(MEDIA_LABELS)
 
 # How long the bot stays quiet after a customer asks for a person.
 HANDOFF_PAUSE_HOURS = float(os.getenv("HANDOFF_PAUSE_HOURS", "12"))
-START_IDS = {"action_start", "restart_flow", "menu"}
+START_IDS = {"action_start", "action_book_new", "restart_flow", "menu"}
 HUMAN_ID = "action_human"
 # Typed alone, these bring the booking menu back even while a person is handling the chat.
 RESUME_WORDS = {"book", "booking", "menu", "book appointment"}
@@ -142,6 +143,7 @@ app.include_router(system_router)
 app.include_router(appointments_router)
 app.include_router(subscriptions_router)
 app.include_router(whatsapp_admin_router)
+app.include_router(messages_router)
 app.include_router(onboarding_router)
 
 app.include_router(owner_auth_router)
@@ -369,7 +371,7 @@ async def _handle_free_message(
         logger.info("Acknowledgement from %s for business_id=%s; no reply needed", mask_phone(sender), biz.id)
         return
     if intent == "book":
-        await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
+        await _run_customer_flow(db, biz, tenant_id, sender, "action_hello", val)
         return
 
     follow_up = save_message(biz.id, normalize_phone(sender), name, body)
@@ -441,17 +443,21 @@ async def _hand_to_human(db: Session, biz: Business, tenant_id: str, sender: str
     db.query(UserSession).filter(UserSession.business_id == biz.id,
                                  UserSession.phone_number == sender).delete()
     db.commit()
+    same_chat = _owner_sees_chats(db, biz)
     await send_whatsapp(
         sender, tenant_id,
         {"type": "text",
-         "body": f"Thanks! We've passed your message to {biz.name}. They'll get back to you soon.\n\n"
-                 f"To book an appointment instead, just reply \"Book\"."},
+         "body": (f"Thanks! Someone from {biz.name} will reply to you here soon."
+                  if same_chat else
+                  f"Thanks! We've passed your message to {biz.name}. They'll get back to you soon.")
+                 + "\n\nTo book an appointment instead, just reply \"Book\"."},
         biz.id,
     )
     forwarded = await _forward_to_manager(db, biz, tenant_id, sender, name)
-    log_event(db=db, event_type="customer_handoff", status="info" if forwarded else "warning",
+    alerted = forwarded or same_chat
+    log_event(db=db, event_type="customer_handoff", status="info" if alerted else "warning",
               message=f"{mask_phone(sender)} asked to talk to the business"
-                      + ("" if forwarded else " (owner not alerted on WhatsApp: check the manager number)"),
+                      + ("" if alerted else " (owner not alerted on WhatsApp: check the manager number)"),
               business_id=biz.id)
 
 
@@ -460,13 +466,21 @@ async def _forward_to_manager(db: Session, biz: Business, tenant_id: str, sender
     manager = canonical_phone(biz.manager_phone_number, biz.timezone)
     if not is_real_phone(manager) or manager == normalize_phone(sender):
         return False
+    from booking_engine import owner_cannot_approve
+    if owner_cannot_approve(biz):
+        # Manager number IS the business number: WhatsApp can't message itself, and the
+        # owner already sees this chat in the WhatsApp Business app. Mark as handled.
+        take_unforwarded(biz.id, normalize_phone(sender))
+        return False
     bodies = take_unforwarded(biz.id, normalize_phone(sender)) or ["(They tapped \"Talk to us\".)"]
     digits = normalize_phone(sender)
     who = f"{name} (+{digits})" if name else f"+{digits}"
     joined = " / ".join(bodies)
     link = f"https://wa.me/{digits}"
+    reply_hint = ("Reply from your WhatsApp Business app (the chat is already there), or here: "
+                  if _owner_sees_chats(db, biz) else "Reply to them on WhatsApp: ")
     text_body = (f"New message for {biz.name} from {who}:\n\n{joined[:1500]}\n\n"
-                 f"Reply to them on WhatsApp: {link}\n\nThe booking bot has stepped back for this customer.")
+                 f"{reply_hint}{link}\n\nThe booking bot has stepped back for this customer.")
     template = build_template("customer_message", [biz.name, who, joined, link])
     return await send_whatsapp(manager, tenant_id, {"type": "text", "body": text_body}, biz.id, template=template)
 

@@ -316,6 +316,8 @@ with TestClient(server.app) as client:
 
     def book(pnid, phone, day_offset=1, slot_index=0):
         _, out = webhook(client, pnid, phone, text("hi"))
+        if out and out[0]["payload"]["type"] == "buttons" and out[0]["payload"]["buttons"][0]["id"] == "action_book_new":
+            _, out = webhook(client, pnid, phone, btn("action_book_new"))     # "Book another"
         if out[0]["payload"]["type"] != "list":
             return out
         _, out = webhook(client, pnid, phone, tap(first_row(out[0]["payload"])))
@@ -608,6 +610,39 @@ with TestClient(server.app) as client:
     r = client.post(f"/owner/appointments/{om.id}/move", data={"date": oday.isoformat(), "time": "15:00", "allow_overbook": "on"}, follow_redirects=False)
     db.refresh(om)
     check("override lets the owner double up deliberately", r.status_code == 303 and om.appointment_time.strftime("%H:%M") == "15:00")
+
+    # --- returning customer says "hi" -----------------------------------
+    G = "912500000001"
+    gb = appt(now_e.replace(hour=11, minute=0) + timedelta(days=2), "pending", G, name="Farah Khan")
+    _, out = webhook(client, "PN_E", G, text("Hello!"), name="Farah Khan")
+    body_ = out[0]["payload"].get("body", "") if out else ""
+    check("'Hello' with a booking -> shows it (waiting for confirmation) + Book another / Reschedule / Cancel",
+          out and out[0]["payload"]["type"] == "buttons" and "You have a booking" in body_ and "waiting for confirmation" in body_
+          and [b_["id"] for b_ in out[0]["payload"]["buttons"]] == ["action_book_new", f"remind_move_{gb.id}", f"remind_cancel_{gb.id}"], out)
+    _, out = webhook(client, "PN_E", G, btn("action_book_new"))
+    check("'Book another' -> normal service menu", out and out[0]["payload"]["type"] == "list"
+          and out[0]["payload"]["sections"][0]["rows"][0]["id"].startswith("svc_"), out)
+    _, out = webhook(client, "PN_E", G, btn("action_start"))
+    check("'Book appointment' button (from Talk-to-us choice) still goes straight to the menu",
+          out and out[0]["payload"]["type"] == "list", out)
+    _, out = webhook(client, "PN_E", "912500000099", text("hi"))
+    check("'hi' with no booking -> menu as before", out and out[0]["payload"]["type"] == "list", out)
+
+    # --- one-phone Coexistence owner: Talk to us -> no self-message, no incident
+    from database import Incident as _Inc
+    inc_before = db.query(_Inc).count()
+    webhook(client, "PN_D", "912600000001", text("do you have parking near the clinic?"))
+    _, out = webhook(client, "PN_D", "912600000001", btn("action_human"))
+    check("one-phone owner: customer told someone will reply here; nothing sent to the business's own number",
+          out and "reply to you here" in out[0]["payload"]["body"] and all(m["to"] != "919700000004" for m in out), out)
+    check("...and no incident raised", db.query(_Inc).count() == inc_before)
+
+    # --- admin message review page
+    r = client.get("/admin/messages", auth=("admin", "verzio-dev-admin"))
+    check("admin Messages page lists what customers asked", r.status_code == 200 and "parking near the clinic" in r.text
+          and "Solo Spa" in r.text, r.status_code)
+    r = client.get(f"/admin/messages?business={D.id}", auth=("admin", "verzio-dev-admin"))
+    check("...filter by business works", r.status_code == 200 and "parking" in r.text and "skin is still red" not in r.text)
 
     db.close()
 
