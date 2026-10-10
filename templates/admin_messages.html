@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Messages — Verzio Studio{% endblock %}
+{% block page_title %}Messages{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Customer messages</h1>
+    <div class="page-subtitle">Questions, photos and other messages the bot didn't treat as a booking. Read them each evening: what comes up often is what to build next.</div>
+  </div>
+</div>
+
+<form method="get" action="/admin/messages" class="filter-bar">
+  <select name="business" class="form-control-verzio" style="max-width:280px;" onchange="this.form.submit()" aria-label="Business">
+    <option value="0">All businesses</option>
+    {% for b in businesses %}
+    <option value="{{ b.id }}" {% if b.id == business_id %}selected{% endif %}>{{ b.name }}</option>
+    {% endfor %}
+  </select>
+  <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search messages..." data-table-search="#messages-table" aria-label="Search messages">
+</form>
+
+<div class="table-verzio-wrap" id="messages-table">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr>
+        <th style="width:150px">When (IST)</th>
+        <th style="width:180px">Business</th>
+        <th style="width:200px">Customer</th>
+        <th>Message</th>
+        <th style="width:130px">Sent to owner</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in messages %}
+      <tr>
+        <td class="text-muted small">{{ m.when }}</td>
+        <td>{{ m.business }}</td>
+        <td>{{ m.customer }}<div class="small text-muted mono">+{{ m.phone }}</div></td>
+        <td style="white-space:pre-wrap">{{ m.body }}</td>
+        <td>{% if m.forwarded %}<span class="status-badge status-active"><span class="dot"></span>Yes</span>{% else %}<span class="text-muted small">—</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-muted py-4">No messages yet. They appear here when a customer writes something that isn't a booking.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if messages|length >= page_size %}
+<p class="small text-muted mt-2">Showing the latest {{ page_size }}. Pick a business to see more of its messages.</p>
+{% endif %}
+{% endblock %}

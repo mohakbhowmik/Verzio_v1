@@ -21,6 +21,8 @@ from datetime import datetime, time, timedelta
 
 from database import Appointment, Business, Service, SessionLocal
 from booking_engine import BookingEngineException, VerzioSaaSEngine, business_today
+import whatsapp_accounts
+whatsapp_accounts.ensure_tables()   # the engine checks whether the owner can approve on WhatsApp
 
 ALL_DAYS = {d: ["09:00", "18:00"] for d in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
 eng = VerzioSaaSEngine()

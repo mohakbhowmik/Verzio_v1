@@ -66,11 +66,12 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label small fw-bold">WhatsApp Business Phone Number ID</label>
 
-                            <input type="text" name="whatsapp_business_phone_number_id" class="form-control form-control-sm mono" value="{{ business.whatsapp_business_phone_number_id if business else '' }}" required>
+                            <input type="text" name="whatsapp_business_phone_number_id" class="form-control form-control-sm mono" value="{{ business.whatsapp_business_phone_number_id if business else '' }}" placeholder="Filled in automatically when WhatsApp is connected">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label small fw-bold">Manager Phone Number</label>
-                            <input type="text" name="manager_phone_number" class="form-control form-control-sm mono" value="{{ business.manager_phone_number if business else '' }}" required>
+                            <input type="tel" name="manager_phone_number" class="form-control form-control-sm mono" value="{{ business.manager_phone_number if business else '' }}" placeholder="+91 98765 43210" required>
+                            <div class="form-text small">Owner's personal WhatsApp, not the business number. Booking requests go here.</div>
                         </div>
                     </div>
                     <div class="mb-0">
@@ -109,6 +110,16 @@
                         </div>
                     </div>
                     {% endfor %}
+                    {% set brk = daily_break(business) %}
+                    <div class="d-flex align-items-center justify-content-between pt-3 mt-2 border-top" style="border-color: var(--border-subtle) !important;">
+                        <div style="width: 100px;" class="fw-medium small">Daily break</div>
+                        <div class="d-flex gap-2">
+                            <input type="time" name="break_start" class="form-control form-control-sm" value="{{ brk[0] }}" aria-label="Break starts">
+                            <input type="time" name="break_end" class="form-control form-control-sm" value="{{ brk[1] }}" aria-label="Break ends">
+                        </div>
+                        <div class="small text-muted ms-3" style="width: 60px;">optional</div>
+                    </div>
+                    <div class="form-text small">No bookings during the break, every open day. Leave empty for no break.</div>
                 </div>
             </div>
         </div>

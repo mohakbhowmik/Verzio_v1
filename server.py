@@ -18,7 +18,12 @@ VERZIO STUDIO — APPLICATION ENTRY POINT
        status updates fall back to approved templates when the window is
        closed. Template button taps (type "button") are handled like
        interactive taps. Failed deliveries reported by Meta are logged.
+- HX:  Not every message is a booking. Greetings get the booking menu; any
+       other text (or a photo, voice note...) gets "Book appointment / Talk
+       to us". "Talk to us" (or a second non-booking message) pauses the bot
+       and passes the messages to the manager's WhatsApp.
 """
+import asyncio
 import hashlib
 import hmac
 import inspect
@@ -44,9 +49,17 @@ from admin_auth import admin_auth_middleware
 from activity_log import log_event
 from booking_engine import BookingEngineException
 from booking_runtime import BookingRuntime
-from database import ActivityEvent, Appointment, Business, SessionLocal, engine, get_db, init_db
+from database import ActivityEvent, Appointment, Business, SessionLocal, UserSession, engine, get_db, init_db
+import scheduler
+from customer_inbox import MEDIA_LABELS, classify_text, save_message, take_unforwarded
+from customer_inbox import ensure_tables as ensure_inbox_tables
+from reschedule import ensure_tables as ensure_reschedule_tables
 from whatsapp_client import (
     build_status_message,
+    build_customer_cancelled_template,
+    build_template,
+    canonical_phone,
+    format_when,
     build_status_template,
     ensure_window_table,
     is_real_phone,
@@ -61,9 +74,17 @@ from routers.admin_services import router as services_router
 from routers.admin_system import router as system_router
 from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
+from routers.admin_messages import router as messages_router
 from routers.whatsapp_onboarding import admin_router as whatsapp_admin_router
 from routers.whatsapp_onboarding import public_router as onboarding_router
-from whatsapp_accounts import BOT_PAUSE_HOURS, bot_paused, ensure_tables as ensure_account_tables, pause_bot
+from whatsapp_accounts import (
+    BOT_PAUSE_HOURS,
+    WhatsAppAccount,
+    bot_paused,
+    ensure_tables as ensure_account_tables,
+    pause_bot,
+    resume_bot,
+)
 
 from owner.owner_auth import router as owner_auth_router
 from owner.owner_dashboard import router as owner_dashboard_router
@@ -78,11 +99,22 @@ logger = logging.getLogger("VERZIO_SERVER")
 META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
 VERIFY_TOKEN = os.getenv("VERZIO_VERIFY_TOKEN", "")
 
-# Media and other message types we reply to with a short "please type" hint.
+# Media and other message types treated like a non-booking text.
 # Reactions and system events are ignored silently.
-NON_TEXT_REPLY_TYPES = {"image", "audio", "video", "document", "sticker", "location", "contacts"}
+NON_TEXT_REPLY_TYPES = set(MEDIA_LABELS)
+
+# How long the bot stays quiet after a customer asks for a person.
+HANDOFF_PAUSE_HOURS = float(os.getenv("HANDOFF_PAUSE_HOURS", "12"))
+START_IDS = {"action_start", "action_book_new", "restart_flow", "menu"}
+HUMAN_ID = "action_human"
+# Typed alone, these bring the booking menu back even while a person is handling the chat.
+RESUME_WORDS = {"book", "booking", "menu", "book appointment"}
 
 MANAGER_ACTION_RE = re.compile(r"(confirm|cancel|noshow)_(\d+)")
+REMINDER_ACTION_RE = re.compile(r"remind_(ok|move|cancel)_(\d+)")
+# Typed requests about an existing booking.
+RESCHEDULE_RE = re.compile(r"\b(re-?schedul\w*|postpone\w*|prepone\w*|change\s+(?:my\s+|the\s+)?(?:time|timing|slot|date|day|booking|appointment)|move\s+my|another\s+(?:time|day|slot)|different\s+(?:time|day|slot))\b", re.I)
+CANCEL_RE = re.compile(r"\b(cancel\w*|can't\s+come|cannot\s+come|won't\s+be\s+able)\b", re.I)
 MANAGER_TRANSITIONS = {
     #  action     allowed from              new status     event type             event status
     "confirm": ({"pending"},              "confirmed", "booking_confirmed",   "success"),
@@ -111,6 +143,7 @@ app.include_router(system_router)
 app.include_router(appointments_router)
 app.include_router(subscriptions_router)
 app.include_router(whatsapp_admin_router)
+app.include_router(messages_router)
 app.include_router(onboarding_router)
 
 app.include_router(owner_auth_router)
@@ -140,12 +173,37 @@ def startup() -> None:
         )
     ensure_window_table()
     ensure_account_tables()
+    ensure_inbox_tables()
+    ensure_reschedule_tables()
+    _normalize_manager_numbers()
+    if scheduler.enabled():
+        app.state.scheduler_task = asyncio.create_task(scheduler.run_forever())
 
     if not META_APP_SECRET:
         if IS_PRODUCTION:
             logger.critical("META_APP_SECRET is not set: every webhook will be rejected with 403.")
         else:
             logger.warning("META_APP_SECRET is not set: webhook signature checks are DISABLED (development only).")
+
+
+def _normalize_manager_numbers() -> None:
+    """Older rows may hold '98765 43210' without a country code: messages to the
+    owner then fail and their Approve taps are refused. Fix them once at startup."""
+    db = SessionLocal()
+    try:
+        for biz in db.query(Business).all():
+            fixed = canonical_phone(biz.manager_phone_number, biz.timezone)
+            if is_real_phone(fixed) and fixed != biz.manager_phone_number:
+                logger.info("Normalized manager number for business_id=%s", biz.id)
+                biz.manager_phone_number = fixed
+            elif not is_real_phone(fixed):
+                logger.warning("business_id=%s has no valid manager number: owners won't get WhatsApp alerts", biz.id)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Could not normalize manager numbers")
+    finally:
+        db.close()
 
 
 # ------------------------------------------------------------------------
@@ -266,12 +324,229 @@ async def _run_customer_flow(
         await send_whatsapp(phone, tenant_id, resp, biz.id)
 
 
+def _owner_sees_chats(db: Session, biz: Business) -> bool:
+    """True when the business number also runs the WhatsApp Business app
+    (Coexistence): the owner already sees every customer message on their phone."""
+    acct = db.query(WhatsAppAccount).filter(WhatsAppAccount.business_id == biz.id).first()
+    return bool(acct and acct.coexistence)
+
+
+def _choice_payload(biz: Business, name: str | None) -> dict:
+    first = (name or "").strip().split()[0][:30] if (name or "").strip() else ""
+    greeting = f"Hi {first}!" if first else "Hi!"
+    return {
+        "type": "buttons",
+        "body": f"{greeting} Would you like to book an appointment at {biz.name}, or talk to someone there?",
+        "buttons": [
+            {"id": "action_start", "title": "Book appointment"},
+            {"id": HUMAN_ID, "title": "Talk to us"},
+        ],
+    }
+
+
+async def _handle_free_message(
+    db: Session, biz: Business, tenant_id: str, sender: str, body: str, val: dict, is_media: bool
+) -> None:
+    """A typed message or a photo/voice note: booking menu, a choice, or a human."""
+    name = _profile_name(val, sender)
+    if bot_paused(biz.id, sender) and not is_media and body.strip(" .!").lower() in RESUME_WORDS:
+        resume_bot(biz.id, sender)               # "reply Book to book instead"
+        await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
+        return
+    if bot_paused(biz.id, sender):
+        # A person is handling this customer. With Coexistence the owner sees the
+        # message in their app; otherwise pass it on so it isn't lost.
+        if not _owner_sees_chats(db, biz):
+            save_message(biz.id, normalize_phone(sender), name, body)
+            await _forward_to_manager(db, biz, tenant_id, sender, name)
+        else:
+            logger.info("Bot paused (a person is chatting) for business_id=%s customer=%s", biz.id, mask_phone(sender))
+        return
+
+    if not is_media and await _offer_booking_changes(db, biz, tenant_id, sender, body):
+        return
+
+    intent = "other" if is_media else classify_text(body)
+    if intent == "ack":
+        logger.info("Acknowledgement from %s for business_id=%s; no reply needed", mask_phone(sender), biz.id)
+        return
+    if intent == "book":
+        await _run_customer_flow(db, biz, tenant_id, sender, "action_hello", val)
+        return
+
+    follow_up = save_message(biz.id, normalize_phone(sender), name, body)
+    if follow_up:
+        # Second non-booking message in a few minutes: they want a person.
+        await _hand_to_human(db, biz, tenant_id, sender, val)
+        return
+    await send_whatsapp(sender, tenant_id, _choice_payload(biz, name), biz.id)
+
+
+async def _offer_booking_changes(db: Session, biz: Business, tenant_id: str, sender: str, body: str) -> bool:
+    """'I need to reschedule' / 'cancel my booking' from someone with upcoming
+    bookings: let them pick the booking and do it themselves. Returns True if handled."""
+    wants_move = bool(RESCHEDULE_RE.search(body or ""))
+    wants_cancel = not wants_move and bool(CANCEL_RE.search(body or ""))
+    if not (wants_move or wants_cancel):
+        return False
+    from booking_engine import business_now
+    upcoming = (
+        db.query(Appointment)
+        .filter(Appointment.business_id == biz.id,
+                Appointment.customer_phone.in_({sender, normalize_phone(sender)}),
+                Appointment.status.in_(("pending", "confirmed")),
+                Appointment.appointment_time > business_now(biz))
+        .order_by(Appointment.appointment_time.asc())
+        .limit(9)
+        .all()
+    )
+    if not upcoming:
+        return False                           # nothing to change: let a person handle it
+    action, verb = ("move", "reschedule") if wants_move else ("cancel", "cancel")
+
+    def label(a):
+        service = a.service.name if a.service else "Appointment"
+        return service, format_when(a.appointment_time)
+
+    if len(upcoming) == 1:
+        service, when = label(upcoming[0])
+        payload = {
+            "type": "buttons",
+            "body": f"Your booking at {biz.name}:\n\n{service}\n{when}\n\nWhat would you like to do?",
+            "buttons": (
+                [{"id": f"remind_move_{upcoming[0].id}", "title": "Pick a new time"},
+                 {"id": f"remind_cancel_{upcoming[0].id}", "title": "Cancel booking"}]
+                if wants_move else
+                [{"id": f"remind_cancel_{upcoming[0].id}", "title": "Yes, cancel it"},
+                 {"id": f"remind_move_{upcoming[0].id}", "title": "Reschedule instead"}]
+            ) + [{"id": HUMAN_ID, "title": "Talk to us"}],
+        }
+    else:
+        rows = []
+        for a in upcoming:
+            service, when = label(a)
+            rows.append({"id": f"remind_{action}_{a.id}", "title": service[:24], "description": when[:72]})
+        payload = {
+            "type": "list",
+            "header": f"Your bookings",
+            "body": f"Which booking at {biz.name} would you like to {verb}?",
+            "button": "Choose booking",
+            "sections": [{"title": "Upcoming", "rows": rows[:9] + [{"id": HUMAN_ID, "title": "Talk to us", "description": "Something else"}]}],
+        }
+    await send_whatsapp(sender, tenant_id, payload, biz.id)
+    return True
+
+
+async def _hand_to_human(db: Session, biz: Business, tenant_id: str, sender: str, val: dict) -> None:
+    name = _profile_name(val, sender)
+    pause_bot(biz.id, sender, HANDOFF_PAUSE_HOURS)
+    db.query(UserSession).filter(UserSession.business_id == biz.id,
+                                 UserSession.phone_number == sender).delete()
+    db.commit()
+    same_chat = _owner_sees_chats(db, biz)
+    await send_whatsapp(
+        sender, tenant_id,
+        {"type": "text",
+         "body": (f"Thanks! Someone from {biz.name} will reply to you here soon."
+                  if same_chat else
+                  f"Thanks! We've passed your message to {biz.name}. They'll get back to you soon.")
+                 + "\n\nTo book an appointment instead, just reply \"Book\"."},
+        biz.id,
+    )
+    forwarded = await _forward_to_manager(db, biz, tenant_id, sender, name)
+    alerted = forwarded or same_chat
+    log_event(db=db, event_type="customer_handoff", status="info" if alerted else "warning",
+              message=f"{mask_phone(sender)} asked to talk to the business"
+                      + ("" if alerted else " (owner not alerted on WhatsApp: check the manager number)"),
+              business_id=biz.id)
+
+
+async def _forward_to_manager(db: Session, biz: Business, tenant_id: str, sender: str, name: str | None) -> bool:
+    """Send the customer's waiting messages to the manager's WhatsApp."""
+    manager = canonical_phone(biz.manager_phone_number, biz.timezone)
+    if not is_real_phone(manager) or manager == normalize_phone(sender):
+        return False
+    from booking_engine import owner_cannot_approve
+    if owner_cannot_approve(biz):
+        # Manager number IS the business number: WhatsApp can't message itself, and the
+        # owner already sees this chat in the WhatsApp Business app. Mark as handled.
+        take_unforwarded(biz.id, normalize_phone(sender))
+        return False
+    bodies = take_unforwarded(biz.id, normalize_phone(sender)) or ["(They tapped \"Talk to us\".)"]
+    digits = normalize_phone(sender)
+    who = f"{name} (+{digits})" if name else f"+{digits}"
+    joined = " / ".join(bodies)
+    link = f"https://wa.me/{digits}"
+    reply_hint = ("Reply from your WhatsApp Business app (the chat is already there), or here: "
+                  if _owner_sees_chats(db, biz) else "Reply to them on WhatsApp: ")
+    text_body = (f"New message for {biz.name} from {who}:\n\n{joined[:1500]}\n\n"
+                 f"{reply_hint}{link}\n\nThe booking bot has stepped back for this customer.")
+    template = build_template("customer_message", [biz.name, who, joined, link])
+    return await send_whatsapp(manager, tenant_id, {"type": "text", "body": text_body}, biz.id, template=template)
+
+
+async def _handle_reminder_reply(
+    db: Session, biz: Business, tenant_id: str, sender: str, action: str, appointment_id: int
+) -> None:
+    """Customer tapped "I'll be there" / "Reschedule" / "Cancel booking" (on a
+    reminder, or on the list we send when they type "reschedule" / "cancel")."""
+    appt = (
+        db.query(Appointment)
+        .filter(Appointment.id == appointment_id, Appointment.business_id == biz.id)
+        .first()
+    )
+    if appt is None or normalize_phone(appt.customer_phone) != normalize_phone(sender):
+        logger.warning("Reminder reply for #%s from a different number %s; ignored", appointment_id, mask_phone(sender))
+        return
+    service = appt.service.name if appt.service else "your appointment"
+    when = format_when(appt.appointment_time)
+    from booking_engine import business_now
+    if appt.status not in ("pending", "confirmed"):
+        await send_whatsapp(sender, tenant_id, {"type": "text", "body":
+            f"This booking ({service}, {when}) is already {appt.status.replace('_', ' ')}. Send \"Hi\" to make a new booking."}, biz.id)
+        return
+    if appt.appointment_time <= business_now(biz):
+        await send_whatsapp(sender, tenant_id, {"type": "text", "body":
+            f"The time for this booking ({service}, {when}) has already passed. Send \"Hi\" to make a new booking."}, biz.id)
+        return
+
+    if action == "move":
+        resume_bot(biz.id, sender)                # they're using the bot again
+        runtime = BookingRuntime(db)
+        await send_whatsapp(sender, tenant_id, runtime.start_reschedule(sender, biz, appt), biz.id)
+        return
+
+    if action == "ok":
+        log_event(db=db, event_type="reminder_confirmed", status="success",
+                  message=f"Customer confirmed they're coming to #{appt.id}", business_id=biz.id)
+        await send_whatsapp(sender, tenant_id, {"type": "text", "body":
+            f"Thanks! See you on {when} at {biz.name}. 😊"}, biz.id)
+        return
+
+    previous = appt.status
+    appt.status = "cancelled"
+    db.commit()
+    log_event(db=db, event_type="booking_cancelled", status="warning",
+              message=f"Customer cancelled #{appt.id} from their reminder", business_id=biz.id)
+    await send_whatsapp(sender, tenant_id, {"type": "text", "body":
+        f"Your booking for {service} on {when} is cancelled. Send \"Hi\" any time to book again."}, biz.id)
+
+    manager = canonical_phone(biz.manager_phone_number, biz.timezone)
+    from booking_engine import owner_cannot_approve
+    if is_real_phone(manager) and not owner_cannot_approve(biz):
+        who = appt.customer_name or "Customer"
+        await send_whatsapp(manager, tenant_id, {"type": "text", "body": (
+            f"❌ Booking cancelled by the customer\n\nCustomer: {who} (+{normalize_phone(appt.customer_phone)})\n"
+            f"Service: {service}\nWhen: {when}\nBooking #{appt.id} (was {previous})\n\nThe time is open for new bookings again."
+        )}, biz.id, template=build_customer_cancelled_template(biz, appt, service))
+
+
 async def _handle_manager_action(
     db: Session, biz: Business, tenant_id: str, sender: str, action: str, appointment_id: int
 ) -> None:
     # T5.2 — only this business's manager may act. Checked first so a stranger
     # learns nothing about which booking ids exist.
-    if normalize_phone(sender) != normalize_phone(biz.manager_phone_number):
+    if normalize_phone(sender) != canonical_phone(biz.manager_phone_number, biz.timezone):
         logger.warning(
             "Blocked manager action %s_%s from non-manager %s for business_id=%s",
             action, appointment_id, mask_phone(sender), biz.id,
@@ -364,25 +639,29 @@ async def process_message(val: dict, msg: dict) -> None:
                 logger.info("Unsupported interactive message for business_id=%s", business_id)
                 return
             match = MANAGER_ACTION_RE.fullmatch(iid)
-            if match:
+            reminder = REMINDER_ACTION_RE.fullmatch(iid)
+            if reminder:
+                await _handle_reminder_reply(db, biz, tenant_id, sender, reminder.group(1), int(reminder.group(2)))
+            elif match:
                 await _handle_manager_action(db, biz, tenant_id, sender, match.group(1), int(match.group(2)))
+            elif iid == HUMAN_ID:
+                await _hand_to_human(db, biz, tenant_id, sender, val)
+            elif iid in START_IDS:
+                resume_bot(business_id, sender)      # an explicit "Book" tap always wins
+                await _run_customer_flow(db, biz, tenant_id, sender, iid, val)
             elif bot_paused(business_id, sender):
                 logger.info("Bot paused (owner is chatting) for business_id=%s customer=%s", business_id, mask_phone(sender))
             else:
                 await _run_customer_flow(db, biz, tenant_id, sender, iid, val)
 
         elif msg_type == "text":
-            if bot_paused(business_id, sender):
-                logger.info("Bot paused (owner is chatting) for business_id=%s customer=%s", business_id, mask_phone(sender))
-            else:
-                await _run_customer_flow(db, biz, tenant_id, sender, "action_start", val)
+            body = ((msg.get("text") or {}).get("body") or "").strip()
+            await _handle_free_message(db, biz, tenant_id, sender, body, val, is_media=False)
 
         elif msg_type in NON_TEXT_REPLY_TYPES:
-            await send_whatsapp(
-                sender, tenant_id,
-                {"type": "text", "body": f"Hi! To book at {biz.name}, just send us a text message like \"Hi\"."},
-                business_id,
-            )
+            caption = ((msg.get(msg_type) or {}).get("caption") or "").strip()
+            body = MEDIA_LABELS[msg_type] + (f" {caption}" if caption else "")
+            await _handle_free_message(db, biz, tenant_id, sender, body, val, is_media=True)
 
     except Exception as exc:
         logger.exception("Webhook processing error for business_id=%s", business_id)

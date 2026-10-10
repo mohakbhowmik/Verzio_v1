@@ -22,23 +22,43 @@ Flow:  any text -> services -> dates -> times -> confirm -> booked
 - Manual-approval businesses: the owner gets Approve / Reject buttons.
 """
 import logging
+import os
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from booking_engine import BookingEngineException, VerzioSaaSEngine, business_today
+from booking_engine import (
+    OCCUPYING_STATUSES,
+    BookingEngineException,
+    VerzioSaaSEngine,
+    business_now,
+    business_today,
+    owner_cannot_approve,
+)
+from database import Appointment
+from reschedule import clear_intent, get_intent, set_intent
 from database import Business, Service
 from runtime_state import RuntimeStateManager
-from whatsapp_client import build_owner_alert_template, build_owner_request_template
+from whatsapp_client import (
+    build_customer_rescheduled_template,
+    build_owner_alert_template,
+    build_owner_request_template,
+    canonical_phone,
+    normalize_phone,
+)
 
 logger = logging.getLogger("VERZIO_RUNTIME")
 
-START_IDS = {"action_start", "restart_flow", "menu"}
+START_IDS = {"action_start", "action_book_new", "restart_flow", "menu"}
+HELLO_ID = "action_hello"      # a typed greeting: mention their upcoming booking first
 CONFIRM_IDS = {"action_confirm", "confirm_booking"}      # second id: buttons sent by an older build
 CANCEL_IDS = {"action_cancel"}
 SESSION_TTL = timedelta(hours=2)
+# Upcoming bookings one WhatsApp number may hold at a business (stops one person blocking a day).
+MAX_UPCOMING_PER_CUSTOMER = int(os.getenv("MAX_UPCOMING_PER_CUSTOMER", "2"))
 MAX_LIST_ROWS = 10           # WhatsApp list limit
 SLOTS_PER_PAGE = 9           # leaves one row for "Later times"
+SERVICES_PER_PAGE = 9        # leaves one row for "More services"
 
 STALE_NOTICE = "That option has expired. Let's start again:"
 
@@ -77,6 +97,7 @@ def _first_name(name: str | None) -> str:
 class BookingRuntime:
     def __init__(self, db: Session):
         self.db = db
+        self._move_id = None     # booking being rescheduled in this conversation, if any
         self.state = RuntimeStateManager(db)
         self.engine = VerzioSaaSEngine()
 
@@ -108,8 +129,17 @@ class BookingRuntime:
 
     def _dispatch(self, biz: Business, phone: str, tenant_id: str, iid: str, customer_name: str | None):
         session = self.state.get_or_create_session(phone, business_id=biz.id)
+        self._move_id = get_intent(self.db, biz.id, phone)
 
-        if iid in START_IDS:
+        if iid in START_IDS or iid == HELLO_ID:
+            self._forget_move(phone, biz)          # a fresh "Hi" is a new booking
+            limit_reply = self._upcoming_limit_reply(phone, biz)
+            if limit_reply:
+                return limit_reply
+            if iid == HELLO_ID:
+                welcome_back = self._welcome_back(phone, biz, customer_name)
+                if welcome_back:
+                    return welcome_back
             return self._render_services(phone, biz, name=customer_name)
 
         expired = (
@@ -118,9 +148,16 @@ class BookingRuntime:
             and datetime.utcnow() - session.updated_at > SESSION_TTL
         )
         if expired:
+            self._forget_move(phone, biz)
             return self._render_services(phone, biz, notice=STALE_NOTICE)
 
         step = session.step
+        if iid.startswith("svcpage_") and step == "SELECT_SERVICE":
+            try:
+                page = int(iid[len("svcpage_"):])
+            except ValueError:
+                page = 0
+            return self._render_services(phone, biz, name=customer_name, page=page)
         if iid.startswith("svc_") and step == "SELECT_SERVICE":
             return self._on_service(phone, biz, iid)
         if iid.startswith("date_") and step == "SELECT_DATE":
@@ -131,11 +168,114 @@ class BookingRuntime:
             return self._finalize(phone, biz, session, tenant_id, customer_name)
         if iid in CANCEL_IDS and step == "CONFIRM":
             self.state.clear_session(phone, business_id=biz.id)
+            if self._move_id:
+                appt = self.db.get(Appointment, self._move_id)
+                self._forget_move(phone, biz)
+                if appt:
+                    return {"type": "text", "body": f"No problem, your booking stays at {self._when(appt.appointment_time, biz)}."}
             return {"type": "text", "body": "No problem, nothing was booked. Send \"Hi\" whenever you'd like to book."}
 
         # W5: old button, out-of-order tap, or unknown id.
         logger.info("Stale tap %r at step %s for business_id=%s", iid, step, biz.id)
+        self._forget_move(phone, biz)
         return self._render_services(phone, biz, notice=STALE_NOTICE)
+
+    # ------------------------------------------------------------------
+    # Rescheduling an existing booking
+    # ------------------------------------------------------------------
+
+    def _forget_move(self, phone: str, biz: Business) -> None:
+        if self._move_id:
+            clear_intent(self.db, biz.id, phone)
+        self._move_id = None
+
+    @staticmethod
+    def _when(dt, biz: Business) -> str:
+        return f"{_day_label(dt.date(), business_today(biz))} at {_clock(dt.strftime('%H:%M'))}"
+
+    def start_reschedule(self, phone: str, biz: Business, appt) -> dict:
+        """Customer wants to move `appt`: run the date/time steps for the same service."""
+        service = self.engine.get_service_for_business(self.db, biz.id, appt.service_id)
+        if service is None:
+            return {
+                "type": "buttons",
+                "body": "This booking's service can't be rescheduled on WhatsApp any more. Tap below and the team will help.",
+                "buttons": [{"id": "action_human", "title": "Talk to us"}],
+            }
+        set_intent(self.db, biz.id, phone, appt.id)
+        self._move_id = appt.id
+        self.state.get_or_create_session(phone, business_id=biz.id)
+        self.state.update_session(phone, business_id=biz.id, step="SELECT_DATE",
+                                  selected_service_id=service.id, selected_date=None, selected_time=None)
+        notice = f"Let's move your {service.name} booking ({self._when(appt.appointment_time, biz)})."
+        return self._render_dates(phone, biz, service, notice=notice)
+
+    # ------------------------------------------------------------------
+    # Per-customer limit
+    # ------------------------------------------------------------------
+
+    def _upcoming(self, phone: str, biz: Business) -> list:
+        return (
+            self.db.query(Appointment)
+            .filter(
+                Appointment.business_id == biz.id,
+                Appointment.customer_phone == phone,
+                Appointment.status.in_(OCCUPYING_STATUSES),
+                Appointment.appointment_time > business_now(biz),
+            )
+            .order_by(Appointment.appointment_time.asc())
+            .all()
+        )
+
+    def _welcome_back(self, phone: str, biz: Business, customer_name: str | None):
+        """'Hi' from someone who already has a booking: show it before the menu."""
+        upcoming = self._upcoming(phone, biz)
+        if not upcoming:
+            return None
+        appt = upcoming[0]
+        self.state.clear_session(phone, business_id=biz.id)
+        service = appt.service.name if appt.service else "Appointment"
+        status = "✅ confirmed" if appt.status == "confirmed" else "⏳ waiting for confirmation"
+        first = _first_name(customer_name)
+        extra = len(upcoming) - 1
+        more = f"\n(+{extra} more booking{'s' if extra != 1 else ''})" if extra else ""
+        return {
+            "type": "buttons",
+            "body": (
+                f"Hi{(' ' + first) if first else ''}! You have a booking at {biz.name}:\n\n"
+                f"{service}\n{self._when(appt.appointment_time, biz)}\n{status}{more}\n\n"
+                f"What would you like to do?"
+            ),
+            "buttons": [
+                {"id": "action_book_new", "title": "Book another"},
+                {"id": f"remind_move_{appt.id}", "title": "Reschedule"},
+                {"id": f"remind_cancel_{appt.id}", "title": "Cancel booking"},
+            ],
+        }
+
+    def _upcoming_limit_reply(self, phone: str, biz: Business):
+        if MAX_UPCOMING_PER_CUSTOMER <= 0:
+            return None
+        upcoming = self._upcoming(phone, biz)
+        if len(upcoming) < MAX_UPCOMING_PER_CUSTOMER:
+            return None
+        self.state.clear_session(phone, business_id=biz.id)
+        today = business_today(biz)
+        lines = []
+        for appt in upcoming[:5]:
+            service = appt.service.name if appt.service else "Appointment"
+            when = f"{_day_label(appt.appointment_time.date(), today)} at {_clock(appt.appointment_time.strftime('%H:%M'))}"
+            pending = " (waiting for confirmation)" if appt.status == "pending" else ""
+            lines.append(f"• {service}, {when}{pending}")
+        return {
+            "type": "buttons",
+            "body": (
+                f"You already have {len(upcoming)} upcoming bookings at {biz.name}:\n\n"
+                + "\n".join(lines)
+                + "\n\nTo change or cancel one, or to book more, tap below and the team will help."
+            )[:1024],
+            "buttons": [{"id": "action_human", "title": "Talk to us"}],
+        }
 
     # ------------------------------------------------------------------
     # Step 1: services
@@ -150,11 +290,11 @@ class BookingRuntime:
                 Service.is_deleted == False,
             )
             .order_by(Service.name.asc())
-            .limit(MAX_LIST_ROWS)
             .all()
         )
 
-    def _render_services(self, phone: str, biz: Business, notice: str | None = None, name: str | None = None):
+    def _render_services(self, phone: str, biz: Business, notice: str | None = None, name: str | None = None,
+                         page: int = 0):
         services = self._active_services(biz)
         if not services:
             self.state.clear_session(phone, business_id=biz.id)
@@ -169,9 +309,25 @@ class BookingRuntime:
         if not biz.enable_service_selection:
             return self._on_service(phone, biz, f"svc_{services[0].id}", notice=notice)
 
+        # More than 10 services: 9 per page plus "More services" / "Back".
+        pages = [services] if len(services) <= MAX_LIST_ROWS else [
+            services[i:i + SERVICES_PER_PAGE] for i in range(0, len(services), SERVICES_PER_PAGE)
+        ]
+        page = page if 0 <= page < len(pages) else 0
+        chunk = pages[page]
+        rows = [{"id": f"svc_{s.id}", "title": s.name[:24], "description": _service_line(s)[:72]} for s in chunk]
+        if page + 1 < len(pages):
+            rows.append({"id": f"svcpage_{page + 1}", "title": "More services →",
+                         "description": f"Page {page + 2} of {len(pages)}"})
+        elif page > 0:
+            rows.append({"id": "svcpage_0", "title": "← Back to start", "description": "First services"})
+
         first = _first_name(name)
         greeting = f"Hi {first}! 👋 " if first else "Hi! 👋 "
-        body = f"{greeting}Welcome to {biz.name}.\n\nWhich service would you like to book?"
+        if page == 0:
+            body = f"{greeting}Welcome to {biz.name}.\n\nWhich service would you like to book?"
+        else:
+            body = f"More services at {biz.name} (page {page + 1} of {len(pages)}):"
         if notice:
             body = f"{notice}\n\n{body}"
 
@@ -180,13 +336,7 @@ class BookingRuntime:
             "header": biz.name[:60],
             "body": body,
             "button": "View services",
-            "sections": [{
-                "title": "Services",
-                "rows": [
-                    {"id": f"svc_{s.id}", "title": s.name[:24], "description": _service_line(s)[:72]}
-                    for s in services
-                ],
-            }],
+            "sections": [{"title": "Services", "rows": rows[:MAX_LIST_ROWS]}],
         }
 
     def _on_service(self, phone: str, biz: Business, iid: str, notice: str | None = None):
@@ -210,7 +360,7 @@ class BookingRuntime:
         """(date, free slot count) for open dates in the window that have room."""
         result = []
         for day in self.engine.get_available_dates(self.db, biz, limit=31):
-            slots = self.engine.get_available_slots(self.db, biz, day, service)
+            slots = self.engine.get_available_slots(self.db, biz, day, service, exclude_id=self._move_id)
             if slots:
                 result.append((day, len(slots)))
             if len(result) >= MAX_LIST_ROWS:
@@ -228,7 +378,10 @@ class BookingRuntime:
             }
 
         today = business_today(biz)
-        body = f"Great choice: {service.name} ({_service_line(service)}).\n\nWhich day suits you?"
+        if self._move_id:
+            body = f"{service.name} ({_service_line(service)}).\n\nWhich day works better for you?"
+        else:
+            body = f"Great choice: {service.name} ({_service_line(service)}).\n\nWhich day suits you?"
         if notice:
             body = f"{notice}\n\n{body}"
 
@@ -269,7 +422,7 @@ class BookingRuntime:
         if day not in self.engine.get_available_dates(self.db, biz, limit=31):
             return self._render_dates(phone, biz, service, notice="That day isn't available. Please pick another:")
 
-        slots = self.engine.get_available_slots(self.db, biz, day, service)
+        slots = self.engine.get_available_slots(self.db, biz, day, service, exclude_id=self._move_id)
         if not slots:
             return self._render_dates(phone, biz, service, notice="That day just filled up. Please pick another:")
 
@@ -315,7 +468,7 @@ class BookingRuntime:
         except ValueError:
             return self._render_dates(phone, biz, service, notice=STALE_NOTICE)
 
-        slots = self.engine.get_available_slots(self.db, biz, day, service)
+        slots = self.engine.get_available_slots(self.db, biz, day, service, exclude_id=self._move_id)
         if not slots:
             self.state.update_session(phone, business_id=biz.id, step="SELECT_DATE", selected_date=None)
             return self._render_dates(phone, biz, service, notice="That day just filled up. Please pick another:")
@@ -336,15 +489,23 @@ class BookingRuntime:
         self.state.update_session(phone, business_id=biz.id, step="CONFIRM", selected_time=hhmm)
 
         price = _price(service)
-        body = (
-            f"Please confirm your booking at {biz.name}:\n\n"
+        details = (
             f"• {service.name}{f' ({price})' if price else ''}\n"
             f"• {day.strftime('%A, %d %B')}\n"
             f"• {_clock(hhmm)} · {service.duration} min"
         )
+        if self._move_id:
+            return {
+                "type": "buttons",
+                "body": f"Move your booking at {biz.name} to:\n\n{details}",
+                "buttons": [
+                    {"id": "action_confirm", "title": "Confirm new time"},
+                    {"id": "action_cancel", "title": "Keep old time"},
+                ],
+            }
         return {
             "type": "buttons",
-            "body": body,
+            "body": f"Please confirm your booking at {biz.name}:\n\n{details}",
             "buttons": [
                 {"id": "action_confirm", "title": "Confirm ✅"},
                 {"id": "action_cancel", "title": "Cancel"},
@@ -372,6 +533,13 @@ class BookingRuntime:
             self.state.update_session(phone, business_id=biz.id, step="SELECT_DATE", selected_date=None, selected_time=None)
             return self._render_dates(phone, biz, service, notice="That date is too far ahead. Please pick another:")
 
+        if self._move_id:
+            return self._finalize_move(phone, biz, service, start)
+
+        limit_reply = self._upcoming_limit_reply(phone, biz)
+        if limit_reply:
+            return limit_reply
+
         try:
             appt = self.engine.validate_and_book(self.db, tenant_id, start, phone, service.id, customer_name)
         except BookingEngineException as exc:
@@ -397,10 +565,69 @@ class BookingRuntime:
             # The owner may not have messaged this number in 24h, so the
             # template is sent instead whenever their window is closed.
             response["owner"] = {
-                "recipient": biz.manager_phone_number,
+                "recipient": canonical_phone(biz.manager_phone_number, biz.timezone),
                 "payload": owner_payload,
                 "template": owner_template,
             }
+        return response
+
+    def _finalize_move(self, phone: str, biz: Business, service: Service, start: datetime):
+        appt = self.db.get(Appointment, self._move_id)
+        if (appt is None or appt.business_id != biz.id or normalize_phone(appt.customer_phone) != normalize_phone(phone)
+                or appt.status not in OCCUPYING_STATUSES or appt.appointment_time <= business_now(biz)):
+            status = appt.status.replace("_", " ") if appt else "gone"
+            self._forget_move(phone, biz)
+            self.state.clear_session(phone, business_id=biz.id)
+            return {"type": "text", "body": f"That booking can't be changed any more (it's {status}). Send \"Hi\" to make a new booking."}
+
+        old_time = appt.appointment_time
+        try:
+            appt = self.engine.validate_and_move(self.db, biz.id, appt.id, start)
+        except BookingEngineException as exc:
+            return self._booking_failed(phone, biz, service, start, exc)
+
+        self._forget_move(phone, biz)
+        self.state.clear_session(phone, business_id=biz.id)
+        try:
+            from scheduler import release
+            release("reminder", appt.id)        # remind again for the new time
+            release("nudge", appt.id)
+        except Exception:
+            logger.exception("Could not reset reminders for booking #%s", appt.id)
+
+        when = f"{start.strftime('%A, %d %B')} at {_clock(start.strftime('%H:%M'))}"
+        was = f"{old_time.strftime('%A, %d %B')} at {_clock(old_time.strftime('%H:%M'))}"
+        if appt.status == "confirmed":
+            text_ = f"✅ Done! Your booking is moved.\n\n{service.name}\n{when}\n\nSee you at {biz.name}."
+        else:
+            text_ = (f"✅ Done! Your request is moved.\n\n{service.name}\n{when}\n\n"
+                     f"{biz.name} will confirm the new time shortly.")
+        response = {"customer": {"type": "text", "body": text_}}
+
+        if owner_cannot_approve(biz):
+            return response
+        details = (
+            f"Customer: {appt.customer_name or 'Customer'} (+{appt.customer_phone})\n"
+            f"Service: {service.name}\nNew time: {when}\nWas: {was}\nBooking #{appt.id}"
+        )
+        if appt.status == "pending":
+            payload = {
+                "type": "buttons",
+                "body": f"🔁 Booking request moved by the customer\n\n{details}",
+                "buttons": [
+                    {"id": f"confirm_{appt.id}", "title": "Approve ✅"},
+                    {"id": f"cancel_{appt.id}", "title": "Reject ❌"},
+                ],
+            }
+            template = build_owner_request_template(biz, appt, service.name)
+        else:
+            payload = {"type": "text", "body": f"🔁 Booking moved by the customer\n\n{details}\n\nThe old time is free again."}
+            template = build_customer_rescheduled_template(biz, appt, service.name, old_time)
+        response["owner"] = {
+            "recipient": canonical_phone(biz.manager_phone_number, biz.timezone),
+            "payload": payload,
+            "template": template,
+        }
         return response
 
     def _booking_failed(self, phone: str, biz: Business, service: Service, start: datetime, exc: BookingEngineException):
@@ -414,7 +641,7 @@ class BookingRuntime:
                 "ERR_OUTSIDE_HOURS": "Sorry, that time is no longer available.",
                 "ERR_BUSY": "Sorry, we couldn't save that just now.",
             }[code]
-            slots = self.engine.get_available_slots(self.db, biz, start.date(), service)
+            slots = self.engine.get_available_slots(self.db, biz, start.date(), service, exclude_id=self._move_id)
             if slots:
                 self.state.update_session(phone, business_id=biz.id, step="SELECT_TIME", selected_time=None)
                 return self._render_times(biz, service, start.date(), slots, page=0,
@@ -457,6 +684,8 @@ class BookingRuntime:
                 build_owner_request_template(biz, appt, service.name),
             )
         prefs = biz.notification_preferences or {}
+        if owner_cannot_approve(biz):
+            return None, None      # can't message itself; owner sees the booking in the app + portal
         if prefs.get("whatsapp_owner", True):
             return (
                 {"type": "text", "body": f"📅 New booking (auto-confirmed)\n\n{details}"},

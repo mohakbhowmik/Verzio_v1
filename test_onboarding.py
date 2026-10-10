@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet
 
 # Test-only settings, set before any project import (your real .env is ignored).
 os.environ.update(
+    SCHEDULER="off",
     DATABASE_URL=f"sqlite:///{tmp.name}",
     META_APP_SECRET="test-secret",
     META_ACCESS_TOKEN="GLOBAL_TOKEN",
@@ -207,8 +208,9 @@ with TestClient(server.app) as client:
     check("app subscribed to the client's webhooks", len(calls("WABA_NEW/subscribed_apps")) == 1)
     check("no Coexistence sync for a new number", not calls("smb_app_data"))
     tpl = calls("WABA_NEW/message_templates")
-    check("all 5 templates submitted with the client's token",
-          len(tpl) == 5 and all(c["auth"] == "Bearer BIZTOKEN_C1" for c in tpl), len(tpl))
+    from whatsapp_client import TEMPLATE_DEFINITIONS
+    check(f"all {len(TEMPLATE_DEFINITIONS)} templates submitted with the client's token",
+          len(tpl) == len(TEMPLATE_DEFINITIONS) and all(c["auth"] == "Bearer BIZTOKEN_C1" for c in tpl), len(tpl))
     db.expire_all()
     check("account marked templates_submitted", db.query(WhatsAppAccount).filter_by(business_id=glow.id).first().templates_submitted)
     r = client.post(f"/onboard/{token}/complete", json={"code": "C1b", "event": "FINISH", "waba_id": "WABA_NEW"})

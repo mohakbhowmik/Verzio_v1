@@ -25,8 +25,10 @@ from booking_engine import BookingEngineException, VerzioSaaSEngine
 from database import Appointment, Business, Service, get_db
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 from whatsapp_client import (
+    build_rescheduled_template,
     build_status_message,
     build_status_template,
+    format_when,
     is_real_phone,
     normalize_phone,
     send_whatsapp,
@@ -321,6 +323,122 @@ async def create_manual_appointment(request: Request, db: Session = Depends(get_
     )
     logger.info("Manual booking #%s created for business_id=%s", appt.id, business.id)
     return RedirectResponse(url="/owner/appointments?status=confirmed", status_code=303)
+
+
+# ------------------------------------------------------------------------
+# Change time (registered before the generic /{id}/{action} route)
+# ------------------------------------------------------------------------
+
+def _movable(db: Session, business: Business, appointment_id: int) -> Appointment:
+    appt = (
+        db.query(Appointment)
+        .filter(Appointment.id == appointment_id, Appointment.business_id == business.id)
+        .first()
+    )
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found.")
+    if appt.status not in ("pending", "confirmed"):
+        raise HTTPException(status_code=409, detail="Only pending or confirmed bookings can be moved.")
+    return appt
+
+
+def _move_form_response(request, db, owner, business, appt, date_value: str, time_value: str,
+                        override: bool = False, error: str | None = None, status_code: int = 200):
+    engine = VerzioSaaSEngine()
+    free_times = []
+    try:
+        day = datetime.strptime(date_value, "%Y-%m-%d").date()
+        free_times = [
+            (t, datetime.strptime(t, "%H:%M").strftime("%I:%M %p").lstrip("0"))
+            for t in engine.get_available_slots(db, business, day, appt.service, exclude_id=appt.id)
+        ]
+    except ValueError:
+        pass
+    return templates.TemplateResponse(
+        request=request,
+        name="owner/appointment_move.html",
+        context={
+            "active_page": "appointments",
+            "owner": owner,
+            "business": business,
+            "appointment": appt,
+            "current_when": format_when(appt.appointment_time),
+            "date_value": date_value,
+            "time_value": time_value,
+            "free_times": free_times,
+            "override": override,
+            "error": error,
+            "mobile": is_mobile(request),
+        },
+        status_code=status_code,
+    )
+
+
+@router.get("/{appointment_id}/move")
+async def move_appointment_form(appointment_id: int, request: Request, db: Session = Depends(get_db)):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+    appt = _movable(db, business, appointment_id)
+    date_value = request.query_params.get("date") or appt.appointment_time.strftime("%Y-%m-%d")
+    return _move_form_response(request, db, owner, business, appt, date_value,
+                               appt.appointment_time.strftime("%H:%M"))
+
+
+@router.post("/{appointment_id}/move")
+async def move_appointment(
+    appointment_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    owner, business = resolve_owner_and_business(request, db)
+    if not owner or not business:
+        return RedirectResponse(url="/owner/login", status_code=303)
+    appt = _movable(db, business, appointment_id)
+    form = await request.form()
+    date_value = (form.get("date") or "").strip()
+    time_value = (form.get("time") or "").strip()
+    override = form.get("allow_overbook") == "on"
+    try:
+        start = datetime.strptime(f"{date_value} {time_value}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return _move_form_response(request, db, owner, business, appt, date_value, time_value, override,
+                                   "Please enter a valid date and time.", 400)
+
+    old_time = appt.appointment_time
+    if start == old_time:
+        return RedirectResponse(url="/owner/appointments", status_code=303)
+    try:
+        appt = VerzioSaaSEngine().validate_and_move(db, business.id, appt.id, start, override=override)
+    except BookingEngineException as exc:
+        db.rollback()
+        appt = _movable(db, business, appointment_id)
+        return _move_form_response(request, db, owner, business, appt, date_value, time_value, override,
+                                   MANUAL_BOOKING_ERRORS.get(exc.error_code, "That time couldn't be saved. Try another time."), 400)
+
+    log_event(db=db, event_type="booking_moved", status="info",
+              message=f"Owner moved booking #{appt.id} from {old_time.strftime('%d %b %H:%M')} to "
+                      f"{start.strftime('%d %b %H:%M')}{' (override)' if override else ''}",
+              business_id=business.id)
+    try:
+        from scheduler import release
+        release("reminder", appt.id)
+    except Exception:
+        logger.exception("Could not reset the reminder for booking #%s", appt.id)
+
+    if is_real_phone(appt.customer_phone):
+        service = appt.service.name if appt.service else "your appointment"
+        first = (appt.customer_name or "").strip().split()[0] if (appt.customer_name or "").strip() else ""
+        body = (f"Hi{(' ' + first) if first else ''}, your booking at {business.name} has been moved.\n\n"
+                f"{service}\nNew time: {format_when(appt.appointment_time)}\n\n"
+                f"Reply here if the new time doesn't work for you.")
+        background_tasks.add_task(
+            send_whatsapp, appt.customer_phone, business.whatsapp_business_phone_number_id,
+            {"type": "text", "body": body}, business.id,
+            template=build_rescheduled_template(business, appt, service),
+        )
+    return RedirectResponse(url="/owner/appointments", status_code=303)
 
 
 # ------------------------------------------------------------------------

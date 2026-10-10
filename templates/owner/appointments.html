@@ -90,6 +90,9 @@
         <td class="text-end">
           {% if appointment.status == "pending" %}
           <div class="d-flex justify-content-end gap-2">
+            <a href="/owner/appointments/{{ appointment.id }}/move" class="icon-btn" aria-label="Change time of appointment #{{ appointment.id }}" title="Change time">
+              <i class="bi bi-clock-history"></i>
+            </a>
             <form method="post" action="/owner/appointments/{{ appointment.id }}/approve" class="m-0">
               <button type="submit" class="icon-btn is-positive" aria-label="Approve appointment #{{ appointment.id }}" title="Approve">
                 <i class="bi bi-check-lg"></i>
@@ -103,6 +106,9 @@
           </div>
           {% elif appointment.status == "confirmed" %}
           <div class="d-flex justify-content-end gap-2">
+            <a href="/owner/appointments/{{ appointment.id }}/move" class="icon-btn" aria-label="Change time of appointment #{{ appointment.id }}" title="Change time">
+              <i class="bi bi-clock-history"></i>
+            </a>
             <form method="post" action="/owner/appointments/{{ appointment.id }}/complete" class="m-0">
               <button type="submit" class="icon-btn is-positive" aria-label="Complete appointment #{{ appointment.id }}" title="Complete">
                 <i class="bi bi-check2-circle"></i>

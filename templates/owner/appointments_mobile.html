@@ -57,6 +57,7 @@
                         <button type="submit" class="btn btn-outline-danger">Reject</button>
                     </form>
                 </div>
+                <a href="/owner/appointments/{{ appointment.id }}/move" class="btn btn-outline-secondary w-100 mt-2" style="padding:10px 12px;font-size:14px;">Change time</a>
                 {% elif appointment.status == 'confirmed' %}
                 <div class="m-actions">
                     <form method="post" action="/owner/appointments/{{ appointment.id }}/complete">
@@ -66,6 +67,7 @@
                         <button type="submit" class="btn btn-outline-danger">Cancel</button>
                     </form>
                 </div>
+                <a href="/owner/appointments/{{ appointment.id }}/move" class="btn btn-outline-secondary w-100 mt-2" style="padding:10px 12px;font-size:14px;">Change time</a>
                 {% endif %}
             </div>
         </div>

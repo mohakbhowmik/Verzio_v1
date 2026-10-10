@@ -10,6 +10,7 @@ booking_runtime.py, or the /webhook route in server.py.
 """
 
 import logging
+import secrets
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -19,11 +20,22 @@ from sqlalchemy.orm import Session
 from database import get_db, Business, Owner
 from owner.owner_auth import create_session_token, hash_password, set_session_cookie
 from activity_log import log_event
+from whatsapp_client import canonical_phone, is_real_phone
+from hours import build_hours, daily_break
+
+PHONE_HELP = ("Enter the manager's WhatsApp number, e.g. +91 98765 43210. "
+              "This is where booking requests are sent.")
+
+
+def _placeholder_number_id() -> str:
+    """Unique stand-in until the business connects WhatsApp (onboarding replaces it)."""
+    return f"pending-{secrets.token_hex(4)}"
 
 logger = logging.getLogger("VERZIO_ADMIN_BUSINESSES")
 
 router = APIRouter(prefix="/admin/businesses", tags=["admin-businesses"])
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["daily_break"] = daily_break
 
 # Canonical day order used to build/read the operational_hours JSON column
 WEEK_DAYS = [
@@ -60,15 +72,9 @@ def _hours_rows_from_business(biz: Business | None) -> list[dict]:
 
 
 def _build_operational_hours(form) -> dict:
-    """Reconstruct the operational_hours JSON dict from submitted form fields
-    named hours_<day>_enabled / hours_<day>_open / hours_<day>_close."""
-    hours = {}
-    for key, _label in WEEK_DAYS:
-        if form.get(f"hours_{key}_enabled") == "on":
-            open_t = form.get(f"hours_{key}_open") or "09:00"
-            close_t = form.get(f"hours_{key}_close") or "18:00"
-            hours[key] = [open_t, close_t]
-    return hours
+    """operational_hours from hours_<day>_enabled/_open/_close plus the optional
+    daily break (break_start / break_end). See hours.py."""
+    return build_hours(form)
 
 
 def _holidays_to_text(biz: Business | None) -> str:
@@ -150,8 +156,8 @@ async def create_business(request: Request, db: Session = Depends(get_db)):
 
     biz = Business(
         name=form.get("name", "").strip(),
-        whatsapp_business_phone_number_id=form.get("whatsapp_business_phone_number_id", "").strip(),
-        manager_phone_number=form.get("manager_phone_number", "").strip(),
+        whatsapp_business_phone_number_id=form.get("whatsapp_business_phone_number_id", "").strip() or _placeholder_number_id(),
+        manager_phone_number=canonical_phone(form.get("manager_phone_number", ""), form.get("timezone", "")),
         timezone=form.get("timezone", "UTC").strip() or "UTC",
         is_active=form.get("is_active") == "on",
         accepting_bookings=form.get("accepting_bookings") == "on",
@@ -167,6 +173,14 @@ async def create_business(request: Request, db: Session = Depends(get_db)):
             "whatsapp_customer": form.get("notify_customer") == "on",
         },
     )
+
+    if not is_real_phone(biz.manager_phone_number):
+        return templates.TemplateResponse(
+            request=request,
+            name="business_form.html",
+            context=_form_context(biz=biz, error=PHONE_HELP) | {"form_action": "/admin/businesses"},
+            status_code=400,
+        )
 
     try:
         db.add(biz)
@@ -231,9 +245,21 @@ async def update_business(business_id: int, request: Request, db: Session = Depe
     form = await request.form()
 
     biz.name = form.get("name", "").strip()
-    biz.whatsapp_business_phone_number_id = form.get("whatsapp_business_phone_number_id", "").strip()
-    biz.manager_phone_number = form.get("manager_phone_number", "").strip()
+    submitted_id = form.get("whatsapp_business_phone_number_id", "").strip()
+    if submitted_id:                     # blank keeps the current one (set by onboarding)
+        biz.whatsapp_business_phone_number_id = submitted_id
     biz.timezone = form.get("timezone", "UTC").strip() or "UTC"
+    manager = canonical_phone(form.get("manager_phone_number", ""), biz.timezone)
+    if not is_real_phone(manager):
+        db.rollback()
+        return templates.TemplateResponse(
+            request=request,
+            name="business_form.html",
+            context=_form_context(biz=db.get(Business, business_id), error=PHONE_HELP)
+                    | {"form_action": f"/admin/businesses/{business_id}"},
+            status_code=400,
+        )
+    biz.manager_phone_number = manager
     biz.is_active = form.get("is_active") == "on"
     biz.accepting_bookings = form.get("accepting_bookings") == "on"
     biz.max_parallel_bookings = int(form.get("max_parallel_bookings") or 1)
