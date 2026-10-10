@@ -13,6 +13,9 @@
   <a href="/admin/businesses/new" class="btn-verzio-primary"><i class="bi bi-plus-lg me-1"></i> Add business</a>
 </div>
 
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+{% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
+
 <div class="filter-bar">
   <input type="text" class="form-control-verzio" style="max-width:260px;" placeholder="Search businesses…" data-table-search="#businesses-table">
 </div>
@@ -68,6 +71,15 @@
             <a href="/admin/businesses/{{ b.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ b.name }}">
               <i class="bi bi-pencil"></i>
             </a>
+
+            <form method="post"
+                  action="/admin/businesses/{{ b.id }}/delete"
+                  class="m-0 d-inline-flex"
+                  onsubmit="return confirm('Permanently delete {{ b.name|e }}? Only works if it has no bookings and no connected WhatsApp number.');">
+              <button type="submit" class="icon-btn" style="width:30px;height:30px;" aria-label="Delete {{ b.name }}" title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
 
             <form method="post"
                   action="/admin/businesses/{{ b.id }}/toggle-active"

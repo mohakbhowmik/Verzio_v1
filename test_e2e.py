@@ -660,6 +660,20 @@ with TestClient(server.app) as client:
     check("same manager phone for a second business is fine (owner phone left empty)",
           r.status_code == 303 and o3 is not None and o3.phone_number is None, r.status_code)
 
+    # --- admin delete ---------------------------------------------------
+    c1 = db.query(Business).filter_by(name="Clash One").first(); c1_id = c1.id
+    r = client.post(f"/admin/businesses/{c1_id}/delete", auth=auth, follow_redirects=True)
+    db.expire_all()
+    check("delete a business with no bookings -> gone, with its owner login",
+          db.get(Business, c1_id) is None and not db.query(Owner).filter_by(email="same@demo.test").first()
+          and "Deleted Clash One" in r.text, r.status_code)
+    r = client.post(f"/admin/businesses/{A.id}/delete", auth=auth, follow_redirects=True)
+    db.expire_all()
+    check("delete a business WITH bookings -> refused, told to deactivate", db.get(Business, A.id) is not None
+          and "be deleted. Deactivate it instead" in r.text, r.status_code)
+    r = client.get("/admin/businesses", auth=auth)
+    check("businesses list shows a Delete button", "/delete" in r.text)
+
     db.close()
 
 from database import engine as _engine

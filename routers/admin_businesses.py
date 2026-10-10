@@ -124,19 +124,24 @@ async def list_businesses(request: Request, db: Session = Depends(get_db)):
         # UI helpers
         b.initials = _business_initials(b.name)
 
-        if b.accepting_bookings:
+        if not b.is_active:
+            b.status_class = "status-inactive"
+            b.status_text = "Deactivated"
+        elif b.accepting_bookings:
             b.status_class = "status-active"
             b.status_text = "Accepting"
         else:
             b.status_class = "status-inactive"
             b.status_text = "Paused"
-        
+
     return templates.TemplateResponse(
         request=request,
         name="businesses.html",
         context={
             "active_page": "businesses",
             "businesses": businesses,
+            "notice": request.query_params.get("notice", "")[:300],
+            "error": request.query_params.get("error", "")[:300],
         },
     )
 
@@ -300,6 +305,59 @@ async def update_business(business_id: int, request: Request, db: Session = Depe
 
     logger.info("Updated business '%s' (id=%s)", biz.name, biz.id)
     return RedirectResponse(url="/admin/businesses", status_code=303)
+
+
+@router.post("/{business_id}/delete")
+def delete_business(business_id: int, db: Session = Depends(get_db)):
+    """Permanently delete a business that never went live: no bookings and no
+    connected WhatsApp number. Anything with history is deactivated instead."""
+    from urllib.parse import quote
+    from sqlalchemy import text as sql
+    from database import ActivityEvent, Appointment, Incident, PaymentRecord, Service, Staff, Subscription, UserSession
+
+    biz = db.get(Business, business_id)
+    if not biz:
+        return RedirectResponse(url="/admin/businesses?error=" + quote("That business no longer exists."), status_code=303)
+
+    bookings = db.query(Appointment).filter(Appointment.business_id == business_id).count()
+    try:
+        from whatsapp_accounts import WhatsAppAccount
+        connected = db.query(WhatsAppAccount).filter(WhatsAppAccount.business_id == business_id,
+                                                     WhatsAppAccount.status == "connected").count()
+    except Exception:
+        connected = 0
+    if bookings or connected:
+        why = f"{bookings} booking{'s' if bookings != 1 else ''}" if bookings else "a connected WhatsApp number"
+        return RedirectResponse(
+            url="/admin/businesses?error=" + quote(f"{biz.name} has {why}, so it can't be deleted. Deactivate it instead (⏸ button)."),
+            status_code=303)
+
+    name = biz.name
+    try:
+        for model in (Service, Staff, UserSession, Subscription, PaymentRecord, Owner, ActivityEvent, Incident):
+            db.query(model).filter(model.business_id == business_id).delete(synchronize_session=False)
+        # Tables created by other modules (may not exist on older databases).
+        for table in ("whatsapp_accounts", "onboarding_links", "bot_pauses", "customer_messages",
+                      "reschedule_intents", "conversation_windows"):
+            try:
+                with db.begin_nested():
+                    db.execute(sql(f"DELETE FROM {table} WHERE business_id = :b"), {"b": business_id})
+            except Exception:
+                pass
+        db.delete(biz)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Could not delete business_id=%s", business_id)
+        return RedirectResponse(url="/admin/businesses?error=" + quote(f"Couldn't delete {name}. Deactivate it instead."),
+                                status_code=303)
+    try:
+        from whatsapp_accounts import forget_cached
+        forget_cached(business_id)
+    except Exception:
+        pass
+    logger.info("Deleted business '%s' (id=%s)", name, business_id)
+    return RedirectResponse(url="/admin/businesses?notice=" + quote(f"Deleted {name}."), status_code=303)
 
 
 @router.post("/{business_id}/toggle-active")
