@@ -644,6 +644,22 @@ with TestClient(server.app) as client:
     r = client.get(f"/admin/messages?business={D.id}", auth=("admin", "verzio-dev-admin"))
     check("...filter by business works", r.status_code == 200 and "parking" in r.text and "skin is still red" not in r.text)
 
+    # --- admin create: owner email / phone clashes ----------------------
+    base = {"manager_phone_number": "98222 33344", "timezone": "Asia/Kolkata", "is_active": "on",
+            "accepting_bookings": "on", "approval_mode": "manual", "owner_name": "Mohak",
+            "owner_password": "longenough1"}
+    r = client.post("/admin/businesses", data=base | {"name": "Clash One", "owner_email": "same@demo.test"}, auth=auth, follow_redirects=False)
+    check("first business with owner login saved", r.status_code == 303 and db.query(Owner).filter_by(email="same@demo.test").first())
+    before = db.query(Business).count()
+    r = client.post("/admin/businesses", data=base | {"name": "Clash Two", "owner_email": "Same@Demo.test"}, auth=auth, follow_redirects=False)
+    check("same owner email -> clear error naming the email, and NO half-created business",
+          r.status_code == 400 and "same@demo.test is already used" in r.text and db.query(Business).count() == before, r.status_code)
+    check("...the form keeps what was typed", 'value="Clash Two"' in r.text)
+    r = client.post("/admin/businesses", data=base | {"name": "Clash Three", "owner_email": "other@demo.test"}, auth=auth, follow_redirects=False)
+    o3 = db.query(Owner).filter_by(email="other@demo.test").first()
+    check("same manager phone for a second business is fine (owner phone left empty)",
+          r.status_code == 303 and o3 is not None and o3.phone_number is None, r.status_code)
+
     db.close()
 
 from database import engine as _engine
