@@ -1,0 +1,63 @@
+{% extends "public/base.html" %}
+{% block title %}Verzio Studio: WhatsApp booking for salons and clinics{% endblock %}
+{% block head %}
+<style>
+  .hero { display: grid; gap: 28px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: center; }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
+  .lead { font-size: 1.12rem; color: var(--muted); margin: 0 0 22px; }
+  .cta { display: inline-block; background: var(--accent); color: var(--accent-ink); padding: 12px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; }
+  .chat { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 8px; font-size: .92rem; }
+  .bubble { padding: 8px 12px; border-radius: 12px; max-width: 85%; }
+  .in { background: var(--accent-soft); justify-self: end; }
+  .out { background: var(--bg); border: 1px solid var(--line); }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; padding: 0; list-style: none; counter-reset: s; }
+  .steps li { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; counter-increment: s; }
+  .steps li::before { content: counter(s); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .plan { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .plan.pro { background: var(--deep); color: #eef4f1; border-color: var(--deep); }
+  .plan .price { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .plan ul { padding-left: 18px; margin: 8px 0 0; }
+</style>
+{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Bookings on WhatsApp, day and night.</h1>
+    <p class="lead">Your customers book themselves on your own WhatsApp Business number. You approve with one tap. No missed messages, no double bookings.</p>
+    <a class="cta" href="https://wa.me/918262858396">Talk to us on WhatsApp</a>
+    <p class="muted" style="margin-top:12px;font-size:.92rem">For salons, spas, clinics and studios.</p>
+  </div>
+  <div class="chat" aria-label="Example booking chat">
+    <div class="bubble in">Hi</div>
+    <div class="bubble out">Hi Priya! Welcome to Glow Salon. Which service would you like to book?</div>
+    <div class="bubble in">Facial</div>
+    <div class="bubble out">Free times on Sat, 17 Oct: 11:00 AM · 11:30 AM · 4:00 PM</div>
+    <div class="bubble in">11:30 AM</div>
+    <div class="bubble out">✅ You're booked! Facial, Sat 17 Oct at 11:30 AM.</div>
+  </div>
+</section>
+
+<h2 id="how">How it works</h2>
+<ol class="steps">
+  <li><strong>Customer says "Hi"</strong><br><span class="muted">On your WhatsApp Business number, any time of day.</span></li>
+  <li><strong>They pick a service and a free time</strong><br><span class="muted">Only times you actually have open, around your hours and breaks.</span></li>
+  <li><strong>You approve with one tap</strong><br><span class="muted">They get a confirmation and a reminder the day before.</span></li>
+</ol>
+<p class="muted">You keep using the WhatsApp Business app as usual and can reply to any customer yourself. Walk-ins and phone bookings block the slot too.</p>
+
+<h2 id="pricing">Pricing</h2>
+<div class="plans">
+  <div class="plan">
+    <div style="font-weight:600">Basic</div>
+    <div class="price">₹1,499 <span style="font-size:1rem;font-weight:400">/ month</span></div>
+    <ul><li>Up to 200 bookings a month</li><li>One-tap approvals and walk-ins</li><li>Reminders and rescheduling on WhatsApp</li><li>Owner portal on phone and desktop</li></ul>
+  </div>
+  <div class="plan pro">
+    <div style="font-weight:600">Pro</div>
+    <div class="price">₹3,499 <span style="font-size:1rem;font-weight:400">/ month</span></div>
+    <ul><li>Everything in Basic</li><li>Up to 1,000 bookings a month</li><li>Several chairs or staff at once</li><li>Daily morning summary on WhatsApp</li><li>Reports and export, priority support</li></ul>
+  </div>
+</div>
+<p class="muted" style="margin-top:12px">First month free for our first 10 businesses. Call or WhatsApp +91 82628 58396.</p>
+{% endblock %}

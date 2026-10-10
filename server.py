@@ -766,6 +766,26 @@ async def verify(
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
+# ------------------------------------------------------------------------
+# Public pages (homepage, privacy, terms). Meta checks the business website,
+# and its app settings need a privacy policy URL.
+# ------------------------------------------------------------------------
+
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse(request=request, name="public/home.html", context={})
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy(request: Request):
+    return templates.TemplateResponse(request=request, name="public/privacy.html", context={})
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms(request: Request):
+    return templates.TemplateResponse(request=request, name="public/terms.html", context={})
+
+
 @app.api_route("/health", methods=["GET", "HEAD"])  # uptime monitors often use HEAD
 def health():
     try:

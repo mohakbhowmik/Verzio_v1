@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Verzio Studio{% endblock %}</title>
+<meta name="description" content="Verzio Studio: WhatsApp booking for salons, spas and clinics. Customers book on your own WhatsApp number, day and night.">
+<style>
+  :root {
+    --bg: #f5f7f6; --card: #ffffff; --ink: #17201c; --muted: #5d6b65; --line: #dfe5e2;
+    --accent: #0f7a5c; --accent-ink: #ffffff; --accent-soft: #e3f2ec; --deep: #173a31;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111614; --card: #19201d; --ink: #e6ece9; --muted: #9aa9a2; --line: #2b3531;
+      --accent: #4fc79f; --accent-ink: #0d1a15; --accent-soft: #173229; --deep: #0c1a15; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); }
+  .wrap { max-width: 880px; margin: 0 auto; padding-inline: 20px; }
+  header.site { padding-block: 18px; border-bottom: 1px solid var(--line); }
+  header.site .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .brand { font-weight: 700; letter-spacing: .04em; color: var(--accent); text-decoration: none; text-transform: uppercase; font-size: .95rem; }
+  nav a { margin-left: 16px; color: var(--muted); text-decoration: none; font-size: .92rem; }
+  nav a:hover { color: var(--ink); }
+  main { padding-block: 40px 56px; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.15; margin: 0 0 12px; text-wrap: balance; }
+  h2 { font-size: 1.25rem; margin: 32px 0 8px; }
+  p, li { max-width: 68ch; }
+  .muted { color: var(--muted); }
+  footer.site { border-top: 1px solid var(--line); padding-block: 24px; font-size: .88rem; color: var(--muted); }
+  footer.site .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  footer.site a { color: var(--muted); margin-right: 14px; }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<header class="site"><div class="wrap">
+  <a class="brand" href="/">Verzio Studio</a>
+  <nav><a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/owner/login">Owner login</a></nav>
+</div></header>
+<main><div class="wrap">{% block content %}{% endblock %}</div></main>
+<footer class="site"><div class="wrap">
+  <div><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a></div>
+  <div>© 2026 Verzio Studio · Mohak Bhowmik · +91 82628 58396</div>
+</div></footer>
+</body>
+</html>

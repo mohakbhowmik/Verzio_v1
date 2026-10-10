@@ -76,6 +76,9 @@ with TestClient(server.app) as c:
         r = c.get(path)
         check(f"owner {path:32} loads (no admin nav)", r.status_code == 200 and ADMIN_MARK not in r.text, r.status_code)
     check("uptime monitors: HEAD /health -> 200", c.head("/health").status_code == 200)
+    for path, text_ in [("/", "Bookings on WhatsApp"), ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
+        r = c.get(path, auth=None)
+        check(f"public page {path} loads without login", r.status_code == 200 and text_ in r.text, r.status_code)
     r = c.get("/owner/settings")
     check("owner settings has the daily break fields", 'name="break_start"' in r.text and 'name="break_end"' in r.text)
     r = c.get("/owner/settings", headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile"})
