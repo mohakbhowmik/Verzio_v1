@@ -766,7 +766,7 @@ async def verify(
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])  # uptime monitors often use HEAD
 def health():
     try:
         with engine.connect() as conn:

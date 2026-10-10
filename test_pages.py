@@ -75,6 +75,7 @@ with TestClient(server.app) as c:
                  "/owner/services/new", f"/owner/services/{s.id}/edit", "/owner/reports", "/owner/settings"]:
         r = c.get(path)
         check(f"owner {path:32} loads (no admin nav)", r.status_code == 200 and ADMIN_MARK not in r.text, r.status_code)
+    check("uptime monitors: HEAD /health -> 200", c.head("/health").status_code == 200)
     r = c.get("/owner/settings")
     check("owner settings has the daily break fields", 'name="break_start"' in r.text and 'name="break_end"' in r.text)
     r = c.get("/owner/settings", headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile"})
