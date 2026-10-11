@@ -3,6 +3,7 @@
 {% block title %}Today — Verzio Studio{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
 <section class="owner-mobile-page">
     <div class="m-heading">
         <h1>{{ business.name if business else 'Today' }}</h1>

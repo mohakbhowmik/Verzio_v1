@@ -280,7 +280,8 @@ async def update_business(business_id: int, request: Request, db: Session = Depe
     biz.advance_booking_days = int(form.get("advance_booking_days") or 14)
     biz.enable_service_selection = form.get("enable_service_selection") == "on"
     biz.approval_mode = form.get("approval_mode", "manual")
-    biz.notification_preferences = {
+    # Keep the owner's other settings (reminders, notice, gap) stored in the same field.
+    biz.notification_preferences = dict(biz.notification_preferences or {}) | {
         "whatsapp_owner": form.get("notify_owner") == "on",
         "whatsapp_customer": form.get("notify_customer") == "on",
     }

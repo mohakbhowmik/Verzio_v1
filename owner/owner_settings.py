@@ -11,6 +11,7 @@ from hours import build_hours, daily_break
 from database import Business, get_db
 
 router = APIRouter(prefix="/owner/settings", tags=["owner-settings"])
+from plans import usage as plan_usage
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["daily_break"] = daily_break
 
@@ -70,6 +71,7 @@ async def owner_settings_page(
             "owner": owner,
             "business": business,
             "hours_rows": _business_hours_rows(business),
+            "plan_usage": plan_usage(business, db),
             "message": None,
             "error": None,
         },
@@ -112,6 +114,13 @@ async def owner_settings_save(
     business.accepting_bookings = form.get("accept_online_bookings") == "on"
     business.enable_service_selection = form.get("show_services_during_booking") == "on"
     business.max_parallel_bookings = int(form.get("max_parallel_bookings") or business.max_parallel_bookings or 1)
+    from plans import plan_for
+    plan_cap = plan_for(business, db).parallel
+    plan_note = None
+    if business.max_parallel_bookings > plan_cap:
+        business.max_parallel_bookings = plan_cap
+        plan_note = (f"Your {plan_for(business, db).label} plan allows {plan_cap} client{'s' if plan_cap != 1 else ''} "
+                     f"at the same time, so this was set to {plan_cap}. Ask Verzio about Pro for more.")
     allowed_intervals = {5, 10, 15, 30, 45, 60, 90, 120}
     try:
         submitted_interval = int(form.get("slot_duration") or 30)
@@ -122,10 +131,22 @@ async def owner_settings_save(
     business.approval_mode = "manual" if form.get("require_owner_approval") == "on" else "automatic"
     business.operational_hours = _build_operational_hours(form)
 
-    notification_preferences = business.notification_preferences or {}
-    notification_preferences["whatsapp_owner"] = bool(notification_preferences.get("whatsapp_owner"))
-    notification_preferences["whatsapp_customer"] = form.get("send_booking_confirmation") == "on"
-    business.notification_preferences = notification_preferences
+    # Copy the dict: SQLAlchemy only saves a JSON column when it gets a new object.
+    prefs = dict(business.notification_preferences or {})
+    prefs["whatsapp_owner"] = bool(prefs.get("whatsapp_owner", True))
+    if form.get("_has_confirmation_toggle"):
+        prefs["whatsapp_customer"] = form.get("send_booking_confirmation") == "on"
+    prefs["reminders"] = form.get("send_reminders") == "on"
+
+    def _minutes(name, allowed):
+        try:
+            value = int(form.get(name) or 0)
+        except (TypeError, ValueError):
+            value = 0
+        return value if value in allowed else 0
+    prefs["min_notice_minutes"] = _minutes("min_notice_minutes", {0, 30, 60, 120, 180, 240, 720, 1440})
+    prefs["buffer_minutes"] = _minutes("buffer_minutes", {0, 5, 10, 15, 20, 30, 45, 60})
+    business.notification_preferences = prefs
 
     db.commit()
 
@@ -139,7 +160,8 @@ async def owner_settings_save(
             "owner": owner,
             "business": business,
             "hours_rows": _business_hours_rows(business),
-            "message": None if phone_error else "Settings saved successfully.",
-            "error": phone_error,
+            "plan_usage": plan_usage(business, db),
+            "message": None if (phone_error or plan_note) else "Settings saved successfully.",
+            "error": phone_error or plan_note,
         },
     )

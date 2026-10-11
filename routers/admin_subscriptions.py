@@ -12,6 +12,7 @@ router = APIRouter(
     tags=["Admin Subscriptions"]
 )
 
+from plans import PLAN_CHOICES
 templates = Jinja2Templates(directory="templates")
 
 
@@ -104,7 +105,7 @@ def subscriptions_page(request: Request, db: Session = Depends(get_db)):
         context={
             "active_page": "subscriptions",
             "subscription_rows": subscription_rows,
-            "plan_options": ["Trial", "Pro", "Suspended"],
+            "plan_options": PLAN_CHOICES,
         }
     )
 
@@ -125,6 +126,7 @@ def update_subscription(
         subscription = Subscription(business_id=business_id, plan=plan_type)
         db.add(subscription)
 
+    plan_type = plan_type if plan_type in PLAN_CHOICES else "Trial"
     subscription.plan = plan_type
     subscription.status = "suspended" if plan_type.lower() == "suspended" else "active"
     subscription.next_billing_date = expiry_date or None

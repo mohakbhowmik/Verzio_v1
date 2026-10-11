@@ -282,7 +282,8 @@ class BookingRuntime:
     # ------------------------------------------------------------------
 
     def _active_services(self, biz: Business) -> list[Service]:
-        return (
+        """Bookable services, limited to the plan's number (alphabetical order)."""
+        services = (
             self.db.query(Service)
             .filter(
                 Service.business_id == biz.id,
@@ -292,6 +293,9 @@ class BookingRuntime:
             .order_by(Service.name.asc())
             .all()
         )
+        from plans import plan_for
+        limit = plan_for(biz, self.db).services
+        return services if limit is None else services[:limit]
 
     def _render_services(self, phone: str, biz: Business, notice: str | None = None, name: str | None = None,
                          page: int = 0):
@@ -346,7 +350,7 @@ class BookingRuntime:
             return self._render_services(phone, biz, notice=STALE_NOTICE)
 
         service = self.engine.get_service_for_business(self.db, biz.id, service_id)
-        if service is None:
+        if service is None or service.id not in {s.id for s in self._active_services(biz)}:
             return self._render_services(phone, biz, notice="That service isn't available any more. Please choose another:")
 
         self.state.update_session(phone, business_id=biz.id, step="SELECT_DATE", selected_service_id=service.id)

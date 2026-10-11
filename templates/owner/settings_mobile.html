@@ -3,6 +3,7 @@
 {% block title %}Settings — Verzio Studio{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
 <section class="owner-mobile-page">
     <div class="m-heading">
         <h1>Settings</h1>
@@ -11,6 +12,9 @@
 
     {% if message %}
     <div class="alert alert-success d-flex align-items-center gap-2 mb-0"><i class="bi bi-check-circle-fill"></i>{{ message }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-0" role="alert"><i class="bi bi-exclamation-triangle-fill"></i>{{ error }}</div>
     {% endif %}
 
     <form method="post" action="/owner/settings" class="d-flex flex-column gap-3">
@@ -30,6 +34,18 @@
             </select>
         </div>
 
+        {% if plan_usage %}{% set p = plan_usage.plan %}
+        <div class="m-section-title"><h2>Your plan</h2></div>
+        <div class="owner-mobile-card m-card-pad">
+            <div class="d-flex justify-content-between"><span>Plan</span><strong>{{ p.label }}{% if not p.active %} (off){% endif %}</strong></div>
+            <div class="d-flex justify-content-between mt-1"><span>Paid until</span><strong>{{ p.paid_until.strftime('%d %b %Y') if p.paid_until else 'Not set' }}</strong></div>
+            <div class="d-flex justify-content-between mt-1"><span>Bookings this month</span><strong>{{ plan_usage.bookings_used }} of {{ plan_usage.bookings_limit }}</strong></div>
+            <div class="d-flex justify-content-between mt-1"><span>Services on WhatsApp</span><strong>{{ p.services if p.services else 'Unlimited' }}</strong></div>
+            <div class="d-flex justify-content-between mt-1"><span>At the same time</span><strong>Up to {{ p.parallel }}</strong></div>
+            <div class="small text-muted mt-2">To change plan or renew, contact Verzio: +91 82628 58396.</div>
+        </div>
+        {% endif %}
+
         <div class="m-section-title"><h2>Booking controls</h2></div>
         <div class="owner-mobile-card">
             <label class="m-switch-row">
@@ -44,6 +60,11 @@
                 <span>Let clients pick a service</span>
                 <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="show_services_during_booking" {% if business.enable_service_selection %}checked{% endif %}></span>
             </label>
+            <label class="m-switch-row">
+                <span>Automatic reminders</span>
+                <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="send_reminders" {% if (business.notification_preferences or {}).get('reminders', True) %}checked{% endif %}></span>
+            </label>
+            <input type="hidden" name="_has_confirmation_toggle" value="1">
             <label class="m-switch-row">
                 <span>Send booking confirmation</span>
                 <span class="form-check form-switch"><input class="form-check-input" type="checkbox" name="send_booking_confirmation" {% if business.notification_preferences and business.notification_preferences.get('whatsapp_customer') %}checked{% endif %}></span>
@@ -71,6 +92,23 @@
                 <div class="col-6">
                     <label class="m-label" for="max_parallel_bookings">Clients at once</label>
                     <input type="number" id="max_parallel_bookings" class="form-control" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
+                </div>
+                {% set prefs = business.notification_preferences or {} %}
+                <div class="col-6">
+                    <label class="m-label" for="min_notice_minutes">Minimum notice</label>
+                    <select class="form-select" id="min_notice_minutes" name="min_notice_minutes">
+                        {% for v, label in [(0, 'None'), (30, '30 min'), (60, '1 hour'), (120, '2 hours'), (180, '3 hours'), (240, '4 hours'), (720, '12 hours'), (1440, '1 day')] %}
+                        <option value="{{ v }}" {% if (prefs.get('min_notice_minutes') or 0)|int == v %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="m-label" for="buffer_minutes">Gap between clients</label>
+                    <select class="form-select" id="buffer_minutes" name="buffer_minutes">
+                        {% for v, label in [(0, 'None'), (5, '5 min'), (10, '10 min'), (15, '15 min'), (20, '20 min'), (30, '30 min'), (45, '45 min'), (60, '1 hour')] %}
+                        <option value="{{ v }}" {% if (prefs.get('buffer_minutes') or 0)|int == v %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
         </div>

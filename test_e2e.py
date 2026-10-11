@@ -674,6 +674,125 @@ with TestClient(server.app) as client:
     r = client.get("/admin/businesses", auth=auth)
     check("businesses list shows a Delete button", "/delete" in r.text)
 
+    # --- minimum notice, gap between clients, reminders switch ----------
+    N = Business(name="Notice Spa", whatsapp_business_phone_number_id="PN_N", manager_phone_number="919500000009",
+                 timezone="Asia/Kolkata", operational_hours={d: ["00:00", "23:59"] for d in ALL}, holidays=[],
+                 slot_interval=30, max_parallel_bookings=1, approval_mode="automatic", is_active=True,
+                 accepting_bookings=True, enable_service_selection=True, advance_booking_days=14,
+                 notification_preferences={"min_notice_minutes": 120, "buffer_minutes": 15, "reminders": False})
+    db.add(N); db.commit()
+    nsvc = Service(business_id=N.id, name="Nails", duration=30, price=300, is_active=True); db.add(nsvc); db.commit()
+    eng = VerzioSaaSEngine()
+    nowN = business_now(N)
+    today_slots = eng.get_available_slots(db, N, nowN.date(), nsvc)
+    soonest = min((_dt.combine(nowN.date(), _dt.strptime(t, "%H:%M").time()) for t in today_slots), default=None)
+    check("minimum notice 2h: no slot offered within the next 2 hours",
+          soonest is None or soonest > nowN + timedelta(minutes=120), (nowN, soonest))
+    day2 = nowN.date() + timedelta(days=2)
+    eng.validate_and_book(db, "PN_N", _dt.combine(day2, _dt.strptime("10:00", "%H:%M").time()), "912700000001", nsvc.id)
+    s2 = eng.get_available_slots(db, N, day2, nsvc)
+    near = [t for t in s2 if "08:30" <= t <= "11:30"]
+    check("gap 15 min around a 10:00–10:30 booking: 9:30 and 10:30 blocked (no cleanup time), 9:00 and 11:00 free",
+          near == ["08:30", "09:00", "11:00", "11:30"], near)
+    try:
+        eng.validate_and_book(db, "PN_N", nowN + timedelta(minutes=40), "912700000002", nsvc.id)
+        check("customer can't book inside the minimum notice", False)
+    except BEE as exc:
+        check("customer can't book inside the minimum notice", exc.error_code == "ERR_PAST_TIME", exc.error_code)
+    walkin = eng.validate_and_book(db, "PN_N", (nowN + timedelta(minutes=40)).replace(second=0, microsecond=0),
+                                   "912700000003", nsvc.id, enforce_notice=False)
+    check("owner walk-in inside the notice is allowed", walkin.id is not None)
+    remind_off = Appointment(business_id=N.id, service_id=nsvc.id, customer_phone="912700000004", customer_name="Off",
+                             appointment_time=(nowN + timedelta(hours=20)).replace(second=0, microsecond=0),
+                             status="confirmed", created_at=_dt.utcnow() - timedelta(hours=10))
+    db.add(remind_off); db.commit()
+    outbox.clear(); asyncio.run(scheduler.tick())
+    check("reminders switched off -> no reminder sent", not [m for m in outbox if m["to"] == "912700000004"], outbox)
+
+    # --- membership plans ---------------------------------------------
+    from database import Subscription, Incident as _I2
+    from datetime import date as _date
+    PB = Business(name="Basic Barber", whatsapp_business_phone_number_id="PN_PB", manager_phone_number="919400000001",
+                  timezone="Asia/Kolkata", operational_hours={d: ["00:00", "23:59"] for d in ALL}, holidays=[],
+                  slot_interval=30, max_parallel_bookings=3, approval_mode="automatic", is_active=True,
+                  accepting_bookings=True, enable_service_selection=True, advance_booking_days=14,
+                  notification_preferences={})
+    db.add(PB); db.commit()
+    db.add(Subscription(business_id=PB.id, plan="Basic", status="active",
+                        next_billing_date=(_date.today() + timedelta(days=20)).isoformat()))
+    for nm in ["Beard", "Colour", "Facial", "Haircut", "Kids cut", "Massage", "Shave"]:
+        db.add(Service(business_id=PB.id, name=nm, duration=30, price=200, is_active=True))
+    db.commit()
+    from plans import plan_for, usage as _usage
+    check("Basic plan read from Admin → Subscriptions", plan_for(PB, db).key == "basic")
+    _, out = webhook(client, "PN_PB", "912800000001", text("hi"))
+    titles = [r_["title"] for r_ in out[0]["payload"]["sections"][0]["rows"]]
+    check("Basic: WhatsApp menu shows only the first 5 services", titles == ["Beard", "Colour", "Facial", "Haircut", "Kids cut"], titles)
+    massage = db.query(Service).filter_by(business_id=PB.id, name="Massage").first()
+    _, out = webhook(client, "PN_PB", "912800000001", tap(f"svc_{massage.id}"))
+    check("Basic: a 6th service from an old menu can't be booked", "isn't available" in out[0]["payload"]["body"], out)
+    beard = db.query(Service).filter_by(business_id=PB.id, name="Beard").first()
+    dayb = business_today(PB) + timedelta(days=3)
+    at = _dt.combine(dayb, _dt.strptime("10:00", "%H:%M").time())
+    VerzioSaaSEngine().validate_and_book(db, "PN_PB", at, "912800000002", beard.id)
+    check("Basic: only 1 client at a time even though the setting says 3",
+          "10:00" not in VerzioSaaSEngine().get_available_slots(db, PB, dayb, beard))
+    sub = db.query(Subscription).filter_by(business_id=PB.id).first()
+    sub.plan = "Pro"; db.commit()
+    check("Pro: same slot opens up again (setting 3, Pro allows up to 10)",
+          "10:00" in VerzioSaaSEngine().get_available_slots(db, PB, dayb, beard))
+    _, out = webhook(client, "PN_PB", "912800000003", text("hi"))
+    check("Pro: all 7 services on the menu", len(out[0]["payload"]["sections"][0]["rows"]) == 7, out)
+    sub.plan = "Basic"; db.commit()
+
+    # morning summary is Pro only
+    db.add(Appointment(business_id=PB.id, service_id=beard.id, customer_phone="912800000009", customer_name="Sum",
+                       appointment_time=(business_now(PB) + timedelta(minutes=90)).replace(second=0, microsecond=0),
+                       status="confirmed", created_at=_dt.utcnow() - timedelta(hours=5)))
+    db.commit()
+    outbox.clear(); asyncio.run(scheduler.send_morning_summaries(db))
+    check("Basic: no morning summary", not [m for m in outbox if m["to"] == "919400000001"], outbox)
+
+    # monthly bookings: soft limit with alerts at 80% and 100%
+    for i in range(158):
+        db.add(Appointment(business_id=PB.id, service_id=beard.id, customer_phone=f"91290000{i:04d}",
+                           appointment_time=_dt.combine(dayb + timedelta(days=1), _dt.strptime("09:00", "%H:%M").time()),
+                           status="confirmed", created_at=_dt.utcnow()))
+    db.commit()
+    used = _usage(PB, db)["bookings_used"]
+    outbox.clear(); n = asyncio.run(scheduler.check_plan_usage(db))
+    check("80% of 200 bookings -> owner told + incident for you", used == 160 and n == 1
+          and any(m["to"] == "919400000001" and "80%" in m["payload"]["body"] for m in outbox)
+          and db.query(_I2).filter(_I2.title == "80% of monthly bookings used").count() == 1, (used, n, outbox))
+    outbox.clear()
+    check("...told only once a month", asyncio.run(scheduler.check_plan_usage(db)) == 0 and outbox == [])
+    for i in range(45):
+        db.add(Appointment(business_id=PB.id, service_id=beard.id, customer_phone=f"91291000{i:04d}",
+                           appointment_time=_dt.combine(dayb + timedelta(days=2), _dt.strptime("09:00", "%H:%M").time()),
+                           status="confirmed", created_at=_dt.utcnow()))
+    db.commit()
+    _, out = webhook(client, "PN_PB", "912800000004", text("hi"))
+    check("over 200 bookings: customers can still book (soft limit)", out and out[0]["payload"]["type"] == "list", out)
+    outbox.clear(); asyncio.run(scheduler.check_plan_usage(db))
+    check("100% -> owner told", any(m["to"] == "919400000001" and "full 200" in m["payload"]["body"] for m in outbox), outbox)
+
+    # expiry with 3-day grace, and suspension
+    sub.next_billing_date = (_date.today() - timedelta(days=2)).isoformat(); db.commit()
+    _, out = webhook(client, "PN_PB", "912800000005", text("hi"))
+    check("2 days after paid-until (grace): still booking", out and out[0]["payload"]["type"] == "list", out)
+    check("...and the plan says renewal is due", plan_for(PB, db).in_grace)
+    sub.next_billing_date = (_date.today() - timedelta(days=4)).isoformat(); db.commit()
+    _, out = webhook(client, "PN_PB", "912800000005", text("hi"))
+    check("4 days after paid-until: WhatsApp booking off, polite reply", out and "isn't taking WhatsApp bookings" in out[0]["payload"]["body"], out)
+    sub.next_billing_date = (_date.today() + timedelta(days=30)).isoformat(); sub.plan = "Suspended"; sub.status = "suspended"; db.commit()
+    _, out = webhook(client, "PN_PB", "912800000005", text("hi"))
+    check("Suspended: WhatsApp booking off", out and "isn't taking WhatsApp bookings" in out[0]["payload"]["body"], out)
+    sub.plan = "Basic"; sub.status = "active"; db.commit()
+    _, out = webhook(client, "PN_PB", "912800000005", text("hi"))
+    check("renewed: booking works again", out and out[0]["payload"]["type"] == "list", out)
+    check("no subscription at all = Trial with Pro features (nothing changes for existing businesses)",
+          plan_for(A, db).key == "trial" and plan_for(A, db).export and plan_for(A, db).active)
+
     db.close()
 
 from database import engine as _engine

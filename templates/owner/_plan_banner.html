@@ -1,0 +1,22 @@
+{# Plan notices for the owner portal. Needs `plan_usage` from plans.usage(). Shows nothing when all is well. #}
+{% if plan_usage %}
+{% set p = plan_usage.plan %}
+{% if not p.active %}
+<div class="vz-plan-note is-bad" role="alert"><strong>WhatsApp booking is off.</strong> {{ p.reason }} Call or WhatsApp Verzio on +91 82628 58396.</div>
+{% elif p.in_grace %}
+<div class="vz-plan-note is-warn" role="status"><strong>Plan renewal due.</strong> {{ p.reason }}</div>
+{% endif %}
+{% if p.active and plan_usage.near_limit %}
+<div class="vz-plan-note {% if plan_usage.over_limit %}is-warn{% else %}is-info{% endif %}" role="status">
+  <strong>{{ plan_usage.bookings_used }} of {{ plan_usage.bookings_limit }} bookings used this month</strong> on your {{ p.label }} plan.
+  {% if plan_usage.over_limit %}Bookings keep coming in as normal.{% endif %}
+  {% if p.key == 'basic' %}Pro includes up to 1,000 a month: ask Verzio to upgrade.{% endif %}
+</div>
+{% endif %}
+<style>
+  .vz-plan-note { border-radius: 12px; padding: 12px 16px; margin: 0 0 16px; font-size: .92rem; line-height: 1.45; border: 1px solid transparent; }
+  .vz-plan-note.is-bad { background: #fbe9e5; color: #8a2a17; border-color: #f2c9bf; }
+  .vz-plan-note.is-warn { background: #fbf0d9; color: #6e4a00; border-color: #efdcae; }
+  .vz-plan-note.is-info { background: #e3f2ec; color: #12503c; border-color: #c4e3d6; }
+</style>
+{% endif %}

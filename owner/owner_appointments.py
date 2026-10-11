@@ -300,6 +300,7 @@ async def create_manual_appointment(request: Request, db: Session = Depends(get_
                 start,
                 phone,
                 service.id,
+                enforce_notice=False,          # the owner can book a walk-in for right now
             )
             appt.customer_name = name
             appt.status = "confirmed"  # the owner entered it, so no approval step
@@ -410,7 +411,8 @@ async def move_appointment(
     if start == old_time:
         return RedirectResponse(url="/owner/appointments", status_code=303)
     try:
-        appt = VerzioSaaSEngine().validate_and_move(db, business.id, appt.id, start, override=override)
+        appt = VerzioSaaSEngine().validate_and_move(db, business.id, appt.id, start, override=override,
+                                                   enforce_notice=False)
     except BookingEngineException as exc:
         db.rollback()
         appt = _movable(db, business, appointment_id)

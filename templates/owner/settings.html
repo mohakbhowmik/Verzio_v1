@@ -4,6 +4,7 @@
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
 <div class="page-header">
     <div>
         <h1 class="page-title">Settings</h1>
@@ -17,6 +18,11 @@
 {% if message %}
 <div class="alert alert-success mb-4 d-flex align-items-center">
     <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-warning mb-4 d-flex align-items-center" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error }}
 </div>
 {% endif %}
 
@@ -54,6 +60,28 @@
                 </div>
             </section>
         </div>
+
+        {% if plan_usage %}
+        <!-- Plan -->
+        <div class="col-12">
+            <section class="section-container mb-0">
+                <div class="section-head"><h2 class="section-title">Your plan</h2></div>
+                <div class="p-4">
+                    {% set p = plan_usage.plan %}
+                    <div class="row g-4">
+                        <div class="col-6 col-md-3"><div class="form-label">Plan</div><div class="fw-semibold">{{ p.label }}{% if not p.active %} (WhatsApp booking off){% endif %}</div></div>
+                        <div class="col-6 col-md-3"><div class="form-label">Paid until</div><div class="fw-semibold">{{ p.paid_until.strftime('%d %b %Y') if p.paid_until else 'Not set' }}</div></div>
+                        <div class="col-6 col-md-3"><div class="form-label">Bookings this month</div><div class="fw-semibold">{{ plan_usage.bookings_used }} of {{ plan_usage.bookings_limit }}</div></div>
+                        <div class="col-6 col-md-3"><div class="form-label">Services on WhatsApp</div><div class="fw-semibold">{{ p.services if p.services else 'Unlimited' }}</div></div>
+                        <div class="col-6 col-md-3"><div class="form-label">Clients at the same time</div><div class="fw-semibold">Up to {{ p.parallel }}</div></div>
+                        <div class="col-6 col-md-3"><div class="form-label">Morning summary</div><div class="fw-semibold">{{ 'Included' if p.morning_summary else 'Pro plan' }}</div></div>
+                        <div class="col-6 col-md-3"><div class="form-label">Excel export</div><div class="fw-semibold">{{ 'Included' if p.export else 'Pro plan' }}</div></div>
+                    </div>
+                    <div class="setting-row-hint mt-3">To change plan or renew, call or WhatsApp Verzio on +91 82628 58396.</div>
+                </div>
+            </section>
+        </div>
+        {% endif %}
 
         <!-- Booking controls -->
         <div class="col-lg-6">
@@ -95,18 +123,21 @@
 
                     <div class="setting-row is-locked">
                         <div>
-                            <div class="setting-row-title">Natural-language booking <span class="coming-soon-pill ms-1">Pro</span></div>
+                            <div class="setting-row-title">Natural-language booking <span class="coming-soon-pill ms-1">Soon</span></div>
                             <div class="setting-row-hint">Clients book by typing naturally, without menus.</div>
                         </div>
-                        <label class="vz-toggle"><input type="checkbox" disabled aria-label="Natural-language booking (Pro)"><span class="vz-toggle-track"></span></label>
+                        <label class="vz-toggle"><input type="checkbox" disabled aria-label="Natural-language booking (coming soon)"><span class="vz-toggle-track"></span></label>
                     </div>
 
-                    <div class="setting-row is-locked">
+                    <div class="setting-row">
                         <div>
-                            <div class="setting-row-title">Automatic reminders <span class="coming-soon-pill ms-1">Pro</span></div>
-                            <div class="setting-row-hint">Remind clients before their visit to cut no-shows.</div>
+                            <div class="setting-row-title">Automatic reminders</div>
+                            <div class="setting-row-hint">WhatsApp reminder about a day before each confirmed visit, with I'll be there / Reschedule / Cancel buttons.</div>
                         </div>
-                        <label class="vz-toggle"><input type="checkbox" disabled aria-label="Automatic reminders (Pro)"><span class="vz-toggle-track"></span></label>
+                        <label class="vz-toggle">
+                            <input type="checkbox" name="send_reminders" aria-label="Automatic reminders" {% if (business.notification_preferences or {}).get('reminders', True) %}checked{% endif %}>
+                            <span class="vz-toggle-track"></span>
+                        </label>
                     </div>
                 </div>
             </section>
@@ -139,13 +170,24 @@
                             <label class="form-label" for="max_parallel_bookings">Clients at the same time</label>
                             <input type="number" id="max_parallel_bookings" class="form-control-verzio" name="max_parallel_bookings" value="{{ business.max_parallel_bookings }}">
                         </div>
-                        <div class="col-md-6 opacity-50">
-                            <label class="form-label">Minimum notice <span class="coming-soon-pill ms-1">Soon</span></label>
-                            <input type="text" class="form-control-verzio" value="2 hours" disabled>
+                        {% set prefs = business.notification_preferences or {} %}
+                        <div class="col-md-6">
+                            <label class="form-label" for="min_notice_minutes">Minimum notice</label>
+                            <select class="form-select-verzio" id="min_notice_minutes" name="min_notice_minutes">
+                                {% for v, label in [(0, 'None'), (30, '30 min'), (60, '1 hour'), (120, '2 hours'), (180, '3 hours'), (240, '4 hours'), (720, '12 hours'), (1440, '1 day')] %}
+                                <option value="{{ v }}" {% if (prefs.get('min_notice_minutes') or 0)|int == v %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="setting-row-hint mt-1">How soon before a slot customers can still book it on WhatsApp. Your own walk-ins aren't affected.</div>
                         </div>
-                        <div class="col-md-6 opacity-50">
-                            <label class="form-label">Gap between clients <span class="coming-soon-pill ms-1">Soon</span></label>
-                            <input type="text" class="form-control-verzio" value="15 min" disabled>
+                        <div class="col-md-6">
+                            <label class="form-label" for="buffer_minutes">Gap between clients</label>
+                            <select class="form-select-verzio" id="buffer_minutes" name="buffer_minutes">
+                                {% for v, label in [(0, 'None'), (5, '5 min'), (10, '10 min'), (15, '15 min'), (20, '20 min'), (30, '30 min'), (45, '45 min'), (60, '1 hour')] %}
+                                <option value="{{ v }}" {% if (prefs.get('buffer_minutes') or 0)|int == v %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="setting-row-hint mt-1">Cleanup time kept free after each booking.</div>
                         </div>
                     </div>
                 </div>

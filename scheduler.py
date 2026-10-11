@@ -33,6 +33,8 @@ from sqlalchemy import text
 from activity_log import log_event
 from booking_engine import business_now, owner_cannot_approve
 from database import Appointment, Business, SessionLocal, engine
+from incident_service import create_incident
+from plans import plan_for, usage
 from whatsapp_client import (
     _first_name,
     build_customer_cancelled_template,
@@ -265,6 +267,8 @@ async def send_morning_summaries(db) -> int:
     for biz in _live_businesses(db):
         if not _prefs(biz).get("morning_summary", True):
             continue
+        if not plan_for(biz, db).morning_summary:      # Pro and Trial only
+            continue
         now = business_now(biz)
         if not (SUMMARY_HOUR <= now.hour < SUMMARY_LATEST_HOUR):
             continue
@@ -309,6 +313,42 @@ async def send_morning_summaries(db) -> int:
 
 
 # ------------------------------------------------------------------------
+# 5. Plan usage: tell the owner (and you) at 80% and 100% of monthly bookings
+# ------------------------------------------------------------------------
+
+async def check_plan_usage(db) -> int:
+    alerts = 0
+    month = datetime.utcnow().strftime("%Y-%m")
+    for biz in _live_businesses(db):
+        u = usage(biz, db)
+        info = u["plan"]
+        if info.key != "basic" and u["bookings_used"] < info.bookings:
+            continue                        # only Basic is likely to hit its limit; Pro is told at 100%
+        for threshold in (80, 100):
+            if u["bookings_used"] * 100 < info.bookings * threshold:
+                continue
+            if not claim(f"usage{threshold}", f"{biz.id}:{month}"):
+                continue
+            alerts += 1
+            summary = f"{biz.name}: {u['bookings_used']} of {info.bookings} bookings this month on {info.label}"
+            log_event(db=db, event_type="plan_usage", status="warning", message=summary, business_id=biz.id)
+            try:
+                create_incident(severity="warning", module="Plans",
+                                title=f"{threshold}% of monthly bookings used", message=summary + ". Offer an upgrade.",
+                                business_id=biz.id)
+            except Exception:
+                logger.exception("Could not record plan usage incident")
+            manager = _manager(biz)
+            if manager and not owner_cannot_approve(biz):
+                text_ = (f"📈 {biz.name} has had {u['bookings_used']} WhatsApp bookings this month, "
+                         f"{'the full' if threshold == 100 else str(threshold) + '% of the'} {info.bookings} included in your "
+                         f"{info.label} plan. Bookings keep coming in as normal. "
+                         + ("Ask Verzio about Pro for up to 1,000 a month." if info.key == "basic" else "Ask Verzio about a bigger plan."))
+                await send_whatsapp(manager, biz.whatsapp_business_phone_number_id, {"type": "text", "body": text_}, biz.id)
+    return alerts
+
+
+# ------------------------------------------------------------------------
 # Loop
 # ------------------------------------------------------------------------
 
@@ -317,7 +357,7 @@ async def tick() -> dict:
     result = {}
     try:
         for name, job in (("reminders", send_reminders), ("pending", handle_pending),
-                          ("summaries", send_morning_summaries)):
+                          ("summaries", send_morning_summaries), ("plan_usage", check_plan_usage)):
             try:
                 result[name] = await job(db)
             except Exception:

@@ -11,6 +11,7 @@ from owner.owner_auth import is_mobile, resolve_owner_and_business
 logger = logging.getLogger("VERZIO_OWNER_SERVICES")
 
 router = APIRouter(prefix="/owner/services", tags=["owner-services"])
+from plans import usage as plan_usage
 templates = Jinja2Templates(directory="templates")
 
 
@@ -84,8 +85,19 @@ async def owner_services_page(
             "owner": owner,
             "business": business,
             "services": services,
+            "plan_usage": plan_usage(business, db) if business else None,
+            "hidden_services": _hidden_by_plan(business, services, db) if business else [],
         },
     )
+
+
+def _hidden_by_plan(business, services, db):
+    """Active services that don't appear on WhatsApp because of the plan's limit
+    (WhatsApp shows the first N active services alphabetically)."""
+    from plans import plan_for
+    limit = plan_for(business, db).services
+    active = [s for s in services if s.is_active]
+    return [] if limit is None else active[limit:]
 
 
 @router.get("/new")

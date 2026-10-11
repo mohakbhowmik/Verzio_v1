@@ -76,7 +76,7 @@ with TestClient(server.app) as c:
         r = c.get(path)
         check(f"owner {path:32} loads (no admin nav)", r.status_code == 200 and ADMIN_MARK not in r.text, r.status_code)
     check("uptime monitors: HEAD /health -> 200", c.head("/health").status_code == 200)
-    for path, text_ in [("/", "Bookings on WhatsApp"), ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
+    for path, text_ in [("/", "takes bookings while you sleep"), ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
         r = c.get(path, auth=None)
         check(f"public page {path} loads without login", r.status_code == 200 and text_ in r.text, r.status_code)
     r = c.get("/owner/settings")
@@ -85,9 +85,29 @@ with TestClient(server.app) as c:
     check("owner settings (phone) has the daily break fields", r.status_code == 200 and 'name="break_start"' in r.text)
     form = {"business_name": "Glow Salon", "phone_number": "98000 11111", "timezone": "Asia/Kolkata",
             "accept_online_bookings": "on", "slot_duration": "30", "hours_mon_enabled": "on",
-            "hours_mon_open": "10:00", "hours_mon_close": "19:00", "break_start": "13:30", "break_end": "14:30"}
+            "hours_mon_open": "10:00", "hours_mon_close": "19:00", "break_start": "13:30", "break_end": "14:30",
+            "min_notice_minutes": "120", "buffer_minutes": "15"}
     r = c.post("/owner/settings", data=form)
     db.expire_all(); saved = db.get(Business, b.id)
+    p_ = saved.notification_preferences or {}
+    check("owner saves minimum notice 2h, gap 15 min, reminders off (box unticked)",
+          p_.get("min_notice_minutes") == 120 and p_.get("buffer_minutes") == 15 and p_.get("reminders") is False, p_)
+    from database import Subscription
+    db.add(Subscription(business_id=b.id, plan="Basic", status="active")); db.commit()
+    r = c.post("/owner/settings", data=form | {"max_parallel_bookings": "4"})
+    db.expire_all()
+    check("Basic: owner can't set more than 1 client at a time (clamped, told why)",
+          db.get(Business, b.id).max_parallel_bookings == 1 and "plan allows 1 client" in r.text)
+    r = c.get("/owner/reports/export", follow_redirects=False)
+    check("Basic: Excel export redirects to an upgrade note", r.status_code == 303 and "export=pro" in r.headers.get("location", ""))
+    r = c.get("/owner/reports?export=pro")
+    check("...reports page shows 'Excel export: Pro plan' instead of the button",
+          "Excel export: Pro plan" in r.text and "included in the Pro plan" in r.text)
+    r = c.get("/owner/settings")
+    check("settings shows 'Your plan' with Basic", "Your plan" in r.text and "Basic" in r.text)
+    r2 = c.get("/owner/settings")
+    check("settings page shows the saved values and a live reminders switch",
+          'value="120" selected' in r2.text and 'value="15" selected' in r2.text and 'name="send_reminders"' in r2.text)
     check("owner saves a break + a 10-digit number", r.status_code == 200 and saved.operational_hours.get("mon") == ["10:00", "19:00", "13:30", "14:30"]
           and saved.manager_phone_number == "919800011111", (saved.operational_hours, saved.manager_phone_number))
     db.close()

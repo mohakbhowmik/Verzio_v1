@@ -54,6 +54,18 @@ class BookingEngineException(Exception):
         return self.error_code
 
 
+def booking_rules(biz: Business) -> tuple[int, int]:
+    """(minimum notice in minutes, gap after each client in minutes).
+    Stored in notification_preferences so no database migration is needed."""
+    prefs = biz.notification_preferences or {}
+    def minutes(key):
+        try:
+            return max(0, min(int(prefs.get(key) or 0), 7 * 24 * 60))
+        except (TypeError, ValueError):
+            return 0
+    return minutes("min_notice_minutes"), minutes("buffer_minutes")
+
+
 def owner_cannot_approve(biz: Business) -> bool:
     """Manual approval only works if the owner can receive the request. When the
     manager number is the business's own WhatsApp number (common: one phone),
@@ -114,6 +126,9 @@ class VerzioSaaSEngine:
             raise BookingEngineException("Business not found.", ERR_NOT_FOUND)
         if not biz.is_active or not biz.accepting_bookings:
             raise BookingEngineException("Business is not currently accepting bookings.", ERR_TENANT_LOCKED)
+        from plans import plan_for
+        if not plan_for(biz, db).active:
+            raise BookingEngineException("Business plan is not active.", ERR_TENANT_LOCKED)
         return biz
 
     def get_service_for_business(self, db: Session, business_id: int, service_id) -> Service | None:
@@ -216,10 +231,11 @@ class VerzioSaaSEngine:
             query = query.filter(Appointment.id != exclude_id)
         rows = query.all()
         fallback = self.interval_minutes(biz)
+        gap = timedelta(minutes=booking_rules(biz)[1])
         intervals = []
         for start, duration in rows:
             minutes = int(duration) if duration and int(duration) > 0 else fallback
-            intervals.append((start, start + timedelta(minutes=minutes)))
+            intervals.append((start, start + timedelta(minutes=minutes) + gap))   # + cleanup gap
         return intervals
 
     @staticmethod
@@ -234,7 +250,8 @@ class VerzioSaaSEngine:
         return max(sum(1 for s, e in overlapping if s <= p < e) for p in checkpoints)
 
     def _fits(self, biz: Business, intervals, start: datetime, end: datetime) -> bool:
-        capacity = max(int(biz.max_parallel_bookings or 1), 1)
+        from plans import capacity as plan_capacity
+        capacity = plan_capacity(biz)          # business setting, capped by the plan
         return self._peak_concurrency(intervals, start, end) < capacity
 
     def get_available_slots(
@@ -260,12 +277,15 @@ class VerzioSaaSEngine:
         length = timedelta(minutes=self.service_minutes(biz, service))
         intervals = self._day_occupancy(db, biz, day, exclude_id=exclude_id)
         breaks = self.day_breaks(biz, day)
+        notice, gap_min = booking_rules(biz)
+        earliest = now_local + timedelta(minutes=notice)
+        gap = timedelta(minutes=gap_min)
 
         slots = []
         curr = open_dt
         while curr + length <= close_dt:          # the service must FINISH by closing
             in_break = any(s < curr + length and curr < e for s, e in breaks)
-            if curr > now_local and not in_break and self._fits(biz, intervals, curr, curr + length):
+            if curr > earliest and not in_break and self._fits(biz, intervals, curr, curr + length + gap):
                 slots.append(curr.strftime("%H:%M"))
             curr += step
         return slots
@@ -296,9 +316,11 @@ class VerzioSaaSEngine:
         customer_phone: str,
         service_id: int,
         customer_name: str | None = None,
+        enforce_notice: bool = True,
     ) -> Appointment:
         """Revalidate everything and insert the appointment atomically.
-        Returns the committed Appointment or raises BookingEngineException."""
+        Returns the committed Appointment or raises BookingEngineException.
+        `enforce_notice=False` for the owner's own entries (walk-ins)."""
         biz = self.get_tenant_config(db, tenant_id)
         business_id = biz.id
 
@@ -323,8 +345,9 @@ class VerzioSaaSEngine:
             start = target_dt.replace(second=0, microsecond=0)
             end = start + timedelta(minutes=self.service_minutes(biz, service))
 
-            if start <= business_now(biz):
-                raise BookingEngineException("This appointment time is in the past.", ERR_PAST_TIME)
+            notice, gap_min = booking_rules(biz)
+            if start <= business_now(biz) + timedelta(minutes=notice if enforce_notice else 0):
+                raise BookingEngineException("This appointment time is in the past or too soon.", ERR_PAST_TIME)
 
             if self.is_holiday(biz, start):
                 raise BookingEngineException("Business is closed on this date.", ERR_HOLIDAY)
@@ -333,7 +356,7 @@ class VerzioSaaSEngine:
             if window is None or start < window[0] or end > window[1] or self.overlaps_break(biz, start, end):
                 raise BookingEngineException("Selected time is outside business hours.", ERR_OUTSIDE_HOURS)
 
-            if not self._fits(biz, self._day_occupancy(db, biz, start), start, end):
+            if not self._fits(biz, self._day_occupancy(db, biz, start), start, end + timedelta(minutes=gap_min)):
                 raise BookingEngineException("This slot just reached full capacity.", ERR_CAPACITY)
 
             status = "confirmed" if (biz.approval_mode == "automatic" or owner_cannot_approve(biz)) else "pending"
@@ -365,6 +388,7 @@ class VerzioSaaSEngine:
         appointment_id: int,
         target_dt: datetime,
         override: bool = False,
+        enforce_notice: bool = True,
     ) -> Appointment:
         """Move an existing pending/confirmed booking to a new time, atomically.
         The booking keeps its id and status. `override` (owner only) skips the
@@ -388,15 +412,17 @@ class VerzioSaaSEngine:
             start = target_dt.replace(second=0, microsecond=0)
             end = start + timedelta(minutes=self.service_minutes(biz, service))
 
+            notice, gap_min = booking_rules(biz)
             if not override:
-                if start <= business_now(biz):
+                if start <= business_now(biz) + timedelta(minutes=notice if enforce_notice else 0):
                     raise BookingEngineException("This appointment time is in the past.", ERR_PAST_TIME)
                 if self.is_holiday(biz, start):
                     raise BookingEngineException("Business is closed on this date.", ERR_HOLIDAY)
                 window = self.day_window(biz, start)
                 if window is None or start < window[0] or end > window[1] or self.overlaps_break(biz, start, end):
                     raise BookingEngineException("Selected time is outside business hours.", ERR_OUTSIDE_HOURS)
-                if not self._fits(biz, self._day_occupancy(db, biz, start, exclude_id=appt.id), start, end):
+                if not self._fits(biz, self._day_occupancy(db, biz, start, exclude_id=appt.id), start,
+                                  end + timedelta(minutes=gap_min)):
                     raise BookingEngineException("This slot just reached full capacity.", ERR_CAPACITY)
 
             appt.appointment_time = start

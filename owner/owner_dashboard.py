@@ -14,6 +14,7 @@ from database import (
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter()
+from plans import usage as plan_usage
 templates = Jinja2Templates(directory="templates")
 
 @router.get("/owner")
@@ -91,6 +92,7 @@ async def owner_dashboard(request: Request, db: Session = Depends(get_db)):
             "active_page": "dashboard",
             "owner": owner,
             "business": business,
+            "plan_usage": plan_usage(business, db) if business else None,
             "appointments": appointments,
             "todays_appointments": todays_appointments,
             "pending_count": pending_count,

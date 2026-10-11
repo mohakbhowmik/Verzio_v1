@@ -3,6 +3,8 @@
 {% block title %}Services — Verzio Studio{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
+{% if hidden_services %}<div class="vz-plan-note is-warn" role="status"><strong>Not shown on WhatsApp:</strong> {{ hidden_services|map(attribute='name')|join(', ') }}. Your {{ plan_usage.plan.label }} plan shows {{ plan_usage.plan.services }} services (the first ones alphabetically). Turn off ones you don't need, or ask Verzio about Pro for unlimited services.</div>{% endif %}
 <section class="owner-mobile-page">
     <div class="m-heading m-heading-row">
         <div>

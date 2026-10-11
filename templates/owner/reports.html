@@ -4,14 +4,22 @@
 {% block page_title %}Reports{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
+{% if export_locked_notice %}<div class="vz-plan-note is-info" role="status">Excel export is included in the Pro plan. Ask Verzio to upgrade.</div>{% endif %}
 <div class="page-header">
     <div>
         <h1 class="page-title">Reports</h1>
         <p class="page-subtitle">How your bookings performed over the dates you choose.</p>
     </div>
+    {% if can_export %}
     <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn-verzio-primary">
         <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export to Excel
     </a>
+    {% else %}
+    <span class="btn-verzio-outline" style="opacity:.7;cursor:default" title="Excel export is included in Pro">
+        <i class="bi bi-lock me-2"></i> Excel export: Pro plan
+    </span>
+    {% endif %}
 </div>
 
 <!-- Date range -->

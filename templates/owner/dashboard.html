@@ -4,6 +4,7 @@
 {% block page_title %}Overview{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
 <div class="page-header">
     <div>
         <h1 class="page-title">{{ business.name if business else 'Overview' }}</h1>

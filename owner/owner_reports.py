@@ -10,6 +10,7 @@ from reports import generate_excel_report
 from owner.owner_auth import is_mobile, resolve_owner_and_business
 
 router = APIRouter(prefix="/owner/reports", tags=["owner-reports"])
+from plans import usage as plan_usage
 templates = Jinja2Templates(directory="templates")
 
 @router.get("")
@@ -93,6 +94,9 @@ async def owner_reports_page(
             "active_page": "reports",
             "owner": owner,
             "business": business,
+            "plan_usage": plan_usage(business, db),
+            "can_export": plan_usage(business, db)["plan"].export,
+            "export_locked_notice": request.query_params.get("export") == "pro",
             "selected_from": selected_from.isoformat(),
             "selected_to": selected_to.isoformat(),
             "total_count": total_count,
@@ -116,6 +120,10 @@ async def export_owner_daily_report(
     owner, business = resolve_owner_and_business(request, db)
     if not owner or not business:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    from plans import plan_for
+    if not plan_for(business, db).export:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/owner/reports?export=pro", status_code=303)
 
     # Default to today if no dates provided
     export_from = from_date or date.today()

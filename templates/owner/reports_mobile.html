@@ -3,6 +3,8 @@
 {% block title %}Reports — Verzio Studio{% endblock %}
 
 {% block content %}
+{% include "owner/_plan_banner.html" %}
+{% if export_locked_notice %}<div class="vz-plan-note is-info" role="status">Excel export is included in the Pro plan. Ask Verzio to upgrade.</div>{% endif %}
 <section class="owner-mobile-page">
     <div class="m-heading">
         <h1>Reports</h1>
@@ -22,9 +24,13 @@
         </div>
         <div class="d-flex gap-2 mt-3">
             <button type="submit" class="btn btn-outline-primary flex-fill">Update</button>
+            {% if can_export %}
             <a href="/owner/reports/export?from_date={{ selected_from }}&to_date={{ selected_to }}" class="btn btn-primary flex-fill">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i> Excel
             </a>
+            {% else %}
+            <span class="btn btn-outline-secondary flex-fill" style="opacity:.7">Excel: Pro plan</span>
+            {% endif %}
         </div>
     </form>
 
