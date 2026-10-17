@@ -293,14 +293,32 @@ with TestClient(server.app) as client:
     db.expire_all(); dm = L.find_member(db, cafe.id, D)
     check("owner adds a visit by phone (uses points per visit)", dm and dm.points == 10 and dm.name == "Dev" and dm.visits == 1,
           r.headers["location"])
-    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "-25", "kind": "adjust"},
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "25", "kind": "remove"},
                         follow_redirects=False)
     db.expire_all()
-    check("owner removes points: never below 0", L.find_member(db, cafe.id, D).points == 0, r.headers["location"])
-    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919000000000", "points": "-5", "kind": "adjust"},
+    check("'Remove points' with a plain 25 removes them, never below 0", L.find_member(db, cafe.id, D).points == 0, r.headers["location"])
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919000000000", "points": "5", "kind": "remove"},
                         follow_redirects=False)
     check("removing points from someone new -> refused, nobody created", "no+points+to+remove" in r.headers["location"]
           and L.find_member(db, cafe.id, "919000000000") is None, r.headers["location"])
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "15", "kind": "add"}, follow_redirects=False)
+    db.expire_all(); dm = L.find_member(db, cafe.id, D)
+    check("'Add points' adds without counting a visit", dm.points == 15 and dm.visits == 1, (dm.points, dm.visits))
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "-15", "kind": "add"}, follow_redirects=False)
+    db.expire_all()
+    check("'Add points' with a minus number is refused", "negative" in r.headers["location"] and L.find_member(db, cafe.id, D).points == 15,
+          r.headers["location"])
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "-5", "kind": "remove"}, follow_redirects=False)
+    db.expire_all()
+    check("'Remove points' also accepts -5 (removes 5)", L.find_member(db, cafe.id, D).points == 10, r.headers["location"])
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "10", "kind": "adjust"}, follow_redirects=False)
+    db.expire_all()
+    check("older form (signed correction) still works", L.find_member(db, cafe.id, D).points == 20, r.headers["location"])
+    r = cafe_owner.post("/owner/loyalty/points", data={"phone": "919833334444", "points": "20", "kind": "remove"}, follow_redirects=False)
+    db.expire_all()
+    r = cafe_owner.get("/owner/loyalty")
+    check("dashboard shows A visit / Add points / Remove points, no minus-sign hint",
+          'value="remove"' in r.text and 'value="add"' in r.text and "use −20" not in r.text and "Correction (" not in r.text)
     r = cafe_owner.post("/owner/loyalty/points", data={"phone": "123", "points": "10", "kind": "visit"}, follow_redirects=False)
     check("bad phone number refused", "valid+mobile" in r.headers["location"], r.headers["location"])
     r = other_owner.post(f"/owner/loyalty/rewards/{brownie.id}", data={"name": "Hacked", "points": "1"}, follow_redirects=False)

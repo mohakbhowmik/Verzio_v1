@@ -81,7 +81,7 @@
 
     <section class="loy-card loy-anchor" id="points">
       <h2><i class="bi bi-plus-circle me-1"></i> Add points</h2>
-      <p class="sub">For a customer who didn't scan the QR, or to fix a mistake.</p>
+      <p class="sub">For a customer who didn't scan the QR, or to fix a mistake. Always type a normal number, like 20.</p>
       <form method="post" action="/owner/loyalty/points">
         <div class="loy-fields">
           <div><label for="loy-phone">Customer's WhatsApp</label>
@@ -91,10 +91,12 @@
           <div><label for="loy-pts">Points</label>
             <input id="loy-pts" class="form-control-verzio" name="points" inputmode="numeric" value="{{ settings.points_per_visit }}" required></div>
         </div>
-        <div class="loy-radio">
+        <div class="loy-radio" role="radiogroup" aria-label="What to do">
           <label><input type="radio" name="kind" value="visit" checked> A visit</label>
-          <label><input type="radio" name="kind" value="adjust"> Correction (use −20 to remove)</label>
+          <label><input type="radio" name="kind" value="add"> Add points</label>
+          <label><input type="radio" name="kind" value="remove"> Remove points</label>
         </div>
+        <p class="loy-hint" style="margin-top:-4px; margin-bottom:10px">"A visit" counts towards streaks. "Add" and "Remove" are for fixing mistakes.</p>
         <input class="form-control-verzio mb-2" name="note" maxlength="120" placeholder="Note (optional)" aria-label="Note">
         <button class="loy-btn" type="submit">Save points</button>
       </form>

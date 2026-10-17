@@ -200,10 +200,21 @@ async def add_points(
         return redirect
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
+    raw = (points or "").strip() or str(settings.points_per_visit)
     try:
-        member, delta, unlocked = L.owner_adjust(db, business, phone, points or settings.points_per_visit,
+        # visit: a visit without the QR (counts for streaks) · add / remove: corrections.
+        # Staff always type a positive number; "remove" takes it away. ("adjust" = older form: signed number.)
+        if kind == "visit":
+            value, as_visit = raw, True
+        elif kind == "add":
+            value, as_visit = L.clean_points(raw), False
+        elif kind == "remove":
+            value, as_visit = -L.clean_points(raw.lstrip("-")), False
+        else:
+            value, as_visit = raw, False
+        member, delta, unlocked = L.owner_adjust(db, business, phone, value,
                                                  note.strip() or None, name=name.strip() or None,
-                                                 as_visit=(kind == "visit"))
+                                                 as_visit=as_visit)
     except L.LoyaltyError as err:
         db.rollback()
         return _back(err=err.message, anchor="points")
