@@ -1,0 +1,154 @@
+{% extends "public/_site.html" %}
+{% set wa_text = "Hi%2C%20I%27d%20like%20to%20join%20the%20Verzio%20Loyalty%20pilot" %}
+{% block title %}Verzio Loyalty · WhatsApp rewards for cafes and restaurants · Verzio Solutions{% endblock %}
+{% block description %}Verzio Loyalty: customers scan a QR at your counter, collect points on WhatsApp, and unlock rewards. No app, no paper cards.{% endblock %}
+
+{% block head %}
+<style>
+.top-band::after { content: ""; position: absolute; width: 600px; height: 600px; right: -120px; top: 40px; background: radial-gradient(closest-side, rgba(201,162,90,.22), transparent); pointer-events: none; }
+.hero-l { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: center; padding-block: 24px 88px; position: relative; z-index: 1; }
+@media (max-width: 900px) { .hero-l { grid-template-columns: 1fr; gap: 40px; padding-block: 8px 64px; } }
+.hero-l h1 { font-size: clamp(2.6rem, 6.4vw, 4.8rem); line-height: 1; color: #f6f8f5; margin-top: 14px; }
+.hero-l .lede { color: #c4d3ca; font-size: clamp(1.05rem, 1.6vw, 1.2rem); max-width: 40ch; margin-top: 22px; }
+.hero-l .ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+.crumb a { color: #9fb4a8; text-decoration: none; } .crumb a:hover { color: #fff; }
+.phone { justify-self: center; width: min(330px, 100%); background: #0b1a15; border-radius: 40px; padding: 12px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.6); }
+.screen { border-radius: 30px; overflow: hidden; background: #ece5dd; }
+.chead { display: flex; gap: 10px; align-items: center; padding: 12px 14px; background: #f0f2f0; border-bottom: 1px solid #dfe3df; color: #111b21; }
+.chead .av { width: 34px; height: 34px; border-radius: 50%; background: #2b1d14; color: #f6efe4; display: grid; place-items: center; font-family: var(--display); }
+.chead b { display: block; font-size: .92rem; } .chead small { color: #667781; font-size: .76rem; }
+.thread { padding: 14px 12px 20px; display: flex; flex-direction: column; gap: 8px; color: #111b21; font-size: .88rem; line-height: 1.4; }
+.msg { max-width: 86%; padding: 8px 10px; border-radius: 10px; background: #fff; box-shadow: 0 1px .5px rgba(0,0,0,.13); align-self: flex-start; }
+.msg.me { background: #d9fdd3; align-self: flex-end; }
+.bar { display: flex; gap: 2px; margin: 4px 0 2px; } .bar i { width: 13px; height: 13px; border-radius: 2px; background: #d8d2c8; } .bar i.g { background: #2f9e5b; }
+.ok { color: #145236; font-weight: 700; }
+.btns { display: flex; gap: 6px; } .btns span { background: #fff; color: #027eb5; font-weight: 600; font-size: .82rem; padding: 6px 10px; border-radius: 8px; box-shadow: 0 1px .5px rgba(0,0,0,.13); }
+.cafe { background: var(--cafe); color: var(--cafe-ink); }
+.cafe .steps { border-top-color: var(--cafe-ink); }
+.cafe .steps p, .cafe .section-head p { color: #6b5646; }
+.plan-box { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 820px) { .plan-box { grid-template-columns: 1fr; } }
+.plan-card { background: var(--cafe-ink); color: #fffaf2; border-radius: 28px; padding: 34px; }
+.plan-card .p { font-family: var(--display); font-size: 3.4rem; line-height: 1; margin-top: 14px; }
+.plan-card .p small { font-family: var(--body); font-size: 1rem; color: #cdb9a3; }
+.plan-card ul { list-style: none; padding: 0; margin: 22px 0 26px; display: grid; gap: 10px; }
+.plan-card li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; } .plan-card li svg { width: 17px; height: 17px; margin-top: 4px; color: #e0a458; }
+.fair { border: 1px solid var(--rule); border-radius: 28px; padding: 34px; background: #fff; }
+.fair h3 { font-size: 1.8rem; } .fair ul { padding-left: 18px; color: var(--muted); display: grid; gap: 8px; margin: 16px 0 0; }
+</style>
+{% endblock %}
+
+{% block hero %}
+<div class="hero-l">
+  <div>
+    <p class="eyebrow crumb"><a href="/products">Products</a> · Verzio Loyalty <span class="pill new" style="margin-left:6px; letter-spacing:.08em">New</span></p>
+    <h1>Regulars scan, collect points, and come back.</h1>
+    <p class="lede">A digital stamp card inside WhatsApp. Customers scan a QR at your counter, watch their progress bars fill, and claim rewards. No app, no paper cards, and you build a list of your regulars as you go.</p>
+    <div class="ctas">
+      <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20join%20the%20Verzio%20Loyalty%20pilot"><svg><use href="#i-wa"/></svg>Join the pilot</a>
+      <a class="btn btn-ghost" href="#how">How it works</a>
+    </div>
+  </div>
+  <div class="phone" role="img" aria-label="Example: a customer collects points on WhatsApp and unlocks a free brownie">
+    <div class="screen">
+      <div class="chead"><div class="av" aria-hidden="true">B</div><div><b>Bean There Cafe</b><small>business account</small></div></div>
+      <div class="thread">
+        <div class="msg me">STAMP 7JBERM</div>
+        <div class="msg">
+          <b>+10 points</b> at Bean There Cafe!<br>🔥 3-day streak! +10 bonus<br><br>Wallet: <b>60 points</b><br><br>
+          <b>Free Brownie</b><div class="bar"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i></div><span class="ok">Ready to claim!</span><br><br>
+          <b>Free Cappuccino</b><div class="bar"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i></i><i></i><i></i><i></i></div>60 / 100
+        </div>
+        <div class="btns"><span>Claim reward</span><span>My wallet</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<section id="how" class="cafe">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Four steps, no app.</h2>
+      <p>Your customers already have WhatsApp. That's all they need.</p>
+    </div>
+    <ol class="steps">
+      <li><div class="n">1</div><h3>Scan at the counter</h3><p>WhatsApp opens with the message ready. They tap send.</p></li>
+      <li><div class="n">2</div><h3>Points land instantly</h3><p>With progress bars toward each reward, right in the chat.</p></li>
+      <li><div class="n">3</div><h3>The bar turns green</h3><p>The reward is unlocked. They tap Claim and get a 4-digit code.</p></li>
+      <li><div class="n">4</div><h3>Staff hand it over</h3><p>Type the code in your Loyalty dashboard. Points are used only then.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Everything a busy counter needs.</h2>
+      <p>Set it up once. It runs itself, and you see who your regulars are.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat"><h3>Your rewards, your rules</h3><p>Choose each treat and how many points it costs. Hide or change them any time.</p></div>
+      <div class="feat"><h3>Streak bonuses</h3><p>Extra points for coming back days or weeks in a row. Days you're closed don't break a streak.</p></div>
+      <div class="feat"><h3>A wallet page for every customer</h3><p>Animated progress bars, history and a Claim button, from a private link in the chat.</p></div>
+      <div class="feat"><h3>Welcome bonus</h3><p>Give first-time customers a head start, if you like.</p></div>
+      <div class="feat"><h3>Add points by number</h3><p>Customer forgot their phone? Staff add the visit from the dashboard.</p></div>
+      <div class="feat"><h3>Know your regulars</h3><p>Visits, points and streaks for every customer, with search.</p></div>
+      <div class="feat"><h3>Printable counter QR</h3><p>A ready-made poster with your QR, rewards and how to collect.</p></div>
+      <div class="feat"><h3>Works with Verzio Book</h3><p>Use it on its own, or on the same number as your bookings.</p></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="plan-box">
+      <div class="plan-card">
+        <p class="eyebrow" style="color:#e0a458">Pilot price</p>
+        <p class="p">₹799 <small>/ month</small></p>
+        <ul>
+          <li><svg><use href="#i-check"/></svg>Unlimited customers and scans</li>
+          <li><svg><use href="#i-check"/></svg>Up to 20 rewards, streak bonuses, wallet pages</li>
+          <li><svg><use href="#i-check"/></svg>Loyalty dashboard on phone and computer</li>
+          <li><svg><use href="#i-check"/></svg>Set up with you in one visit</li>
+        </ul>
+        <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20join%20the%20Verzio%20Loyalty%20pilot"><svg><use href="#i-wa"/></svg>Join the pilot</a>
+      </div>
+      <div class="fair">
+        <h3>Fair, and hard to cheat</h3>
+        <ul>
+          <li>Points once a day per customer</li>
+          <li>Points are used only when your staff hand over the reward</li>
+          <li>Claim codes expire after 15 minutes</li>
+          <li>Staff see a customer's visit count before giving a reward</li>
+          <li>Make a new QR code any time; the old one stops working</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head"><h2>Questions cafe owners ask.</h2></div>
+    <details><summary>Do my customers need an app?</summary><p>No. They scan the QR with their phone camera, WhatsApp opens, and they tap send.</p></details>
+    <details><summary>What if a customer forgets to scan?</summary><p>Staff can add the visit from the Loyalty dashboard using the customer's number.</p></details>
+    <details><summary>Do I need a new WhatsApp number?</summary><p>No. We connect the WhatsApp Business number you already use, and you keep using the app.</p></details>
+    <details><summary>Can I use it with Verzio Book?</summary><p>Yes. Both work on the same number: bookings as usual, and rewards when customers scan.</p></details>
+    <details><summary>What is the pilot?</summary><p>Verzio Loyalty is new. Our first cafes get the pilot price and a direct line to us while we fine-tune it together.</p></details>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <div class="row">
+      <h2>Give your regulars a reason to come back.</h2>
+      <div>
+        <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20join%20the%20Verzio%20Loyalty%20pilot"><svg><use href="#i-wa"/></svg>Join the pilot</a>
+        <p class="contact">Or call Mohak<b>+91 82628 58396</b></p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

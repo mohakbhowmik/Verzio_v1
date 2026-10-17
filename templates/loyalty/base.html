@@ -84,7 +84,7 @@
             <main class="content-container">
                 {% if ok %}<div class="loy-alert ok" role="status"><i class="bi bi-check-circle-fill me-1"></i> {{ ok }}</div>{% endif %}
                 {% if err %}<div class="loy-alert err" role="alert"><i class="bi bi-exclamation-triangle-fill me-1"></i> {{ err }}</div>{% endif %}
-                {% if settings and not running %}<div class="loy-alert err" role="alert">Rewards are paused on WhatsApp because your Verzio plan isn't active. Contact Verzio to switch them back on.</div>{% endif %}
+                {% if settings and not running %}<div class="loy-alert err" role="alert">{{ plan.reason if plan and plan.reason else "Rewards are paused on WhatsApp. Contact Verzio Solutions to switch them back on." }}</div>{% elif plan and plan.in_grace %}<div class="loy-alert err" role="status">{{ plan.reason }}</div>{% endif %}
                 {% block content %}{% endblock %}
             </main>
         </div>

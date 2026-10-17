@@ -107,7 +107,7 @@ with TestClient(server.app) as client:
 
     # ------------------------------------------------------------------ admin switch
     r = client.get("/admin/loyalty", auth=A)
-    check("admin Loyalty page renders with every business", r.status_code == 200 and "Bean There Cafe" in r.text
+    check("old /admin/loyalty address opens Admin -> Products with every business", r.status_code == 200 and "Bean There Cafe" in r.text
           and "Glow Salon" in r.text and 'href="/admin/businesses"' in r.text, r.status_code)
     check("admin Loyalty page needs the admin login", TestClient(server.app).get("/admin/loyalty").status_code == 401)
     r = client.post(f"/admin/loyalty/{cafe.id}", auth=A, data={"enabled": "on", "mode": "with_booking"}, follow_redirects=False)
@@ -428,11 +428,73 @@ with TestClient(server.app) as client:
           {c["name"] for c in _insp(_engine).get_columns("loyalty_members")})
     db.expire_all()
 
+    # ------------------------------------------------------------------ public website
+    pub = TestClient(server.app)
+    r = pub.get("/")
+    check("homepage: company + all three products", r.status_code == 200 and "Verzio Solutions" in r.text
+          and 'href="/products/book"' in r.text and 'href="/products/loyalty"' in r.text and 'href="/products/tables"' in r.text)
+    check("homepage still answers HEAD (uptime monitors, Meta)", pub.head("/").status_code == 200)
+    r = pub.get("/products/loyalty")
+    check("Loyalty product page: pilot price, join-the-pilot WhatsApp link in the menu too",
+          r.status_code == 200 and "₹799" in r.text and r.text.count("join%20the%20Verzio%20Loyalty%20pilot") >= 3)
+    r = pub.get("/products/tables")
+    check("Tables page says it isn't available yet", "isn't available yet" in r.text and "Coming soon" in r.text)
+    check("unknown product -> 404", pub.get("/products/nope").status_code == 404)
+
     # ------------------------------------------------------------------ plan / safety
+    r = client.get("/admin/products", auth=A)
+    check("Admin -> Products: Book and Loyalty switches per business, Loyalty plan fields",
+          r.status_code == 200 and 'name="book_on"' in r.text and 'name="loyalty_on"' in r.text
+          and 'name="loyalty_plan"' in r.text and 'name="loyalty_paid_until"' in r.text and "Bean There Cafe" in r.text, r.status_code)
+    check("Admin -> Products needs the admin login", TestClient(server.app).get("/admin/products").status_code == 401)
+
     db.add(Subscription(business_id=cafe.id, plan="suspended")); db.commit()
     r, out = webhook(client, "PN_CAFE", C, text("wallet"))
-    check("plan suspended -> 'rewards aren't available right now'", "aren't available right now" in body_of(out), body_of(out))
+    check("Book plan suspended: Loyalty keeps working (separate products)", "Your rewards at" in body_of(out), body_of(out))
     db.query(Subscription).filter_by(business_id=cafe.id).delete(); db.commit()
+
+    def products(**form):
+        base = {"book_on": "on", "loyalty_on": "on", "loyalty_plan": "trial", "loyalty_paid_until": "", "loyalty_amount": "799"}
+        base.update(form)
+        return client.post(f"/admin/products/{cafe.id}", auth=A, data={k: v for k, v in base.items() if v is not None},
+                           follow_redirects=False)
+
+    r = products(loyalty_plan="suspended")
+    db.expire_all()
+    r2, out = webhook(client, "PN_CAFE", C, text("wallet"))
+    check("Loyalty plan Suspended -> 'rewards aren't available right now'", db.get(LoyaltySettings, cafe.id).plan == "suspended"
+          and "aren't available right now" in body_of(out), body_of(out))
+    r = cafe_owner.get("/owner/loyalty")
+    check("owner sees why rewards are paused", "plan is suspended" in r.text)
+    old_date = (datetime.now() - timedelta(days=10)).date().isoformat()
+    products(loyalty_plan="active", loyalty_paid_until=old_date, loyalty_amount="999")
+    db.expire_all()
+    r2, out = webhook(client, "PN_CAFE", C, text("wallet"))
+    check("Loyalty plan Active but paid-until 10 days ago -> paused", "aren't available right now" in body_of(out)
+          and db.get(LoyaltySettings, cafe.id).monthly_amount == 999, body_of(out))
+    grace_date = (datetime.now() - timedelta(days=1)).date().isoformat()
+    products(loyalty_plan="active", loyalty_paid_until=grace_date)
+    r2, out = webhook(client, "PN_CAFE", C, text("wallet"))
+    r = cafe_owner.get("/owner/loyalty")
+    check("paid-until yesterday: still running, owner warned (3-day grace)", "Your rewards at" in body_of(out)
+          and "Rewards stop after" in r.text, body_of(out))
+    r = cafe_owner.get("/owner/loyalty/settings")
+    check("Loyalty Settings shows its own plan and price", "Verzio Loyalty · Active" in r.text and "₹799 / month" in r.text)
+    r = products(book_on=None, loyalty_on=None)
+    db.expire_all()
+    check("Book off + Loyalty off is refused", "err=" in r.headers["location"] and db.get(LoyaltySettings, cafe.id).enabled,
+          r.headers["location"])
+    r = products(loyalty_paid_until="not-a-date")
+    check("bad paid-until date is refused", "err=" in r.headers["location"], r.headers["location"])
+    products(book_on=None)
+    db.expire_all()
+    check("Book off + Loyalty on = loyalty only", db.get(LoyaltySettings, cafe.id).mode == "only")
+    r = cafe_owner.get("/owner/appointments", follow_redirects=False)
+    check("...and the Book portal is closed for that business", r.status_code == 303 and r.headers["location"] == "/owner/loyalty")
+    products(loyalty_on=None)
+    db.expire_all()
+    check("Book on + Loyalty off = Book only", not db.get(LoyaltySettings, cafe.id).enabled and cafe_owner.get("/owner/appointments").status_code == 200)
+    products()                                          # back to both, trial
 
     real = L.earn_visit
     def boom(*a, **k): raise RuntimeError("test crash")

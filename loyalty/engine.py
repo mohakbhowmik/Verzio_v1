@@ -83,16 +83,55 @@ def _connected_number(biz: Business) -> str | None:
         return None
 
 
+GRACE_DAYS = 3
+PLAN_LABELS = {"trial": "Trial", "active": "Active", "suspended": "Suspended"}
+
+
+@dataclass
+class LoyaltyPlan:
+    key: str                 # trial | active | suspended
+    label: str
+    active: bool             # False: rewards are paused on WhatsApp
+    paid_until: date | None = None
+    in_grace: bool = False   # past paid_until but within GRACE_DAYS
+    reason: str = ""         # shown to the owner when paused or in grace
+    amount: int = 0
+
+
+def plan_info(settings: LoyaltySettings | None, today: date | None = None) -> LoyaltyPlan:
+    """Verzio Loyalty's own plan. Trial has no end date; Active runs to paid_until
+    plus GRACE_DAYS; Suspended is off at once. Independent of the Verzio Book plan."""
+    if settings is None:
+        return LoyaltyPlan("trial", "Trial", False)
+    key = settings.plan if settings.plan in PLAN_LABELS else "trial"
+    info = LoyaltyPlan(key, PLAN_LABELS[key], key != "suspended", amount=settings.monthly_amount or 0)
+    if key == "suspended":
+        info.reason = "Your Verzio Loyalty plan is suspended. Contact Verzio Solutions to switch rewards back on."
+        return info
+    try:
+        info.paid_until = date.fromisoformat(settings.paid_until) if settings.paid_until else None
+    except ValueError:
+        info.paid_until = None
+    if key == "active" and info.paid_until:
+        today = today or date.today()
+        last_day = info.paid_until + timedelta(days=GRACE_DAYS)
+        if today > last_day:
+            info.active = False
+            info.reason = (f"Your Verzio Loyalty plan ended on {info.paid_until:%d %b %Y}. "
+                           f"Rewards are paused on WhatsApp until it's renewed.")
+        elif today > info.paid_until:
+            info.in_grace = True
+            info.reason = (f"Your Verzio Loyalty plan ended on {info.paid_until:%d %b %Y}. "
+                           f"Rewards stop after {last_day:%d %b} unless it's renewed.")
+    return info
+
+
 def running(db: Session, biz: Business) -> bool:
-    """Loyalty works for customers only while the business and its plan are active."""
+    """Loyalty works for customers only while the business is active and its
+    Verzio Loyalty plan is (the Verzio Book plan doesn't matter here)."""
     if not biz.is_active:
         return False
-    try:
-        from plans import plan_for
-        return plan_for(biz, db).active
-    except Exception:
-        logger.exception("Could not read plan for business_id=%s", biz.id)
-        return True
+    return plan_info(get_settings(db, biz.id)).active
 
 
 def qr_link(settings: LoyaltySettings) -> str | None:

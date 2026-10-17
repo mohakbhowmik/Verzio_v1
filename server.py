@@ -796,7 +796,25 @@ async def verify(
 
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse(request=request, name="public/home.html", context={})
+    """Verzio Solutions company homepage: the products and how to get started."""
+    return templates.TemplateResponse(request=request, name="public/home.html", context={"page": "home"})
+
+
+# Product pages. Verzio Book is live, Verzio Loyalty is in pilot, Verzio Tables is coming soon.
+_PRODUCT_PAGES = {"book": "public/book.html", "loyalty": "public/loyalty.html", "tables": "public/tables.html"}
+
+
+@app.get("/products", response_class=HTMLResponse)
+def products(request: Request):
+    return templates.TemplateResponse(request=request, name="public/products.html", context={"page": "products"})
+
+
+@app.get("/products/{product}", response_class=HTMLResponse)
+def product_page(product: str, request: Request):
+    name = _PRODUCT_PAGES.get(product)
+    if name is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return templates.TemplateResponse(request=request, name=name, context={"page": product})
 
 
 @app.get("/privacy", response_class=HTMLResponse)

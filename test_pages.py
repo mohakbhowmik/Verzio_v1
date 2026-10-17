@@ -112,7 +112,9 @@ with TestClient(server.app) as c:
         r = c.get(path)
         check(f"owner {path:32} loads (no admin nav)", r.status_code == 200 and ADMIN_MARK not in r.text, r.status_code)
     check("uptime monitors: HEAD /health -> 200", c.head("/health").status_code == 200)
-    for path, text_ in [("/", "takes bookings while you sleep"), ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
+    for path, text_ in [("/", "Your business, running on WhatsApp"), ("/products", "Verzio Loyalty"),
+                        ("/products/book", "takes bookings while you sleep"), ("/products/loyalty", "Join the pilot"),
+                        ("/products/tables", "Coming soon"), ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
         r = c.get(path, auth=None)
         check(f"public page {path} loads without login", r.status_code == 200 and text_ in r.text, r.status_code)
     r = c.get("/owner/settings")

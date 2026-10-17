@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Verzio Solutions{% endblock %}</title>
+<meta name="description" content="{% block description %}Verzio Solutions: WhatsApp automation for local businesses. Bookings, loyalty rewards and reminders on your own WhatsApp number.{% endblock %}">
+<meta name="theme-color" content="#12352c">
+<link rel="icon" href="/static/img/verzio-mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gilda+Display&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Shared look for the Verzio Solutions site: forest + brass, Gilda Display + Figtree,
+   matching the Verzio Book page. */
+:root {
+  --forest: #12352c; --forest-2: #1c4a3d; --brass: #c9a25a; --brass-ink: #1d1708;
+  --paper: #f3f5f1; --paper-2: #e7ece7; --ink: #14211c; --muted: #5a6a63; --rule: #d6ddd8;
+  --cafe: #f6f1e8; --cafe-ink: #2b1d14;
+  --display: "Gilda Display", "Iowan Old Style", Georgia, serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 24px; }
+@media (max-width: 600px) { .wrap { padding-inline: 16px; } }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.eyebrow { font-size: .8rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--brass); }
+
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px; font-weight: 600; font-size: 1rem; text-decoration: none; transition: transform .15s ease, background-color .15s ease; }
+.btn:active { transform: translateY(1px); }
+.btn-brass { background: var(--brass); color: var(--brass-ink); }
+.btn-brass:hover { background: #d6b26c; }
+.btn-ghost { color: #e8efe9; border: 1px solid rgba(232,239,233,.35); }
+.btn-ghost:hover { border-color: #e8efe9; }
+.btn-dark { background: var(--forest); color: #fff; }
+.btn-dark:hover { background: var(--forest-2); }
+.btn-line { color: var(--forest); border: 1px solid var(--forest); }
+.btn svg { width: 20px; height: 20px; flex: none; }
+
+/* header / nav */
+.top-band { background: var(--forest); color: #e8efe9; position: relative; overflow: hidden; }
+nav.top { display: flex; align-items: center; justify-content: space-between; padding-block: 20px; gap: 16px; position: relative; z-index: 2; }
+.wordmark { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #f2f5f1; font-family: var(--display); font-size: 1.45rem; }
+.wordmark img { width: 34px; height: 30px; }
+.wordmark small { font-family: var(--body); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); margin-left: 2px; }
+.nav-links { display: flex; align-items: center; gap: 24px; font-size: .95rem; }
+.nav-links a { text-decoration: none; color: #b9c9c0; }
+.nav-links a:hover, .nav-links a[aria-current="page"] { color: #fff; }
+.nav-links .btn { padding: 9px 16px; font-size: .9rem; }
+.nav-links a.btn-brass, .nav-links a.btn-brass:hover { color: var(--brass-ink); }
+@media (max-width: 860px) { .nav-links a.hide-sm { display: none; } }
+.nav-links .btn { white-space: nowrap; }
+@media (max-width: 520px) { .nav-links { gap: 14px; } .nav-links a.hide-xs { display: none; } .wordmark small { display: none; } .nav-links .btn { padding: 8px 12px; } }
+@media (max-width: 360px) { .nav-links a[href="/products"] { display: none; } }
+
+/* sections */
+section { padding-block: 88px; }
+@media (max-width: 600px) { section { padding-block: 60px; } }
+.section-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; }
+.section-head h2 { font-size: clamp(2rem, 4.4vw, 3.2rem); line-height: 1.05; max-width: 18ch; }
+.section-head p { max-width: 40ch; color: var(--muted); }
+.pill { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.pill.live { background: #d9efe3; color: #145236; }
+.pill.new { background: var(--brass); color: var(--brass-ink); }
+.pill.soon { background: #dfe5e1; color: #3b4a43; }
+.pill.on-dark.soon { background: #3a5f55; color: #fff; }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
+.steps.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 860px) { .steps, .steps.three { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .steps, .steps.three { grid-template-columns: 1fr; } }
+.steps li { padding: 24px 24px 8px 0; }
+.steps .n { font-family: var(--display); font-size: 3rem; line-height: 1; color: var(--brass); }
+.steps h3 { font-size: 1.4rem; margin-top: 14px; }
+.steps p { color: var(--muted); margin-top: 8px; max-width: 30ch; }
+
+.feat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 56px; }
+@media (max-width: 820px) { .feat-grid { grid-template-columns: 1fr; } }
+.feat { padding-block: 22px; border-top: 1px solid #cdd6cf; }
+.feat h3 { font-family: var(--body); font-weight: 600; font-size: 1.08rem; letter-spacing: 0; }
+.feat p { color: var(--muted); margin-top: 4px; }
+
+details { border-bottom: 1px solid var(--rule); max-width: 820px; }
+summary { list-style: none; cursor: pointer; padding: 22px 40px 22px 0; font-size: 1.12rem; font-weight: 600; position: relative; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 11px; height: 11px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateY(-70%) rotate(45deg); transition: transform .2s ease; }
+details[open] summary::after { transform: translateY(-30%) rotate(-135deg); }
+details p { padding-bottom: 22px; color: var(--muted); max-width: 64ch; }
+
+.closing { background: var(--forest); color: #e8efe9; }
+.closing h2 { font-size: clamp(2.2rem, 5.4vw, 4rem); line-height: 1.02; max-width: 15ch; color: #f6f8f5; }
+.closing .row { display: flex; justify-content: space-between; align-items: end; gap: 32px; flex-wrap: wrap; }
+.closing .contact { color: #b9c9c0; margin-top: 16px; }
+.closing .contact b { display: block; color: #f6f8f5; font-size: 1.25rem; font-weight: 600; margin-top: 2px; }
+
+footer { background: #0e2a23; color: #8fa699; font-size: .9rem; padding-block: 30px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+footer a { color: #b9c9c0; text-decoration: none; margin-right: 18px; }
+footer a:hover { color: #fff; }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wa" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a9.9 9.9 0 0 0-8.5 15l-1.4 5 5.2-1.4A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.4.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.6-.3Z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</svg>
+
+<header class="top-band">
+  <div class="wrap">
+    <nav class="top" aria-label="Main">
+      <a class="wordmark" href="/"><img src="/static/img/verzio-mark.svg" alt="">Verzio<small>Solutions</small></a>
+      <div class="nav-links">
+        <a href="/products" {% if page == 'products' %}aria-current="page"{% endif %}>Products</a>
+        <a class="hide-sm" href="/products/book" {% if page == 'book' %}aria-current="page"{% endif %}>Verzio Book</a>
+        <a class="hide-sm" href="/products/loyalty" {% if page == 'loyalty' %}aria-current="page"{% endif %}>Verzio Loyalty</a>
+        <a class="hide-xs" href="/owner/login">Owner login</a>
+        <a class="btn btn-brass" href="https://wa.me/918262858396?text={{ wa_text|default('Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio') }}">WhatsApp us</a>
+      </div>
+    </nav>
+    {% block hero %}{% endblock %}
+  </div>
+</header>
+
+<main>{% block content %}{% endblock %}</main>
+
+<footer>
+  <div class="wrap">
+    <div><a href="/products">Products</a><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/owner/login">Owner login</a></div>
+    <div>© 2026 Verzio Solutions · Mohak Bhowmik · +91 82628 58396</div>
+  </div>
+</footer>
+</body>
+</html>

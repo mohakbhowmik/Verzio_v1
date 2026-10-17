@@ -1,0 +1,46 @@
+{% extends "public/_site.html" %}
+{% set wa_text = "Hi%2C%20I%27d%20like%20early%20access%20to%20Verzio%20Tables" %}
+{% block title %}Verzio Tables (coming soon) · Verzio Solutions{% endblock %}
+{% block description %}Verzio Tables is coming soon: restaurant table booking on WhatsApp by zone and party size. Join early access.{% endblock %}
+
+{% block head %}
+<style>
+.page-hero { padding-block: 28px 80px; position: relative; z-index: 1; max-width: 760px; }
+.page-hero h1 { font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 1; color: #f6f8f5; margin-top: 14px; }
+.page-hero p.lede { color: #c4d3ca; max-width: 52ch; margin-top: 18px; font-size: 1.12rem; }
+.page-hero .ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 28px; }
+.crumb a { color: #9fb4a8; text-decoration: none; } .crumb a:hover { color: #fff; }
+.note { border: 1.5px dashed #8a958f; border-radius: 22px; padding: 22px 26px; color: var(--muted); max-width: 760px; }
+.note b { color: var(--ink); }
+</style>
+{% endblock %}
+
+{% block hero %}
+<div class="page-hero">
+  <p class="eyebrow crumb"><a href="/products">Products</a> · Verzio Tables <span class="pill on-dark soon" style="margin-left:6px; letter-spacing:.08em">Coming soon</span></p>
+  <h1>Table bookings by zone, on WhatsApp.</h1>
+  <p class="lede">Guests choose where they'd like to sit, how many are coming and when, in a chat with your restaurant. You see every table booking in one place.</p>
+  <div class="ctas">
+    <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20early%20access%20to%20Verzio%20Tables"><svg><use href="#i-wa"/></svg>Join early access</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>What it will do.</h2>
+      <p>Built on the same engine as Verzio Book, which already runs bookings for businesses on WhatsApp.</p>
+    </div>
+    <ol class="steps three">
+      <li><div class="n">1</div><h3>Pick a zone</h3><p>Indoor, outdoor, rooftop: guests choose where they sit.</p></li>
+      <li><div class="n">2</div><h3>Party size and time</h3><p>Seats are counted per zone, so a zone is never overbooked.</p></li>
+      <li><div class="n">3</div><h3>Confirm and remind</h3><p>Guests get a confirmation, and a reminder before they arrive.</p></li>
+    </ol>
+    <div class="note" style="margin-top:48px">
+      <b>Verzio Tables isn't available yet.</b> Restaurants that join early access get launch pricing and help shape what we build. It pairs with <a href="/products/loyalty">Verzio Loyalty</a> on the same WhatsApp number.
+    </div>
+  </div>
+</section>
+{% endblock %}

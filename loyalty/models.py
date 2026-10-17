@@ -35,6 +35,10 @@ class LoyaltySettings(Base):
     weekly_streak_on = Column(Boolean, default=False, nullable=False)
     weekly_streak_step = Column(Integer, default=10, nullable=False)
     weekly_streak_max = Column(Integer, default=30, nullable=False)
+    # Verzio Loyalty's own plan, separate from the Verzio Book plan (plans.py).
+    plan = Column(String, default="trial", nullable=False)          # trial | active | suspended
+    paid_until = Column(String, nullable=True)                      # YYYY-MM-DD, for "active"
+    monthly_amount = Column(Integer, default=799, nullable=False)   # ₹ per month, for your records
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # business.loyalty -> this row (used by the owner portal menu)
@@ -113,6 +117,9 @@ _ADDED_COLUMNS = {
         "weekly_streak_on": "BOOLEAN NOT NULL DEFAULT 0",
         "weekly_streak_step": "INTEGER NOT NULL DEFAULT 10",
         "weekly_streak_max": "INTEGER NOT NULL DEFAULT 30",
+        "plan": "VARCHAR NOT NULL DEFAULT 'trial'",
+        "paid_until": "VARCHAR",
+        "monthly_amount": "INTEGER NOT NULL DEFAULT 799",
     },
     "loyalty_members": {
         "daily_streak": "INTEGER NOT NULL DEFAULT 0",

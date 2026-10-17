@@ -89,10 +89,11 @@
 
 <section class="loy-card mt-3">
   <h2>Your plan</h2>
-  {% if running %}
-  <p class="sub mb-0">Verzio Loyalty is active for {{ business.name }}. For billing questions, contact Verzio Solutions.</p>
-  {% else %}
-  <p class="sub mb-0">Your plan isn't active, so rewards are paused on WhatsApp. Contact Verzio Solutions to switch them back on.</p>
-  {% endif %}
+  <div class="loy-fields" style="margin-top:8px">
+    <div><label>Plan</label><div style="font-size:15px; font-weight:600">Verzio Loyalty · {{ plan.label }}</div></div>
+    {% if plan.paid_until %}<div><label>Paid until</label><div style="font-size:15px">{{ plan.paid_until.strftime('%d %b %Y') }}</div></div>{% endif %}
+    {% if plan.key == 'active' and plan.amount %}<div><label>Price</label><div style="font-size:15px">₹{{ '{:,}'.format(plan.amount) }} / month</div></div>{% endif %}
+  </div>
+  <p class="loy-hint mt-2">{% if plan.reason %}{{ plan.reason }}{% elif plan.key == 'trial' %}You're on a free trial. Verzio Solutions will contact you before it ends.{% else %}Rewards are running on WhatsApp. For billing questions, contact Verzio Solutions.{% endif %}</p>
 </section>
 {% endblock %}

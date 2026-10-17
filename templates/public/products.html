@@ -1,0 +1,104 @@
+{% extends "public/_site.html" %}
+{% block title %}Products · Verzio Solutions{% endblock %}
+{% block description %}Verzio Book for appointments, Verzio Loyalty for cafes and restaurants, and Verzio Tables (coming soon). WhatsApp automation on your own number.{% endblock %}
+
+{% block head %}
+<style>
+.page-hero { padding-block: 28px 72px; position: relative; z-index: 1; }
+.page-hero h1 { font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 1; color: #f6f8f5; margin-top: 14px; }
+.page-hero p.lede { color: #c4d3ca; max-width: 52ch; margin-top: 18px; font-size: 1.12rem; }
+.row-prod { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 48px; padding-block: 48px; border-top: 1px solid var(--rule); align-items: start; }
+.row-prod:first-child { border-top: 0; padding-top: 0; }
+@media (max-width: 860px) { .row-prod { grid-template-columns: 1fr; gap: 20px; } }
+.row-prod h2 { font-size: clamp(2.2rem, 4.6vw, 3.2rem); line-height: 1.02; margin-top: 12px; }
+.row-prod .for { color: var(--muted); margin-top: 10px; font-size: 1.08rem; }
+.row-prod .price { margin-top: 18px; font-family: var(--display); font-size: 1.8rem; }
+.row-prod .price small { font-family: var(--body); font-size: .95rem; color: var(--muted); }
+.row-prod .acts { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+.row-prod ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.row-prod li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; }
+.row-prod li svg { width: 18px; height: 18px; margin-top: 4px; color: var(--forest-2); }
+.row-prod li b { display: block; }
+.row-prod li span { color: var(--muted); }
+.combo { background: var(--paper-2); border-radius: 24px; padding: 28px 30px; display: flex; justify-content: space-between; gap: 24px; align-items: center; flex-wrap: wrap; }
+.combo h3 { font-size: 1.7rem; }
+.combo p { color: var(--muted); margin-top: 6px; max-width: 60ch; }
+</style>
+{% endblock %}
+
+{% block hero %}
+<div class="page-hero">
+  <p class="eyebrow">Products</p>
+  <h1>WhatsApp automation, one product at a time.</h1>
+  <p class="lede">Each product does one job well, on your own WhatsApp Business number. Start with the one you need and add another whenever you're ready.</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<section>
+  <div class="wrap">
+    <div class="row-prod" id="book">
+      <div>
+        <span class="pill live">Live</span>
+        <h2>Verzio Book</h2>
+        <p class="for">Appointment booking for clinics, salons, spas, studios, tutors, consultants and repair shops.</p>
+        <p class="price">₹1,499 – ₹3,499 <small>/ month · Basic or Pro</small></p>
+        <div class="acts">
+          <a class="btn btn-dark" href="/products/book">Explore Verzio Book <svg><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-line" href="/products/book#pricing">Pricing</a>
+        </div>
+      </div>
+      <ul>
+        <li><svg><use href="#i-check"/></svg><div><b>Customers book themselves, any hour</b><span>Only free slots are offered, so double bookings can't happen.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>You approve with one tap</b><span>Or let bookings confirm automatically.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Reminders, rescheduling and cancelling in the chat</b><span>Fewer no-shows, fewer phone calls.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Walk-ins, hours, breaks and holidays</b><span>Everything stays in one calendar in your owner portal.</span></div></li>
+      </ul>
+    </div>
+
+    <div class="row-prod" id="loyalty">
+      <div>
+        <span class="pill new">New · pilot spots open</span>
+        <h2>Verzio Loyalty</h2>
+        <p class="for">A digital stamp card inside WhatsApp, for cafes, bakeries and restaurants.</p>
+        <p class="price">₹799 <small>/ month · pilot price</small></p>
+        <div class="acts">
+          <a class="btn btn-dark" href="/products/loyalty">Explore Verzio Loyalty <svg><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-line" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20join%20the%20Verzio%20Loyalty%20pilot">Join the pilot</a>
+        </div>
+      </div>
+      <ul>
+        <li><svg><use href="#i-check"/></svg><div><b>Scan at the counter, collect points</b><span>WhatsApp opens with the message ready. No app, no paper card.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Progress bars that turn green</b><span>Customers see exactly how close they are to each reward.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Daily and weekly streak bonuses</b><span>Extra points for coming back in a row.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Rewards you control</b><span>Points are used only when your staff hand over the treat.</span></div></li>
+      </ul>
+    </div>
+
+    <div class="row-prod" id="tables">
+      <div>
+        <span class="pill soon">Coming soon</span>
+        <h2>Verzio Tables</h2>
+        <p class="for">Table booking by zone and party size, for restaurants.</p>
+        <p class="price"><small>Early access: first restaurants get launch pricing</small></p>
+        <div class="acts">
+          <a class="btn btn-line" href="/products/tables">Learn more <svg><use href="#i-arrow"/></svg></a>
+        </div>
+      </div>
+      <ul>
+        <li><svg><use href="#i-check"/></svg><div><b>Guests pick a zone</b><span>Indoor, outdoor or rooftop.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Party size and time</b><span>Seats are counted per zone, so a zone is never overbooked.</span></div></li>
+        <li><svg><use href="#i-check"/></svg><div><b>Confirm and remind</b><span>On WhatsApp, before guests arrive.</span></div></li>
+      </ul>
+    </div>
+
+    <div class="combo">
+      <div>
+        <h3>Use them together</h3>
+        <p>A restaurant can take table bookings and run a rewards program on the same WhatsApp number. One owner portal, one setup visit, each product on its own plan.</p>
+      </div>
+      <a class="btn btn-dark" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio"><svg><use href="#i-wa"/></svg>Talk to us</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

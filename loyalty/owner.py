@@ -86,6 +86,7 @@ def _render(request: Request, db: Session, page: str, template: str, extra=None)
         "owner": owner, "business": business, "settings": settings,
         "has_book": not L.is_loyalty_only(db, business),
         "running": L.running(db, business),
+        "plan": L.plan_info(settings) if settings is not None else None,
         "ok": (request.query_params.get("ok") or "")[:160] or None,
         "err": (request.query_params.get("err") or "")[:160] or None,
         "labels": ENTRY_LABELS,
