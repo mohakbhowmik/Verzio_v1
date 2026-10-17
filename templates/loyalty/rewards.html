@@ -1,0 +1,53 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Rewards</h1>
+    <p>What customers can unlock. Each one shows as a progress bar that turns green when they have enough points.</p>
+  </div>
+</div>
+
+<section class="loy-card">
+  {% if rewards %}
+  <div class="loy-scroll">
+  <table class="loy-table">
+    <thead><tr><th>Reward and points</th><th>Shown</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% for r in rewards %}
+      <tr>
+        <td>
+          <form method="post" action="/owner/loyalty/rewards/{{ r.id }}" class="loy-row-form">
+            <input class="form-control-verzio" name="name" value="{{ r.name }}" maxlength="60" aria-label="Reward name">
+            <input class="form-control-verzio" name="points" value="{{ r.points }}" inputmode="numeric" aria-label="Points needed">
+            <button class="loy-btn ghost small" type="submit">Save</button>
+          </form>
+        </td>
+        <td>{% if r.is_active %}<span class="status-badge status-active"><span class="dot"></span>Yes</span>{% else %}<span class="status-badge status-inactive"><span class="dot"></span>Hidden</span>{% endif %}</td>
+        <td class="text-end">
+          <div class="d-inline-flex gap-2">
+            <form method="post" action="/owner/loyalty/rewards/{{ r.id }}/toggle" class="m-0">
+              <button class="loy-btn ghost small" type="submit">{% if r.is_active %}Hide{% else %}Show{% endif %}</button>
+            </form>
+            <form method="post" action="/owner/loyalty/rewards/{{ r.id }}/delete" class="m-0">
+              <button class="loy-btn danger small" type="submit" onclick="return confirm('Delete this reward?');">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="loy-muted">No rewards yet. Add your first one below, e.g. "Free Cappuccino" for 100 points.</p>
+  {% endif %}
+
+  <h2 class="mt-4" style="font-size:15px">Add a reward</h2>
+  <form method="post" action="/owner/loyalty/rewards" class="loy-row-form mt-2">
+    <input class="form-control-verzio" name="name" maxlength="60" placeholder="e.g. Free Brownie" required aria-label="New reward name">
+    <input class="form-control-verzio" name="points" inputmode="numeric" placeholder="Points" required aria-label="Points needed">
+    <button class="loy-btn" type="submit"><i class="bi bi-plus-lg"></i> Add reward</button>
+  </form>
+  <p class="loy-hint mt-2">Customers earn {{ settings.points_per_visit }} points per visit, so a {{ settings.points_per_visit * 10 }}-point reward takes about 10 visits.</p>
+</section>
+{% endblock %}

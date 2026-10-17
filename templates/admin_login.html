@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin sign-in · Verzio Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Gilda+Display&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --forest: #12352c; --brass: #c9a25a; --paper: #f3f5f1; --ink: #14211c; --muted: #5a6a63; --rule: #d6ddd8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--forest); color: var(--ink);
+         font: 16px/1.5 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px 16px; }
+  .card { width: min(400px, 100%); background: var(--paper); border-radius: 24px; padding: 32px; box-shadow: 0 30px 60px -30px rgba(0,0,0,.5); }
+  .mark { font-family: "Gilda Display", Georgia, serif; font-size: 1.6rem; }
+  .mark span { color: var(--brass); }
+  h1 { font-family: "Gilda Display", Georgia, serif; font-weight: 400; font-size: 1.9rem; margin: 18px 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 22px; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin: 14px 0 6px; }
+  input { width: 100%; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 12px; font: inherit; background: #fff; }
+  input:focus { outline: 2px solid var(--brass); outline-offset: 1px; border-color: transparent; }
+  button { width: 100%; margin-top: 22px; padding: 13px; border: 0; border-radius: 999px; background: var(--forest); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { background: #1c4a3d; }
+  .msg { border-radius: 12px; padding: 10px 14px; font-size: .92rem; margin-bottom: 6px; }
+  .err { background: #fbe9e5; color: #8a2a17; }
+  .ok { background: #e3f2ec; color: #12503c; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark">Verzio<span>.</span></div>
+    <h1>Admin sign-in</h1>
+    <p class="sub">For Verzio staff only. Business owners sign in at <a href="/owner/login">the owner portal</a>.</p>
+    {% if error %}<div class="msg err" role="alert">{{ error }}</div>{% endif %}
+    {% if notice %}<div class="msg ok" role="status">{{ notice }}</div>{% endif %}
+    <form method="post" action="/admin/login">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required autofocus>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

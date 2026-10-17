@@ -34,14 +34,18 @@
         {% block content %}{% endblock %}
     </main>
 
-    <nav class="m-tabbar" aria-label="Main">
-        {% for key, href, icon, label in [
-            ("dashboard", "/owner", "bi-grid-1x2", "Today"),
-            ("appointments", "/owner/appointments", "bi-calendar3", "Bookings"),
-            ("services", "/owner/services", "bi-stars", "Services"),
-            ("reports", "/owner/reports", "bi-graph-up", "Reports"),
-            ("settings", "/owner/settings", "bi-sliders", "Settings")
-        ] %}
+    {# Verzio Loyalty has its own dashboard; this tab appears when a business has both products. #}
+    {% set loy = business.loyalty if business else none %}
+    {% set loy_on = loy and loy.enabled %}
+    {% set tabs = [
+        ("dashboard", "/owner", "bi-grid-1x2", "Today"),
+        ("appointments", "/owner/appointments", "bi-calendar3", "Bookings"),
+        ("services", "/owner/services", "bi-stars", "Services"),
+        ("reports", "/owner/reports", "bi-graph-up", "Reports"),
+        ("settings", "/owner/settings", "bi-sliders", "Settings")
+    ] + ([("loyalty", "/owner/loyalty", "bi-gift", "Loyalty")] if loy_on else []) %}
+    <nav class="m-tabbar" aria-label="Main"{% if tabs|length != 5 %} style="grid-template-columns: repeat({{ tabs|length }}, 1fr)"{% endif %}>
+        {% for key, href, icon, label in tabs %}
         <a href="{{ href }}" class="{% if active_page == key %}active{% endif %}" {% if active_page == key %}aria-current="page"{% endif %}>
             <i class="bi {{ icon }}"></i>
             <span>{{ label }}</span>

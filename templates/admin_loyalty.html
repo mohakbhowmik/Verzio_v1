@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Loyalty — Verzio Admin{% endblock %}
+{% block page_title %}Loyalty{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Verzio Loyalty</h1>
+    <p class="page-subtitle">Off for every business until you switch it on here. "Loyalty only" is for a cafe that doesn't take bookings: every WhatsApp message on that number goes to loyalty.</p>
+  </div>
+</div>
+
+<div class="table-verzio-wrap">
+  <table class="table table-verzio align-middle mb-0">
+    <thead>
+      <tr><th>Business</th><th>Status</th><th>Customers</th><th>Switch</th></tr>
+    </thead>
+    <tbody>
+      {% for b in businesses %}
+      {% set s = settings.get(b.id) %}
+      <tr>
+        <td><div class="cell-primary">{{ b.name }}</div><div class="cell-secondary">#{{ b.id }}</div></td>
+        <td>
+          {% if s and s.enabled %}
+          <span class="status-badge status-active"><span class="dot"></span>On · {{ 'Loyalty only' if s.mode == 'only' else 'With booking' }}</span>
+          {% else %}
+          <span class="status-badge status-inactive"><span class="dot"></span>Off</span>
+          {% endif %}
+          {% if saved and saved|int == b.id %}<span class="ms-2 text-success small">Saved</span>{% endif %}
+        </td>
+        <td class="mono">{{ members.get(b.id, 0) }}</td>
+        <td>
+          <form method="post" action="/admin/loyalty/{{ b.id }}" class="d-flex align-items-center gap-2 m-0">
+            <label class="d-flex align-items-center gap-1 m-0">
+              <input type="checkbox" name="enabled" value="on" {% if s and s.enabled %}checked{% endif %}> On
+            </label>
+            <select name="mode" class="form-select form-select-sm" style="width:auto" aria-label="Mode for {{ b.name }}">
+              <option value="with_booking" {% if not s or s.mode != 'only' %}selected{% endif %}>With booking</option>
+              <option value="only" {% if s and s.mode == 'only' %}selected{% endif %}>Loyalty only</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-dark">Save</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No businesses yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

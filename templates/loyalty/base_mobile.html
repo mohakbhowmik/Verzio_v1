@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#173b32">
+    <title>{{ page_title }} · Verzio Loyalty</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}">
+    {% include "loyalty/_styles.html" %}
+</head>
+<body class="m-body">
+    {% set tabs = [
+        ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Today"),
+        ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
+        ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
+        ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
+    ] + ([("book", "/owner/dashboard", "bi-calendar3", "Book")] if has_book else []) %}
+
+    <header class="m-header">
+        <a class="sidebar-brand text-decoration-none" href="/owner/loyalty" aria-label="Verzio Loyalty home">
+            <img class="loy-brand-mark" src="{{ url_for('static', path='img/verzio-mark.svg') }}" alt="">
+            <span class="brand-word">Verzio Loyalty<small>{{ business.name if business else '' }}</small></span>
+        </a>
+        <form action="/owner/logout" method="post" class="m-0">
+            <button type="submit" class="m-header-action" aria-label="Sign out" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
+        </form>
+    </header>
+
+    <main class="m-main">
+        <section class="owner-mobile-page">
+            {% if ok %}<div class="loy-alert ok" role="status"><i class="bi bi-check-circle-fill me-1"></i> {{ ok }}</div>{% endif %}
+            {% if err %}<div class="loy-alert err" role="alert"><i class="bi bi-exclamation-triangle-fill me-1"></i> {{ err }}</div>{% endif %}
+            {% if settings and not running %}<div class="loy-alert err" role="alert">Rewards are paused on WhatsApp because your Verzio plan isn't active. Contact Verzio to switch them back on.</div>{% endif %}
+            {% block content %}{% endblock %}
+        </section>
+    </main>
+
+    <nav class="m-tabbar" aria-label="Main" style="grid-template-columns: repeat({{ tabs|length }}, 1fr)">
+        {% for key, href, icon, label in tabs %}
+        <a href="{{ href }}" class="{% if active_page == key %}active{% endif %}" {% if active_page == key %}aria-current="page"{% endif %}>
+            <i class="bi {{ icon }}"></i><span>{{ label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

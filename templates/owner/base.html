@@ -22,13 +22,16 @@
 </head>
 <body>
 
+    {# Verzio Loyalty has its own dashboard; this link appears when a business has both products. #}
+    {% set loy = business.loyalty if business else none %}
+    {% set loy_on = loy and loy.enabled %}
     {% set nav_items = [
         ("dashboard", "/owner", "bi-grid-1x2", "Overview"),
         ("appointments", "/owner/appointments", "bi-calendar3", "Appointments"),
         ("services", "/owner/services", "bi-stars", "Services"),
         ("reports", "/owner/reports", "bi-graph-up", "Reports"),
         ("settings", "/owner/settings", "bi-sliders", "Settings")
-    ] %}
+    ] + ([("loyalty", "/owner/loyalty", "bi-gift", "Verzio Loyalty")] if loy_on else []) %}
     {% set owner_name = owner.full_name if owner and owner.full_name else 'Owner' %}
     {% set owner_initials = (owner_name.split()[-2:] | map('first') | join | upper) if owner_name else 'O' %}
 

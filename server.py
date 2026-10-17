@@ -22,6 +22,9 @@ VERZIO STUDIO — APPLICATION ENTRY POINT
        other text (or a photo, voice note...) gets "Book appointment / Talk
        to us". "Talk to us" (or a second non-booking message) pauses the bot
        and passes the messages to the manager's WhatsApp.
+- LY:  Verzio Loyalty (loyalty/). Off unless switched on in Admin -> Loyalty;
+       then STAMP / WALLET / CLAIM messages are answered by loyalty/bot.py
+       and everything else reaches the booking bot as before.
 """
 import asyncio
 import hashlib
@@ -54,6 +57,8 @@ import scheduler
 from customer_inbox import MEDIA_LABELS, classify_text, save_message, take_unforwarded
 from customer_inbox import ensure_tables as ensure_inbox_tables
 from reschedule import ensure_tables as ensure_reschedule_tables
+from loyalty.models import ensure_tables as ensure_loyalty_tables
+from loyalty import bot as loyalty_bot
 from whatsapp_client import (
     build_status_message,
     build_customer_cancelled_template,
@@ -75,6 +80,7 @@ from routers.admin_system import router as system_router
 from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
 from routers.admin_messages import router as messages_router
+from routers.admin_login import router as admin_login_router
 from routers.whatsapp_onboarding import admin_router as whatsapp_admin_router
 from routers.whatsapp_onboarding import public_router as onboarding_router
 from whatsapp_accounts import (
@@ -92,6 +98,10 @@ from owner.owner_appointments import router as owner_appointments_router
 from owner.owner_services import router as owner_services_router
 from owner.owner_settings import router as owner_settings_router
 from owner.owner_reports import router as owner_reports_router
+from loyalty.owner import router as loyalty_owner_router
+from loyalty.wallet import router as loyalty_wallet_router
+from loyalty.admin import router as loyalty_admin_router
+from loyalty.owner import loyalty_only_guard
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("VERZIO_SERVER")
@@ -136,6 +146,8 @@ app = FastAPI(
 
 # Zero-trust: every /admin path requires admin credentials, including future routes.
 app.middleware("http")(admin_auth_middleware)
+# Verzio Loyalty: "loyalty only" owners never see Verzio Book pages.
+app.middleware("http")(loyalty_only_guard)
 
 app.include_router(business_router)
 app.include_router(services_router)
@@ -144,6 +156,7 @@ app.include_router(appointments_router)
 app.include_router(subscriptions_router)
 app.include_router(whatsapp_admin_router)
 app.include_router(messages_router)
+app.include_router(admin_login_router)
 app.include_router(onboarding_router)
 
 app.include_router(owner_auth_router)
@@ -152,6 +165,9 @@ app.include_router(owner_appointments_router)
 app.include_router(owner_services_router)
 app.include_router(owner_settings_router)
 app.include_router(owner_reports_router)
+app.include_router(loyalty_owner_router)
+app.include_router(loyalty_wallet_router)
+app.include_router(loyalty_admin_router)
 
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -175,6 +191,7 @@ def startup() -> None:
     ensure_account_tables()
     ensure_inbox_tables()
     ensure_reschedule_tables()
+    ensure_loyalty_tables()
     _normalize_manager_numbers()
     if scheduler.enabled():
         app.state.scheduler_task = asyncio.create_task(scheduler.run_forever())
@@ -632,6 +649,12 @@ async def process_message(val: dict, msg: dict) -> None:
 
         log_event(db=db, event_type="webhook_received", status="info",
                   message=f"Incoming {msg_type} message", business_id=business_id)
+
+        # Verzio Loyalty: off unless switched on for this business in Admin -> Loyalty.
+        # Loyalty messages (STAMP code, WALLET, CLAIM) are answered there; everything
+        # else continues to the booking bot exactly as before.
+        if await loyalty_bot.handle_message(db, biz, tenant_id, sender, msg, val):
+            return
 
         if msg_type in ("interactive", "button"):
             iid = _interaction_id(msg)

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Counter QR — {{ business.name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e2d6; font-family: 'Hanken Grotesk', system-ui, sans-serif; color: #2b1d14; }
+  .bar { max-width: 560px; margin: 16px auto 0; padding: 0 16px; display: flex; gap: 10px; justify-content: space-between; align-items: center; }
+  .bar button { border: 0; background: #173b32; color: #fff; padding: 10px 16px; border-radius: 10px; font: 600 15px 'Hanken Grotesk', sans-serif; cursor: pointer; }
+  .bar a { color: #173b32; font-weight: 600; }
+  .poster { max-width: 560px; margin: 16px auto 40px; background: #fffaf2; border-radius: 24px; padding: 36px 28px 30px; text-align: center;
+    box-shadow: 0 20px 50px -24px rgba(43,29,20,.45); }
+  .eyebrow { letter-spacing: .16em; text-transform: uppercase; font-size: 13px; font-weight: 700; color: #a06a2c; }
+  h1 { font-family: 'Fraunces', Georgia, serif; font-size: 40px; line-height: 1.1; margin: 10px 0 6px; }
+  .lead { font-size: 18px; margin: 0 0 22px; color: #5b4636; }
+  #qr { display: inline-block; padding: 16px; background: #fff; border-radius: 18px; border: 3px solid #2b1d14; }
+  #qr svg { display: block; width: 260px; height: 260px; shape-rendering: crispEdges; }
+  .steps { display: flex; justify-content: center; gap: 18px; margin: 24px 0 8px; font-size: 15px; flex-wrap: wrap; }
+  .steps div { max-width: 140px; }
+  .steps b { display: block; font-family: 'Fraunces', Georgia, serif; font-size: 26px; color: #a06a2c; }
+  .rewards { margin-top: 18px; font-size: 15px; color: #5b4636; }
+  .rewards strong { color: #2b1d14; }
+  .small { font-size: 12px; color: #8a7867; margin-top: 18px; }
+  .warn { max-width: 560px; margin: 24px auto; padding: 16px; background: #fbf0f0; color: #8a2a22; border-radius: 12px; }
+  @media print {
+    body { background: #fff; } .bar { display: none; }
+    .poster { box-shadow: none; margin: 0 auto; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+{% if not qr_link %}
+  <div class="warn">Add your WhatsApp number in Loyalty → Counter QR and settings first, then come back here.</div>
+{% else %}
+  <div class="bar"><a href="/owner/loyalty#settings">← Back</a><button onclick="window.print()">Print</button></div>
+  <div class="poster">
+    <div class="eyebrow">Rewards</div>
+    <h1>{{ business.name }}</h1>
+    <p class="lead">Scan to collect points on every visit</p>
+    <div id="qr" role="img" aria-label="QR code">{% if qr_svg %}{{ qr_svg|safe }}{% else %}QR library missing: run pip install -r requirements.txt{% endif %}</div>
+    <div class="steps">
+      <div><b>1</b>Scan with your phone camera</div>
+      <div><b>2</b>Tap send in WhatsApp</div>
+      <div><b>3</b>Collect points, unlock treats</div>
+    </div>
+    {% if rewards %}
+    <div class="rewards">
+      {% for r in rewards %}<strong>{{ r.name }}</strong> at {{ r.points }} points{% if not loop.last %} · {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+    {% if settings.daily_streak_on or settings.weekly_streak_on %}<div class="rewards" style="margin-top:10px">Come back {{ 'days' if settings.daily_streak_on else 'weeks' }} in a row for <strong>streak bonus points</strong></div>{% endif %}
+    <div class="small">+{{ settings.points_per_visit }} points per visit, once a day · No app or sign-up needed</div>
+  </div>
+{% endif %}
+</body>
+</html>

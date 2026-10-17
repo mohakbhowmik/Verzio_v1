@@ -308,6 +308,18 @@ def build_message_body(to: str, payload: dict) -> dict:
             },
         }
 
+    elif msg_type == "cta_url":
+        # One link button (e.g. "Open my wallet"). Used by loyalty/bot.py.
+        body["type"] = "interactive"
+        body["interactive"] = {
+            "type": "cta_url",
+            "body": {"text": payload.get("body", "")},
+            "action": {
+                "name": "cta_url",
+                "parameters": {"display_text": payload["display_text"][:20], "url": payload["url"]},
+            },
+        }
+
     elif msg_type == "template":
         # payload["template"] = {"name": ..., "language": {"code": ...}, "components": [...]}
         body["type"] = "template"

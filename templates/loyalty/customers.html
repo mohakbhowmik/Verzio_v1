@@ -1,0 +1,45 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Customers</h1>
+    <p>{{ stats.members }} customer{{ '' if stats.members == 1 else 's' }} in your rewards program, most points first.</p>
+  </div>
+  <form method="get" action="/owner/loyalty/customers" class="loy-search" role="search">
+    <input class="form-control-verzio" name="q" value="{{ q }}" placeholder="Search name or number" aria-label="Search customers">
+    <button class="loy-btn ghost" type="submit">Search</button>
+  </form>
+</div>
+
+<section class="loy-card">
+  {% if members %}
+  <div class="loy-scroll">
+  <table class="loy-table">
+    <thead><tr><th>Customer</th><th>Points</th><th>Visits</th>{% if settings.daily_streak_on or settings.weekly_streak_on %}<th>Streak</th>{% endif %}<th>Last visit</th></tr></thead>
+    <tbody>
+      {% for m in members %}
+      {% set st = streaks[m.id] %}
+      <tr>
+        <td><strong>{{ m.name or 'Customer' }}</strong><div class="loy-meta">+{{ m.phone }}</div></td>
+        <td><strong>{{ m.points }}</strong></td>
+        <td>{{ m.visits }}</td>
+        {% if settings.daily_streak_on or settings.weekly_streak_on %}
+        <td>
+          {% if settings.daily_streak_on and st.daily >= 2 %}<span class="loy-pill-sm hot">{{ st.daily }} days</span>{% endif %}
+          {% if settings.weekly_streak_on and st.weekly >= 2 %}<span class="loy-pill-sm">{{ st.weekly }} weeks</span>{% endif %}
+          {% if not ((settings.daily_streak_on and st.daily >= 2) or (settings.weekly_streak_on and st.weekly >= 2)) %}<span class="loy-muted">–</span>{% endif %}
+        </td>
+        {% endif %}
+        <td class="loy-muted">{{ m.last_visit_date or '–' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif q %}
+  <p class="loy-muted mb-0">No customer matches "{{ q }}".</p>
+  {% else %}
+  <p class="loy-muted mb-0">No customers yet. They appear here after their first scan.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#173b32">
+    <title>{{ page_title }} · Verzio Loyalty</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    {% include "loyalty/_styles.html" %}
+</head>
+<body>
+    {# Verzio Loyalty's own dashboard: no Verzio Book pages in this menu. #}
+    {% set nav_items = [
+        ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Dashboard"),
+        ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
+        ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
+        ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
+    ] %}
+    {% set owner_name = owner.full_name if owner and owner.full_name else 'Owner' %}
+    {% set owner_initials = (owner_name.split()[-2:] | map('first') | join | upper) if owner_name else 'O' %}
+
+    <div class="app-shell">
+        <aside class="sidebar">
+            <a href="/owner/loyalty" class="sidebar-brand" aria-label="Verzio Loyalty home">
+                <img class="loy-brand-mark" src="{{ url_for('static', path='img/verzio-mark.svg') }}" alt="">
+                <span class="brand-word">Verzio<small>Loyalty</small></span>
+            </a>
+            <nav class="sidebar-nav" aria-label="Main">
+                {% for key, href, icon, label in nav_items %}
+                <a href="{{ href }}" class="nav-item {% if active_page == key %}active{% endif %}" {% if active_page == key %}aria-current="page"{% endif %}>
+                    <i class="bi {{ icon }}"></i><span>{{ label }}</span>
+                </a>
+                {% endfor %}
+                {% if has_book %}
+                <div style="border-top: 1px solid rgba(255,255,255,.12); margin: 14px 8px 10px"></div>
+                <a href="/owner/dashboard" class="nav-item"><i class="bi bi-calendar3"></i><span>Verzio Book</span></a>
+                {% endif %}
+            </nav>
+            {% if business %}
+            <div class="sidebar-foot">
+                <div class="sidebar-foot-name">{{ business.name }}</div>
+                <div class="sidebar-foot-status">
+                    {% if settings and running %}<span class="live-dot"></span> Rewards on WhatsApp
+                    {% else %}<span class="live-dot paused"></span> Rewards paused{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+
+        <div class="main-col">
+            <nav class="mobile-topnav" aria-label="Main">
+                {% for key, href, icon, label in nav_items %}
+                <a href="{{ href }}" class="{% if active_page == key %}active{% endif %}">{{ label }}</a>
+                {% endfor %}
+                {% if has_book %}<a href="/owner/dashboard">Verzio Book</a>{% endif %}
+            </nav>
+            <header class="topbar">
+                <div class="topbar-left"><p class="page-current-title">{{ page_title }}</p></div>
+                <div class="topbar-right">
+                    <details class="profile-menu">
+                        <summary class="profile-trigger">
+                            <span class="avatar-initials">{{ owner_initials }}</span>
+                            <span class="d-none d-sm-inline">{{ owner_name }}</span>
+                            <i class="bi bi-chevron-down" style="font-size: 11px; color: var(--text-muted);"></i>
+                        </summary>
+                        <div class="profile-dropdown">
+                            <div class="profile-dropdown-head">
+                                <strong>{{ owner_name }}</strong>
+                                {% if business %}<span>{{ business.name }}</span>{% endif %}
+                            </div>
+                            <a href="/owner/loyalty/settings" class="dropdown-item text-decoration-none"><i class="bi bi-sliders"></i><span>Settings</span></a>
+                            <form action="/owner/logout" method="post" class="m-0">
+                                <button type="submit" class="dropdown-item logout"><i class="bi bi-box-arrow-right"></i><span>Sign out</span></button>
+                            </form>
+                        </div>
+                    </details>
+                </div>
+            </header>
+            <main class="content-container">
+                {% if ok %}<div class="loy-alert ok" role="status"><i class="bi bi-check-circle-fill me-1"></i> {{ ok }}</div>{% endif %}
+                {% if err %}<div class="loy-alert err" role="alert"><i class="bi bi-exclamation-triangle-fill me-1"></i> {{ err }}</div>{% endif %}
+                {% if settings and not running %}<div class="loy-alert err" role="alert">Rewards are paused on WhatsApp because your Verzio plan isn't active. Contact Verzio to switch them back on.</div>{% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

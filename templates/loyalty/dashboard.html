@@ -1,0 +1,126 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>{{ business.name }}</h1>
+    <p>Give rewards at the counter and keep an eye on your regulars.</p>
+  </div>
+</div>
+
+{% if reward_count == 0 or not qr_link %}
+<div class="loy-setup" aria-label="Getting started">
+  <a class="loy-step {{ 'done' if reward_count else '' }}" href="/owner/loyalty/rewards">
+    <i class="bi {{ 'bi-check-circle-fill' if reward_count else 'bi-1-circle' }}"></i>
+    <span>{% if reward_count %}Rewards added{% else %}Add your first reward{% endif %}</span>
+  </a>
+  <a class="loy-step {{ 'done' if qr_link else '' }}" href="/owner/loyalty/settings">
+    <i class="bi {{ 'bi-check-circle-fill' if qr_link else 'bi-2-circle' }}"></i>
+    <span>{% if qr_link %}WhatsApp number set{% else %}Add your WhatsApp number{% endif %}</span>
+  </a>
+  <a class="loy-step" href="/owner/loyalty/settings#qr">
+    <i class="bi bi-3-circle"></i><span>Print the counter QR poster</span>
+  </a>
+</div>
+{% endif %}
+
+<div class="loy-grid two">
+  <section class="loy-card loy-anchor" id="give">
+    <h2><i class="bi bi-gift me-1"></i> Give a reward</h2>
+    <p class="sub">Type the 4-digit code the customer shows you. Points are only used when you tap Give reward.</p>
+    <form method="post" action="/owner/loyalty/lookup" class="loy-code-form">
+      <input class="form-control-verzio loy-code-input" name="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="5"
+             autocomplete="off" placeholder="0000" value="{{ code }}" aria-label="Claim code" required>
+      <button class="loy-btn" type="submit">Check</button>
+    </form>
+
+    {% if code %}
+      {% if found and not problem %}
+      <div class="loy-found ok">
+        <div class="big">🎁 {{ found.reward_name }}</div>
+        <div class="loy-meta mt-1">{{ found.member.name or 'Customer' }} · +{{ found.member.phone }} ·
+          {{ found.points }} points (has {{ found.member.points }}) · {{ found_visits }} visit{{ '' if found_visits == 1 else 's' }} so far ·
+          code valid until {{ clock(found.expires_at) }}</div>
+        <form method="post" action="/owner/loyalty/claims/{{ found.id }}/give" class="mt-3 mb-1">
+          <button class="loy-btn green" type="submit"><i class="bi bi-check2-circle"></i> Give reward</button>
+        </form>
+      </div>
+      {% else %}
+      <div class="loy-found bad">
+        {% if found %}<div class="big">{{ found.reward_name }}</div>{% endif %}
+        <div>{{ problem }}</div>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    <h2 style="font-size:14px; margin-top:24px">Waiting at the counter</h2>
+    {% if pending %}
+    <ul class="loy-list">
+      {% for c in pending %}
+      <li>
+        <div>
+          <div><span class="loy-pill">{{ c.code }}</span> · <strong>{{ c.reward_name }}</strong></div>
+          <div class="loy-meta">{{ c.member.name or ('+' ~ c.member.phone) }} · {{ c.member.visits }} visits · until {{ clock(c.expires_at) }}</div>
+        </div>
+        <form method="post" action="/owner/loyalty/claims/{{ c.id }}/give" class="m-0">
+          <button class="loy-btn small" type="submit">Give</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="loy-muted mb-0" style="font-size:14px">No codes waiting. When a customer taps Claim, their code shows here for 15 minutes.</p>
+    {% endif %}
+  </section>
+
+  <div class="d-flex flex-column gap-3">
+    <div class="loy-stats">
+      <div class="loy-stat"><b>{{ stats.members }}</b><span>Customers</span></div>
+      <div class="loy-stat"><b>{{ stats.visits_30d }}</b><span>Visits, 30 days</span></div>
+      <div class="loy-stat"><b>{{ stats.rewards_30d }}</b><span>Rewards, 30 days</span></div>
+    </div>
+
+    <section class="loy-card loy-anchor" id="points">
+      <h2><i class="bi bi-plus-circle me-1"></i> Add points</h2>
+      <p class="sub">For a customer who didn't scan the QR, or to fix a mistake.</p>
+      <form method="post" action="/owner/loyalty/points">
+        <div class="loy-fields">
+          <div><label for="loy-phone">Customer's WhatsApp</label>
+            <input id="loy-phone" class="form-control-verzio" name="phone" inputmode="tel" placeholder="98765 43210" required></div>
+          <div><label for="loy-name">Name (optional)</label>
+            <input id="loy-name" class="form-control-verzio" name="name" maxlength="60"></div>
+          <div><label for="loy-pts">Points</label>
+            <input id="loy-pts" class="form-control-verzio" name="points" inputmode="numeric" value="{{ settings.points_per_visit }}" required></div>
+        </div>
+        <div class="loy-radio">
+          <label><input type="radio" name="kind" value="visit" checked> A visit</label>
+          <label><input type="radio" name="kind" value="adjust"> Correction (use −20 to remove)</label>
+        </div>
+        <input class="form-control-verzio mb-2" name="note" maxlength="120" placeholder="Note (optional)" aria-label="Note">
+        <button class="loy-btn" type="submit">Save points</button>
+      </form>
+    </section>
+  </div>
+</div>
+
+<section class="loy-card mt-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <h2 class="mb-0"><i class="bi bi-clock-history me-1"></i> Recent activity</h2>
+    <a href="/owner/loyalty/customers" style="font-size:14px">All customers</a>
+  </div>
+  {% if recent %}
+  <ul class="loy-list mt-2">
+    {% for e, m in recent %}
+    <li>
+      <div>
+        <div>{{ m.name or ('+' ~ m.phone) }} · {{ e.note if e.kind in ('claim', 'streak_daily', 'streak_weekly') else labels.get(e.kind, e.kind) }}</div>
+        <div class="loy-meta">{{ clock(e.created_at) }}, {{ e.created_at.strftime('%d %b') }} · balance {{ e.balance_after }}</div>
+      </div>
+      <span class="{{ 'loy-plus' if e.delta > 0 else 'loy-minus' }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="loy-muted mb-0 mt-2" style="font-size:14px">Nothing yet. Activity appears here when customers start scanning.</p>
+  {% endif %}
+</section>
+{% endblock %}

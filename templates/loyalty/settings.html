@@ -1,0 +1,98 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Settings</h1>
+    <p>Your rewards program. Nothing here affects Verzio Book.</p>
+  </div>
+  <button type="submit" form="loy-settings" class="loy-btn"><i class="bi bi-check2"></i> Save changes</button>
+</div>
+
+<form method="post" action="/owner/loyalty/settings" id="loy-settings">
+<div class="loy-grid two">
+  <div class="d-flex flex-column gap-3">
+    <section class="loy-card">
+      <h2>Your business</h2>
+      <p class="sub">Shown to customers in WhatsApp replies and on their wallet page.</p>
+      <div class="loy-fields">
+        <div><label for="s-name">Business name</label>
+          <input id="s-name" class="form-control-verzio" name="business_name" value="{{ business.name }}" maxlength="80" required></div>
+        <div><label for="s-wa">WhatsApp number</label>
+          <input id="s-wa" class="form-control-verzio" name="whatsapp_number" inputmode="tel" value="{{ settings.whatsapp_number or '' }}" placeholder="98765 43210"></div>
+      </div>
+      <p class="loy-hint mt-2">The counter QR opens a chat with this number.</p>
+    </section>
+
+    <section class="loy-card">
+      <h2>Points</h2>
+      <p class="sub">Customers get points once a day when they scan the QR at your counter.</p>
+      <div class="loy-fields">
+        <div><label for="s-ppv">Points per visit</label>
+          <input id="s-ppv" class="form-control-verzio" name="points_per_visit" inputmode="numeric" value="{{ settings.points_per_visit }}" required></div>
+        <div><label for="s-wb">Welcome bonus</label>
+          <input id="s-wb" class="form-control-verzio" name="welcome_bonus" inputmode="numeric" value="{{ settings.welcome_bonus }}"></div>
+      </div>
+      <p class="loy-hint mt-2">The welcome bonus is added once, on a customer's first scan. Use 0 for none.</p>
+    </section>
+  </div>
+
+  <section class="loy-card">
+    <h2>Streak bonuses</h2>
+    <p class="sub">Extra points for coming back in a row. The bonus grows each time, up to the limit you set.</p>
+
+    <div class="loy-switch">
+      <div><label for="s-dso">Daily streak</label><p class="loy-hint">Visits on days in a row. Days you're closed don't break it.</p></div>
+      <input id="s-dso" type="checkbox" name="daily_streak_on" value="on" {% if settings.daily_streak_on %}checked{% endif %}>
+    </div>
+    <div class="loy-fields">
+      <div><label for="s-dss">Bonus per extra day</label>
+        <input id="s-dss" class="form-control-verzio" name="daily_streak_step" inputmode="numeric" value="{{ settings.daily_streak_step }}"></div>
+      <div><label for="s-dsm">Biggest daily bonus</label>
+        <input id="s-dsm" class="form-control-verzio" name="daily_streak_max" inputmode="numeric" value="{{ settings.daily_streak_max }}"></div>
+    </div>
+    <div class="loy-example">Day 2: +{{ [settings.daily_streak_step, settings.daily_streak_max]|min }} · day 3: +{{ [settings.daily_streak_step * 2, settings.daily_streak_max]|min }} · day 4: +{{ [settings.daily_streak_step * 3, settings.daily_streak_max]|min }} · never more than +{{ settings.daily_streak_max }}</div>
+
+    <div class="loy-switch mt-3">
+      <div><label for="s-wso">Weekly streak</label><p class="loy-hint">At least one visit every week (Monday to Sunday).</p></div>
+      <input id="s-wso" type="checkbox" name="weekly_streak_on" value="on" {% if settings.weekly_streak_on %}checked{% endif %}>
+    </div>
+    <div class="loy-fields">
+      <div><label for="s-wss">Bonus per extra week</label>
+        <input id="s-wss" class="form-control-verzio" name="weekly_streak_step" inputmode="numeric" value="{{ settings.weekly_streak_step }}"></div>
+      <div><label for="s-wsm">Biggest weekly bonus</label>
+        <input id="s-wsm" class="form-control-verzio" name="weekly_streak_max" inputmode="numeric" value="{{ settings.weekly_streak_max }}"></div>
+    </div>
+    <div class="loy-example">Week 2: +{{ [settings.weekly_streak_step, settings.weekly_streak_max]|min }} · week 3: +{{ [settings.weekly_streak_step * 2, settings.weekly_streak_max]|min }} · week 4: +{{ [settings.weekly_streak_step * 3, settings.weekly_streak_max]|min }} · never more than +{{ settings.weekly_streak_max }}</div>
+    <p class="loy-hint mt-2">The weekly bonus is given on the first visit of each week.</p>
+  </section>
+</div>
+</form>
+
+<section class="loy-card loy-anchor mt-3" id="qr">
+  <h2><i class="bi bi-qr-code me-1"></i> Counter QR</h2>
+  <p class="sub">Customers scan this at your counter. WhatsApp opens with their code typed in; they tap send and get points.</p>
+  <div class="d-flex flex-wrap gap-3 align-items-center">
+    {% if qr_link %}
+    <a class="loy-btn" href="/owner/loyalty/qr" target="_blank" rel="noopener"><i class="bi bi-printer"></i> Print QR poster</a>
+    {% else %}
+    <span class="loy-muted" style="font-size:14px">Add your WhatsApp number above and save to make the QR.</span>
+    {% endif %}
+    <span class="loy-muted" style="font-size:13.5px">Current code: <span class="loy-code-box">{{ settings.earn_code }}</span></span>
+  </div>
+  <form method="post" action="/owner/loyalty/rotate-code" class="mt-3">
+    <button class="loy-btn danger small" type="submit"
+            onclick="return confirm('Make a new QR code? The QR you printed before will stop giving points.');">
+      <i class="bi bi-arrow-repeat"></i> Make a new QR code</button>
+    <span class="loy-muted ms-1" style="font-size:12.5px">Use this if your QR is being misused. You'll need to print the new one.</span>
+  </form>
+</section>
+
+<section class="loy-card mt-3">
+  <h2>Your plan</h2>
+  {% if running %}
+  <p class="sub mb-0">Verzio Loyalty is active for {{ business.name }}. For billing questions, contact Verzio Solutions.</p>
+  {% else %}
+  <p class="sub mb-0">Your plan isn't active, so rewards are paused on WhatsApp. Contact Verzio Solutions to switch them back on.</p>
+  {% endif %}
+</section>
+{% endblock %}

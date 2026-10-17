@@ -67,6 +67,42 @@ with TestClient(server.app) as c:
     check("admin can create a service", r.status_code in (302, 303) and db.query(Service).filter_by(name="Beard Trim").count() == 1,
           r.status_code)
     r = c.post("/admin/businesses/new", auth=A, data={}, follow_redirects=False)
+    # admin sign-in page, logout, lockout (browser requests send Accept: text/html)
+    from fastapi.testclient import TestClient as _TC
+    br = _TC(server.app)
+    H = {"Accept": "text/html"}
+    r = br.get("/admin/businesses", headers=H, follow_redirects=False)
+    check("browser without sign-in -> sent to /admin/login", r.status_code == 303 and r.headers["location"].startswith("/admin/login"), r.status_code)
+    r = br.get("/admin/businesses", headers=H | {"Authorization": "Basic " + __import__("base64").b64encode(b"admin:verzio-dev-admin").decode()}, follow_redirects=False)
+    check("a password the browser remembered (Basic) can't bypass the login page", r.status_code == 303, r.status_code)
+    r = br.get("/admin/login", headers=H)
+    check("login page renders", r.status_code == 200 and "Admin sign-in" in r.text)
+    r = br.post("/admin/login", headers=H, data={"username": "admin", "password": "nope", "next": "/admin/businesses"})
+    check("wrong password -> 'Wrong username or password.'", r.status_code == 401 and "Wrong username or password" in r.text)
+    r = br.post("/admin/login", headers=H, data={"username": "admin", "password": "verzio-dev-admin", "next": "/admin/businesses"}, follow_redirects=False)
+    check("right password -> back to the page you wanted, signed in", r.status_code == 303 and r.headers["location"] == "/admin/businesses"
+          and "verzio_admin_session" in r.headers.get("set-cookie", ""), r.status_code)
+    r = br.get("/admin/businesses", headers=H)
+    check("signed in: admin pages load, with a Log out button", r.status_code == 200 and "/admin/logout" in r.text and "Log out" in r.text, r.status_code)
+    r = br.post("/admin/logout", headers=H, follow_redirects=False)
+    check("Log out -> cookie cleared, back to the login page", r.status_code == 303 and "out=1" in r.headers["location"]
+          and 'verzio_admin_session=""' in r.headers.get("set-cookie", "").replace("verzio_admin_session=;", 'verzio_admin_session="";'), r.headers.get("set-cookie"))
+    br.cookies.clear()
+    r = br.get("/admin/businesses", headers=H, follow_redirects=False)
+    check("after Log out, admin needs sign-in again", r.status_code == 303)
+    r = br.post("/admin/login", headers=H, data={"username": "admin", "password": "evil-redirect", "next": "https://evil.example"})
+    import admin_auth as _aa
+    _aa._failures.clear()
+    for _ in range(5):
+        br.post("/admin/login", headers=H, data={"username": "x", "password": "y"})
+    r = br.post("/admin/login", headers=H, data={"username": "admin", "password": "verzio-dev-admin"})
+    check("5 wrong attempts -> locked for 15 minutes even with the right password", r.status_code == 429 and "Too many wrong attempts" in r.text, r.status_code)
+    _aa._failures.clear()
+    r = br.post("/admin/login", headers=H, data={"username": "admin", "password": "verzio-dev-admin", "next": "https://evil.example"}, follow_redirects=False)
+    check("login never redirects to another site", r.headers.get("location") == "/admin", r.headers.get("location"))
+    r = br.get("/admin")
+    check("scripts without a browser still get 401 (preflight check)", _TC(server.app).get("/admin").status_code == 401)
+
     # owner side
     r = c.post("/owner/login", data={"identifier": "o@glow.test", "password": "ownerpass123"}, follow_redirects=False)
     check("owner login works", r.status_code == 303 and "verzio_owner_session" in r.headers.get("set-cookie", ""), r.status_code)

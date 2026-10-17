@@ -1,0 +1,78 @@
+{# Shared styles for every Verzio Loyalty dashboard page. #}
+<style>
+  .loy-grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 992px) { .loy-grid.two { grid-template-columns: 1.1fr .9fr; } }
+  .loy-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel); padding: 18px; }
+  .loy-card h2 { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+  .loy-card .sub { color: var(--text-muted); font-size: 13.5px; margin: 0 0 14px; }
+  .loy-code-form { display: flex; gap: 10px; }
+  .loy-code-input { font-size: 28px; letter-spacing: .3em; text-align: center; font-weight: 700; max-width: 200px; }
+  .loy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--accent);
+    background: var(--accent); color: #fff; border-radius: var(--radius-control); padding: 10px 16px; font-weight: 600;
+    font-size: 14.5px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .loy-btn:hover { background: var(--accent-hover); color: #fff; }
+  .loy-btn.ghost { background: transparent; color: var(--accent); }
+  .loy-btn.ghost:hover { background: var(--accent-soft); color: var(--accent); }
+  .loy-btn.green { background: var(--status-green); border-color: var(--status-green); font-size: 16px; padding: 12px 20px; }
+  .loy-btn.small { padding: 6px 10px; font-size: 13px; }
+  .loy-btn.danger { background: transparent; border-color: var(--border-strong); color: var(--status-red); }
+  .loy-found { margin-top: 14px; border-radius: 12px; padding: 14px; border: 1px solid var(--border-light); background: var(--bg-sunken); }
+  .loy-found.ok { border-color: var(--status-green); background: #eef7f1; }
+  .loy-found.bad { border-color: #e7c3c4; background: #fbf0f0; }
+  .loy-found .big { font-size: 20px; font-weight: 700; }
+  .loy-meta { color: var(--text-muted); font-size: 13.5px; }
+  .loy-list { list-style: none; margin: 0; padding: 0; }
+  .loy-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle); }
+  .loy-list li:last-child { border-bottom: 0; }
+  .loy-pill { font-weight: 700; font-size: 18px; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+  .loy-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .loy-stat { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-panel); padding: 14px; }
+  .loy-stat b { display: block; font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1.1; }
+  .loy-stat span { color: var(--text-muted); font-size: 12.5px; }
+  .loy-table { width: 100%; font-size: 14px; border-collapse: collapse; }
+  .loy-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted);
+    font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border-light); }
+  .loy-table td { padding: 9px 8px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+  .loy-table tr:last-child td { border-bottom: 0; }
+  .loy-scroll { overflow-x: auto; }
+  .loy-row-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .loy-row-form input[name=name] { flex: 1 1 160px; min-width: 120px; }
+  .loy-row-form input[name=points] { width: 96px; }
+  .loy-muted { color: var(--text-muted); }
+  .loy-plus { color: var(--status-green); font-weight: 700; }
+  .loy-minus { color: var(--status-red); font-weight: 700; }
+  .loy-fields { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .loy-fields label { font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block; }
+  .loy-radio { display: flex; gap: 16px; font-size: 14px; margin: 10px 0; flex-wrap: wrap; }
+  .loy-alert { border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 14.5px; }
+  .loy-alert.ok { background: #eef7f1; color: #1f5f3c; border: 1px solid #cfe7d8; }
+  .loy-alert.err { background: #fbf0f0; color: #8a2a22; border: 1px solid #e7c3c4; }
+  .loy-code-box { font-family: var(--font-display); font-size: 22px; letter-spacing: .12em; }
+  .loy-anchor { scroll-margin-top: 80px; }
+  .loy-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .loy-head h1 { font-family: var(--font-display); font-weight: 500; font-size: 34px; margin: 0; line-height: 1.1; }
+  .loy-head p { color: var(--text-muted); margin: 4px 0 0; font-size: 14.5px; }
+  .loy-setup { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 18px; }
+  .loy-step { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--border-strong); background: var(--bg-surface); text-decoration: none; color: var(--text-main); font-size: 14px; }
+  .loy-step i { font-size: 18px; color: var(--brass); }
+  .loy-step.done { border-style: solid; color: var(--text-muted); }
+  .loy-step.done i { color: var(--status-green); }
+  .loy-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border-subtle); }
+  .loy-switch:first-of-type { border-top: 0; }
+  .loy-switch label { font-weight: 600; font-size: 14.5px; margin: 0; }
+  .loy-switch input[type=checkbox] { width: 44px; height: 24px; accent-color: var(--accent); cursor: pointer; }
+  .loy-hint { color: var(--text-muted); font-size: 13px; margin: 2px 0 0; }
+  .loy-example { background: var(--brass-soft); color: #5c4320; border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-top: 8px; }
+  .loy-search { display: flex; gap: 8px; max-width: 420px; }
+  .loy-pill-sm { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); }
+  .loy-pill-sm.hot { background: var(--brass-soft); color: #7a5520; }
+  .loy-brand-mark { width: 34px; height: 30px; display: block; }
+  /* Fallbacks so the layout holds even if the Bootstrap stylesheet fails to load. */
+  .d-flex { display: flex; } .d-inline-flex { display: inline-flex; } .flex-column { flex-direction: column; }
+  .flex-wrap { flex-wrap: wrap; } .justify-content-between { justify-content: space-between; } .align-items-center { align-items: center; }
+  .gap-2 { gap: .5rem; } .gap-3 { gap: 1rem; } .m-0 { margin: 0; } .mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: .25rem; }
+  .mb-2 { margin-bottom: .5rem; } .mt-1 { margin-top: .25rem; } .mt-2 { margin-top: .5rem; } .mt-3 { margin-top: 1rem; }
+  .mt-4 { margin-top: 1.5rem; } .ms-1 { margin-left: .25rem; } .ms-2 { margin-left: .5rem; } .me-1 { margin-right: .25rem; } .text-end { text-align: right; }
+</style>

@@ -19,5 +19,6 @@ exports/
 *.db
 *.db-journal
 test_*.py
+simulate_*.py
 seed_mission2.py
 repomix-output.xml

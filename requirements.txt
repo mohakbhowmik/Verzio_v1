@@ -33,3 +33,4 @@ websockets==17.2
 cryptography==50.0.1
 cffi==2.1.1
 pycparser==3.0
+segno==1.6.1

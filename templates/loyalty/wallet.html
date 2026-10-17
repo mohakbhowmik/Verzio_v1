@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2b1d14">
+<title>{{ biz.name }} rewards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #f6efe4; --paper: #fffaf2; --ink: #2b1d14; --muted: #7a6a5c; --line: #eadfce;
+    --track: #efe5d6; --fill: #c8873a; --fill2: #e0a458; --green: #1f8a4c; --green2: #36b26a;
+    --ticket: #2b1d14;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--cream); color: var(--ink);
+    font-family: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  .wrap { max-width: 460px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 2px 18px; }
+  .biz { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 24px; line-height: 1.15; margin: 0; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .who { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+  .balance { background: var(--ink); color: var(--paper); border-radius: 22px; padding: 22px 22px 20px;
+    position: relative; overflow: hidden; }
+  .balance::after { content: ""; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(224,164,88,.35), transparent 70%); }
+  .balance .eyebrow { color: #cdb9a3; }
+  .points { font-family: 'Fraunces', Georgia, serif; font-size: 64px; font-weight: 700; line-height: 1; margin: 8px 0 4px;
+    font-variant-numeric: tabular-nums; }
+  .points small { font-family: 'Hanken Grotesk', sans-serif; font-size: 16px; font-weight: 600; color: #cdb9a3; margin-left: 6px; }
+  .next { font-size: 14px; color: #e8d9c6; margin: 6px 0 0; }
+
+  .streaks { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin: 14px 0 0; }
+  .streak { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; }
+  .streak .big { font-family: 'Fraunces', Georgia, serif; font-size: 30px; font-weight: 700; line-height: 1; }
+  .streak .big small { font-family: 'Hanken Grotesk', sans-serif; font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+  .streak .hint { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  .streak.hot { border-color: var(--fill2); background: linear-gradient(180deg, #fff3e2, var(--paper)); }
+  .streak.hot .icon { display: inline-block; animation: flicker 1.6s ease-in-out infinite; transform-origin: 50% 90%; }
+  @keyframes flicker { 0%,100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.12) rotate(3deg); } }
+  .alert { background: #fdecea; color: #8a2a22; border-radius: 14px; padding: 12px 14px; margin: 14px 0 0; font-size: 14px; }
+
+  .ticket { margin: 16px 0 0; background: var(--paper); border: 2px dashed var(--ink); border-radius: 18px;
+    padding: 18px; text-align: center; animation: pop .5s cubic-bezier(.2,1.4,.4,1) both; }
+  .ticket .label { font-size: 14px; color: var(--muted); }
+  .ticket .reward { font-weight: 700; font-size: 18px; margin: 4px 0 10px; }
+  .code { font-family: 'Fraunces', Georgia, serif; font-size: 56px; font-weight: 700; letter-spacing: .18em;
+    line-height: 1; margin: 6px 0 10px; padding-left: .18em; }
+  .timer { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  h2 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 28px 2px 10px; font-weight: 700; }
+  .reward-card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 10px;
+    transition: border-color .4s, box-shadow .4s, transform .4s; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .r-name { font-weight: 700; font-size: 16px; }
+  .r-pts { font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .track { height: 14px; border-radius: 999px; background: var(--track); margin: 12px 0 8px; overflow: hidden; position: relative; }
+  .fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--fill), var(--fill2));
+    transition: width 1.2s cubic-bezier(.25,.8,.25,1), background .5s; position: relative; }
+  .status { font-size: 13px; color: var(--muted); min-height: 18px; }
+  .badge { display: none; background: var(--green); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px;
+    border-radius: 999px; letter-spacing: .02em; }
+  .claim-btn { display: none; width: 100%; margin-top: 12px; border: 0; border-radius: 14px; padding: 13px 16px;
+    background: var(--green); color: #fff; font: 700 16px 'Hanken Grotesk', sans-serif; cursor: pointer; }
+  .claim-btn:active { transform: scale(.98); }
+  .claim-btn[disabled] { background: #9bbfa9; cursor: default; }
+
+  .reward-card.unlocked { border-color: var(--green2); box-shadow: 0 6px 22px -12px rgba(31,138,76,.6); }
+  .reward-card.unlocked .fill { background: linear-gradient(90deg, var(--green), var(--green2)); }
+  .reward-card.unlocked .fill::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%);
+    background-size: 200% 100%; animation: shine 2.4s ease-in-out infinite; }
+  .reward-card.unlocked .badge { display: inline-block; animation: pop .45s cubic-bezier(.2,1.6,.4,1) both; }
+  .reward-card.unlocked .claim-btn { display: block; }
+  .reward-card.unlocked .status { color: var(--green); font-weight: 600; }
+  .reward-card.celebrate { animation: bounce .6s cubic-bezier(.2,1.4,.4,1); }
+
+  .how { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+  .hist { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 4px 16px; }
+  .hist-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; gap: 10px; }
+  .hist-row:last-child { border-bottom: 0; }
+  .hist-row .when { color: var(--muted); font-size: 12px; }
+  .plus { color: var(--green); font-weight: 700; white-space: nowrap; }
+  .minus { color: #8a2a22; font-weight: 700; white-space: nowrap; }
+  .empty { color: var(--muted); font-size: 14px; padding: 12px 0; }
+  footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 28px; }
+
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes bounce { 0% { transform: scale(1); } 40% { transform: scale(1.03); } 100% { transform: scale(1); } }
+  @keyframes shine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fill { transition: none; } .ticket, .badge, .reward-card.celebrate { animation: none !important; }
+    .reward-card.unlocked .fill::after, .streak.hot .icon { animation: none; }
+  }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Rewards wallet</div>
+      <h1 class="biz">{{ biz.name }}</h1>
+    </div>
+    <div class="who">{{ member.name.split()[0] if member.name else masked }}</div>
+  </header>
+
+  <section class="balance" aria-label="Your points">
+    <div class="eyebrow">Your points</div>
+    <div class="points"><span id="pts" data-to="{{ member.points }}">{{ member.points }}</span><small>pts</small></div>
+    {% set nxt = progress | rejectattr('unlocked') | first %}
+    {% if nxt %}
+    <p class="next">{{ nxt.missing }} more to {{ nxt.reward.name }}</p>
+    {% elif progress %}
+    <p class="next">Every reward is unlocked. Treat yourself! 🎉</p>
+    {% endif %}
+  </section>
+
+  {% if streak.daily_on or streak.weekly_on %}
+  <section class="streaks" aria-label="Streaks">
+    {% if streak.daily_on %}
+    <div class="streak {{ 'hot' if streak.daily >= 2 }}">
+      <div class="big"><span class="icon">🔥</span> {{ streak.daily }}<small>day{{ '' if streak.daily == 1 else 's' }} in a row</small></div>
+      <div class="hint">{% if streak.next_daily_bonus %}Come {{ streak.next_visit_day }}: <strong>+{{ streak.next_daily_bonus }} bonus</strong>{% elif streak.daily == 0 %}Visit on days in a row for bonus points{% else %}Come {{ streak.next_visit_day }} to keep it going{% endif %}</div>
+    </div>
+    {% endif %}
+    {% if streak.weekly_on %}
+    <div class="streak {{ 'hot' if streak.weekly >= 2 }}">
+      <div class="big"><span class="icon">📅</span> {{ streak.weekly }}<small>week{{ '' if streak.weekly == 1 else 's' }} in a row</small></div>
+      <div class="hint">{% if streak.next_weekly_bonus %}Visit {{ 'next week' if streak.visited_this_week else 'this week' }}: <strong>+{{ streak.next_weekly_bonus }} bonus</strong>{% else %}Visit every week for bonus points{% endif %}</div>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+  {% if not running %}<div class="alert" role="status">Rewards at {{ biz.name }} aren't available right now.</div>{% endif %}
+
+  {% if claim %}
+  <section class="ticket" id="claim" aria-live="polite">
+    <div class="label">Show this code at the counter</div>
+    <div class="reward">🎁 {{ claim.reward_name }}</div>
+    <div class="code">{{ claim.code }}</div>
+    <div class="timer">Valid until {{ claim_until }} · <span id="left" data-s="{{ claim_seconds }}"></span></div>
+    <div class="timer" style="margin-top:6px">Points are only used when staff give you the reward.</div>
+  </section>
+  {% endif %}
+
+  <h2>Rewards</h2>
+  {% for p in progress %}
+  <article class="reward-card" data-pct="{{ p.percent }}" data-id="{{ p.reward.id }}" data-unlocked="{{ 1 if p.unlocked else 0 }}">
+    <div class="row">
+      <div class="r-name">{{ p.reward.name }}</div>
+      <span class="badge">Unlocked</span>
+      <div class="r-pts">{{ [p.have, p.need]|min }} / {{ p.need }}</div>
+    </div>
+    <div class="track" role="progressbar" aria-label="{{ p.reward.name }}" aria-valuemin="0" aria-valuemax="{{ p.need }}" aria-valuenow="{{ [p.have, p.need]|min }}"><div class="fill"></div></div>
+    <div class="status">{% if p.unlocked %}Ready to claim!{% else %}{{ p.missing }} points to go{% endif %}</div>
+    {% if p.unlocked and running %}
+    <form method="post" action="/w/{{ token }}/claim/{{ p.reward.id }}">
+      {% if claim and claim.reward_id == p.reward.id %}
+      <button class="claim-btn" type="submit">Get a new code</button>
+      {% else %}
+      <button class="claim-btn" type="submit">Claim {{ p.reward.name }}</button>
+      {% endif %}
+    </form>
+    {% endif %}
+  </article>
+  {% else %}
+  <div class="how">{{ biz.name }} hasn't added rewards yet. Keep collecting points, they're saved here.</div>
+  {% endfor %}
+
+  <h2>How to earn</h2>
+  <div class="how">
+    Scan the QR code at the counter each time you visit: <strong>+{{ settings.points_per_visit }} points</strong> (once a day).
+    {% if settings.daily_streak_on %}<br>🔥 Come on days in a row for a growing bonus: +{{ settings.daily_streak_step }}, +{{ settings.daily_streak_step * 2 }}… up to +{{ settings.daily_streak_max }}. Days we're closed don't break it.{% endif %}
+    {% if settings.weekly_streak_on %}<br>📅 Visit every week for a weekly bonus: +{{ settings.weekly_streak_step }}, +{{ settings.weekly_streak_step * 2 }}… up to +{{ settings.weekly_streak_max }}.{% endif %}
+    <br>When a bar turns green, tap <strong>Claim</strong> and show the code to staff.
+  </div>
+
+  <h2>History</h2>
+  <div class="hist">
+    {% for e in history %}
+    <div class="hist-row">
+      <div>
+        <div>{{ e.note if e.kind in ('claim',) else labels.get(e.kind, e.kind) }}</div>
+        <div class="when">{{ e.created_at.strftime('%d %b %Y') }}</div>
+      </div>
+      <div class="{{ 'plus' if e.delta > 0 else 'minus' }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</div>
+    </div>
+    {% else %}
+    <div class="empty">No points yet.</div>
+    {% endfor %}
+  </div>
+
+  <footer>Bookmark this page to check your points any time.<br>Rewards by Verzio</footer>
+</div>
+
+<script>
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var key = 'vz_seen_{{ biz.id }}_{{ member.id }}';
+  var seen = [];
+  try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { seen = []; }
+
+  // Count the balance up.
+  var el = document.getElementById('pts'), to = parseInt(el.getAttribute('data-to'), 10) || 0;
+  if (!reduce && to > 0) {
+    var start = null, dur = 900;
+    el.textContent = '0';
+    requestAnimationFrame(function step(t) {
+      if (!start) start = t;
+      var k = Math.min(1, (t - start) / dur);
+      el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step);
+    });
+  }
+
+  // Fill each bar, then turn the full ones green.
+  var cards = document.querySelectorAll('.reward-card'), fresh = false, nowSeen = seen.slice();
+  cards.forEach(function (card, i) {
+    var pct = parseInt(card.getAttribute('data-pct'), 10) || 0;
+    var unlocked = card.getAttribute('data-unlocked') === '1';
+    var id = card.getAttribute('data-id');
+    var fill = card.querySelector('.fill');
+    var delay = reduce ? 0 : 250 + i * 180;
+    setTimeout(function () { fill.style.width = pct + '%'; }, delay);
+    if (unlocked) {
+      var isNew = seen.indexOf(id) === -1;
+      setTimeout(function () {
+        card.classList.add('unlocked');
+        if (isNew && !reduce) { card.classList.add('celebrate'); burst(card); }
+      }, reduce ? 0 : delay + 1150);
+      if (isNew) { fresh = true; nowSeen.push(id); }
+    }
+  });
+  // Rewards that are no longer unlocked (claimed) can celebrate again next time.
+  var stillUnlocked = Array.prototype.map.call(document.querySelectorAll('.reward-card[data-unlocked="1"]'),
+                                               function (c) { return c.getAttribute('data-id'); });
+  try { localStorage.setItem(key, JSON.stringify(nowSeen.filter(function (x) { return stillUnlocked.indexOf(x) !== -1; }))); } catch (e) {}
+
+  // Claim code countdown.
+  var left = document.getElementById('left');
+  if (left) {
+    var s = parseInt(left.getAttribute('data-s'), 10) || 0;
+    (function tick() {
+      if (s <= 0) { left.textContent = 'expired, tap Claim again'; return; }
+      left.textContent = Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2) + ' left';
+      s -= 1; setTimeout(tick, 1000);
+    })();
+  }
+
+  // Small confetti burst from a card.
+  function burst(card) {
+    var cv = document.getElementById('confetti'), ctx = cv.getContext && cv.getContext('2d');
+    if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.scale(dpr, dpr);
+    var r = card.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + 30;
+    var colors = ['#1f8a4c', '#36b26a', '#e0a458', '#c8873a', '#f6c453', '#2b1d14'];
+    var parts = [];
+    for (var n = 0; n < 90; n++) {
+      var a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 6;
+      parts.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, s: 4 + Math.random() * 5,
+                   c: colors[n % colors.length], rot: Math.random() * 6, vr: (Math.random() - .5) * .3, life: 0 });
+    }
+    var t0 = null;
+    requestAnimationFrame(function frame(t) {
+      if (!t0) t0 = t;
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      var alive = false;
+      parts.forEach(function (p) {
+        p.life += 1; p.vy += 0.18; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        if (p.y < innerHeight + 20 && p.life < 160) alive = true;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = Math.max(0, 1 - p.life / 160);
+        ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore();
+      });
+      if (alive && t - t0 < 3500) requestAnimationFrame(frame); else ctx.clearRect(0, 0, innerWidth, innerHeight);
+    });
+  }
+})();
+</script>
+</body>
+</html>
