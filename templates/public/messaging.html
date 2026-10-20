@@ -1,0 +1,116 @@
+{% extends "public/_site.html" %}
+{% set wa_text = "Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio%20Messaging" %}
+{% block title %}Verzio Messaging · WhatsApp offers to your customers · Verzio Solutions{% endblock %}
+{% block description %}Verzio Messaging: send offers, new menus and festival greetings to customers who know you, on WhatsApp. Every campaign checked, opt-outs respected, a monthly limit with no surprise bills.{% endblock %}
+
+{% block head %}
+<style>
+.top-band::after { content: ""; position: absolute; width: 600px; height: 600px; right: -120px; top: 40px; background: radial-gradient(closest-side, rgba(201,162,90,.2), transparent); pointer-events: none; }
+.hero-m { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: center; padding-block: 24px 88px; position: relative; z-index: 1; }
+@media (max-width: 900px) { .hero-m { grid-template-columns: 1fr; gap: 40px; padding-block: 8px 64px; } }
+.hero-m h1 { font-size: clamp(2.6rem, 6.4vw, 4.8rem); line-height: 1; color: #f6f8f5; margin-top: 14px; }
+.hero-m .lede { color: #c4d3ca; font-size: clamp(1.05rem, 1.6vw, 1.2rem); max-width: 40ch; margin-top: 22px; }
+.hero-m .ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+.crumb a { color: #9fb4a8; text-decoration: none; } .crumb a:hover { color: #fff; }
+.chat { justify-self: center; width: min(360px, 100%); background: #ece5dd; border-radius: 22px; padding: 16px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.6); }
+.chat .bubble { background: #fff; color: #111b21; border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; font-size: .95rem; line-height: 1.45; }
+.chat .bubble small { color: #667781; font-size: .8rem; }
+.chat .bubble .cta { border-top: 1px solid #e3e6e3; padding-top: 9px; text-align: center; color: #027eb5; font-weight: 600; }
+.price-box { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 820px) { .price-box { grid-template-columns: 1fr; } }
+.price-card { background: var(--forest); color: #e8efe9; border-radius: 28px; padding: 34px; }
+.price-card .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid rgba(201,162,90,.3); }
+.price-card .row:last-of-type { border-bottom: 0; }
+.price-card .row b { font-family: var(--display); font-weight: 400; font-size: 2rem; color: #e0bd84; white-space: nowrap; }
+.price-card .row b small { font-family: var(--body); font-size: .9rem; color: #b9c9c0; }
+.price-card .note { color: #b9c9c0; font-size: .95rem; margin: 8px 0 24px; }
+.safe { border: 1px solid var(--rule); border-radius: 28px; padding: 34px; background: #fff; }
+.safe h3 { font-size: 1.8rem; } .safe ul { padding-left: 18px; color: var(--muted); display: grid; gap: 8px; margin: 16px 0 0; }
+</style>
+{% endblock %}
+
+{% block hero %}
+<div class="hero-m">
+  <div>
+    <p class="eyebrow crumb"><a href="/products">Products</a> · Verzio Messaging <span class="pill new" style="margin-left:6px; letter-spacing:.08em">New</span></p>
+    <h1>Your offers, read where your customers are.</h1>
+    <p class="lede">Send offers, new menus and festival greetings to the customers who know you, on WhatsApp, from your own business number. We check every campaign so your number stays safe.</p>
+    <div class="ctas">
+      <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio%20Messaging"><svg><use href="#i-wa"/></svg>Get started</a>
+      <a class="btn btn-ghost" href="#how">How it works</a>
+    </div>
+  </div>
+  <div class="chat" role="img" aria-label="Example: a cafe's weekend offer arriving on WhatsApp">
+    <div class="bubble">
+      <b>Bean There Cafe</b>
+      <span>Weekend special: double points on every coffee this Saturday and Sunday. See you soon!</span>
+      <small>Reply STOP to stop offers</small>
+      <span class="cta">View menu</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<section id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Four steps to a campaign.</h2>
+      <p>You write the offer. We handle the checking, the sending and the results.</p>
+    </div>
+    <ol class="steps">
+      <li><div class="n">1</div><h3>Write your offer</h3><p>Text, a photo and a button, previewed as your customers will see it.</p></li>
+      <li><div class="n">2</div><h3>Choose who gets it</h3><p>All customers, loyalty members, or people who visited recently.</p></li>
+      <li><div class="n">3</div><h3>We check it</h3><p>Within 24 hours, so nothing risky goes out on your number.</p></li>
+      <li><div class="n">4</div><h3>Sent at your time</h3><p>Then see how many received and read it.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="price-box">
+      <div class="price-card">
+        <p class="eyebrow">Pricing</p>
+        <div class="row" style="margin-top:10px"><span>On its own</span><b>₹2,499 <small>/ month</small></b></div>
+        <div class="row"><span>Added to Verzio Book or Loyalty</span><b>₹1,999 <small>/ month</small></b></div>
+        <div class="row"><span>Extra 500 messages</span><b>₹999</b></div>
+        <p class="note">Every plan includes 1,000 messages a month. Or take the <a href="/pricing#bundles" style="color:#e0bd84">Cafe bundle</a>: Loyalty and Messaging for ₹2,499.</p>
+        <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio%20Messaging"><svg><use href="#i-wa"/></svg>Get started</a>
+      </div>
+      <div class="safe">
+        <h3>Built to protect your number</h3>
+        <ul>
+          <li>Only customers who agreed to hear from you</li>
+          <li>Anyone can reply STOP, and never hears from you again</li>
+          <li>Every campaign checked before it goes out</li>
+          <li>A monthly limit, so there are no surprise bills</li>
+          <li>Sent at a steady pace, never all at once</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head"><h2>Questions owners ask.</h2></div>
+    <details><summary>Who can I send messages to?</summary><p>Customers who have agreed to hear from you: people who booked with you, collected loyalty points, or gave you their number for offers. You can upload a list too, as long as everyone on it agreed.</p></details>
+    <details><summary>Why do you check each campaign?</summary><p>WhatsApp limits numbers that send messages people don't want. A quick check protects your business number, which is also the number your customers use to reach you.</p></details>
+    <details><summary>What counts towards my 1,000 messages?</summary><p>Only the offers you send. Booking confirmations, reminders and replies to customers who message you first don't count.</p></details>
+    <details><summary>Do I need a new number?</summary><p>No. Messages go out from the WhatsApp Business number you already use, with your business name.</p></details>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <div class="row">
+      <h2>Bring your customers back with one message.</h2>
+      <div>
+        <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio%20Messaging"><svg><use href="#i-wa"/></svg>Get started</a>
+        <p class="contact">Or call Mohak<b>+91 82628 58396</b></p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

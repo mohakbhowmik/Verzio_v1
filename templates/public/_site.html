@@ -57,7 +57,7 @@ nav.top { display: flex; align-items: center; justify-content: space-between; pa
 @media (max-width: 860px) { .nav-links a.hide-sm { display: none; } }
 .nav-links .btn { white-space: nowrap; }
 @media (max-width: 520px) { .nav-links { gap: 14px; } .nav-links a.hide-xs { display: none; } .wordmark small { display: none; } .nav-links .btn { padding: 8px 12px; } }
-@media (max-width: 360px) { .nav-links a[href="/products"] { display: none; } }
+@media (max-width: 400px) { .nav-links a[href="/products"] { display: none; } }
 
 /* sections */
 section { padding-block: 88px; }
@@ -119,8 +119,7 @@ footer a:hover { color: #fff; }
       <a class="wordmark" href="/"><img src="/static/img/verzio-mark.svg" alt="">Verzio<small>Solutions</small></a>
       <div class="nav-links">
         <a href="/products" {% if page == 'products' %}aria-current="page"{% endif %}>Products</a>
-        <a class="hide-sm" href="/products/book" {% if page == 'book' %}aria-current="page"{% endif %}>Verzio Book</a>
-        <a class="hide-sm" href="/products/loyalty" {% if page == 'loyalty' %}aria-current="page"{% endif %}>Verzio Loyalty</a>
+        <a href="/pricing" {% if page == 'pricing' %}aria-current="page"{% endif %}>Pricing</a>
         <a class="hide-xs" href="/owner/login">Owner login</a>
         <a class="btn btn-brass" href="https://wa.me/918262858396?text={{ wa_text|default('Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio') }}">WhatsApp us</a>
       </div>
@@ -133,7 +132,7 @@ footer a:hover { color: #fff; }
 
 <footer>
   <div class="wrap">
-    <div><a href="/products">Products</a><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/owner/login">Owner login</a></div>
+    <div><a href="/products">Products</a><a href="/pricing">Pricing</a><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/owner/login">Owner login</a></div>
     <div>© 2026 Verzio Solutions · Mohak Bhowmik · +91 82628 58396</div>
   </div>
 </footer>

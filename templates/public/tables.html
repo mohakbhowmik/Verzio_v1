@@ -12,6 +12,42 @@
 .crumb a { color: #9fb4a8; text-decoration: none; } .crumb a:hover { color: #fff; }
 .note { border: 1.5px dashed #8a958f; border-radius: 22px; padding: 22px 26px; color: var(--muted); max-width: 760px; }
 .note b { color: var(--ink); }
+.plan { display: grid; grid-template-columns: 120px minmax(0, 1fr) 120px; background: #0b211b; border-radius: 22px; overflow: hidden; min-height: 320px; }
+@media (max-width: 640px) { .plan { grid-template-columns: 52px minmax(0, 1fr) 52px; } }
+.plan .park { background: #3d6a44; position: relative; }
+.plan .water { background: #2a6582; position: relative; }
+.plan .park i, .plan .water i { position: absolute; display: block; }
+.plan .park i { border-radius: 50%; background: #5d8d5b; }
+.plan .water i { height: 2px; border-radius: 2px; background: rgba(255,255,255,.35); }
+.plan .side-label { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+@media (max-width: 640px) { .plan .side-label { writing-mode: vertical-rl; } }
+.plan .room { padding: 20px 18px 34px; position: relative; }
+.plan .walls { border: 2px solid #dbe5df; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: 100%; min-height: 250px; box-sizing: border-box; }
+.plan .zone { padding: 14px; display: grid; gap: 14px; align-content: start; color: #f6f8f5; }
+.plan .zone + .zone { border-left: 1px dashed rgba(219,229,223,.45); }
+.plan .zone b { font-size: .95rem; display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; align-items: center; }
+.plan .zone small { color: #b9c9c0; font-size: .82rem; }
+.plan .zone.picked { background: rgba(201,162,90,.18); outline: 2px solid var(--brass); outline-offset: -2px; }
+.plan .zone.picked small { color: #e0bd84; }
+.plan .tbls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 8px; justify-items: center; }
+.plan .tbls span { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #9fb4a8; box-sizing: border-box; }
+.plan .tbls.sq span { width: 40px; border-radius: 4px; }
+.plan .picked .tbls span { border-color: #e0bd84; }
+.plan .picked .tbls span.taken { background: var(--brass); border-color: var(--brass); }
+.plan .zone, .plan .zone b, .plan .zone small { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .plan { grid-template-columns: 38px minmax(0, 1fr) 38px; }
+  .plan .room { padding: 14px 8px 30px; }
+  .plan .tbls { gap: 10px 4px; }
+  .plan .tbls span { width: 18px; height: 18px; } .plan .tbls.sq span { width: 22px; }
+  .plan .zone { padding: 8px 5px; gap: 10px; }
+  .plan .zone b { font-size: .74rem; } .plan .zone small { font-size: .68rem; }
+  .plan .tag { display: none; }
+}
+.plan .tag { font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; background: var(--brass); color: var(--brass-ink); padding: 3px 7px; border-radius: 999px; }
+.plan .door { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); color: #9fb4a8; font-size: .72rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+.plan .gap { position: absolute; left: 50%; bottom: 33px; width: 70px; height: 4px; transform: translateX(-50%); background: #0b211b; }
+.plan-cap { color: var(--muted); margin-top: 14px; }
 </style>
 {% endblock %}
 
@@ -33,13 +69,34 @@
       <h2>What it will do.</h2>
       <p>Built on the same engine as Verzio Book, which already runs bookings for businesses on WhatsApp.</p>
     </div>
-    <ol class="steps three">
-      <li><div class="n">1</div><h3>Pick a zone</h3><p>Indoor, outdoor, rooftop: guests choose where they sit.</p></li>
+    <div class="plan" role="img" aria-label="Floor plan of a restaurant: a park on the left, water on the right, and three zones to choose from: Park side, Centre and Waterfront. Waterfront is selected.">
+      <div class="park">
+        <i style="left:18%; top:12%; width:30px; height:30px"></i><i style="left:52%; top:26%; width:24px; height:24px"></i><i style="left:20%; top:58%; width:34px; height:34px"></i><i style="left:56%; top:74%; width:26px; height:26px"></i>
+        <span class="side-label">Park</span>
+      </div>
+      <div class="room">
+        <div class="walls">
+          <div class="zone"><b>Park side</b><div class="tbls"><span></span><span></span><span></span><span></span><span></span><span></span></div><small>12 seats</small></div>
+          <div class="zone"><b>Centre</b><div class="tbls sq"><span></span><span></span><span></span><span></span><span></span><span></span></div><small>24 seats</small></div>
+          <div class="zone picked"><b>Waterfront <span class="tag">Selected</span></b><div class="tbls"><span class="taken"></span><span></span><span></span><span class="taken"></span><span></span><span></span></div><small>8 of 12 seats free</small></div>
+        </div>
+        <span class="gap" aria-hidden="true"></span>
+        <span class="door">Entrance</span>
+      </div>
+      <div class="water">
+        <i style="right:14%; top:16%; width:56%"></i><i style="right:28%; top:24%; width:44%"></i><i style="right:12%; top:62%; width:60%"></i><i style="right:30%; top:70%; width:40%"></i><i style="right:16%; top:84%; width:52%"></i>
+        <span class="side-label">Water</span>
+      </div>
+    </div>
+    <p class="plan-cap">Guests pick a zone in the chat: by the park, in the centre or by the water. Each zone's seats are counted on their own.</p>
+
+    <ol class="steps three" style="margin-top:48px">
+      <li><div class="n">1</div><h3>Pick a zone</h3><p>Park side, centre or waterfront: guests choose where they sit.</p></li>
       <li><div class="n">2</div><h3>Party size and time</h3><p>Seats are counted per zone, so a zone is never overbooked.</p></li>
       <li><div class="n">3</div><h3>Confirm and remind</h3><p>Guests get a confirmation, and a reminder before they arrive.</p></li>
     </ol>
     <div class="note" style="margin-top:48px">
-      <b>Verzio Tables isn't available yet.</b> Restaurants that join early access get launch pricing and help shape what we build. It pairs with <a href="/products/loyalty">Verzio Loyalty</a> on the same WhatsApp number.
+      <b>Verzio Tables isn't available yet.</b> Restaurants that join early access get launch pricing and help shape what we build. It pairs with <a href="/products/loyalty">Verzio Loyalty</a> and <a href="/products/messaging">Verzio Messaging</a> on the same WhatsApp number.
     </div>
   </div>
 </section>

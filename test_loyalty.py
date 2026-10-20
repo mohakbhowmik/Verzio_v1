@@ -435,8 +435,15 @@ with TestClient(server.app) as client:
           and 'href="/products/book"' in r.text and 'href="/products/loyalty"' in r.text and 'href="/products/tables"' in r.text)
     check("homepage still answers HEAD (uptime monitors, Meta)", pub.head("/").status_code == 200)
     r = pub.get("/products/loyalty")
-    check("Loyalty product page: pilot price, join-the-pilot WhatsApp link in the menu too",
-          r.status_code == 200 and "₹799" in r.text and r.text.count("join%20the%20Verzio%20Loyalty%20pilot") >= 3)
+    check("Loyalty product page: ₹799, get-started WhatsApp link in the menu too",
+          r.status_code == 200 and "₹799" in r.text and r.text.count("start%20with%20Verzio%20Loyalty") >= 3)
+    r = pub.get("/products/messaging")
+    check("Messaging product page: ₹2,499 alone, ₹1,999 add-on, ₹999 extra pack",
+          r.status_code == 200 and all(x in r.text for x in ("₹2,499", "₹1,999", "₹999")))
+    r = pub.get("/pricing")
+    check("Pricing page: every plan, both bundles, founding offer, linked from the menu",
+          r.status_code == 200 and all(x in r.text for x in ("₹1,499", "₹3,499", "₹799", "₹2,499", "₹5,999", "Founding offer"))
+          and 'href="/pricing" aria-current="page"' in r.text)
     r = pub.get("/products/tables")
     check("Tables page says it isn't available yet", "isn't available yet" in r.text and "Coming soon" in r.text)
     check("unknown product -> 404", pub.get("/products/nope").status_code == 404)

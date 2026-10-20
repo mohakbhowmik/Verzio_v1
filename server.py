@@ -800,13 +800,19 @@ def home(request: Request):
     return templates.TemplateResponse(request=request, name="public/home.html", context={"page": "home"})
 
 
-# Product pages. Verzio Book is live, Verzio Loyalty is in pilot, Verzio Tables is coming soon.
-_PRODUCT_PAGES = {"book": "public/book.html", "loyalty": "public/loyalty.html", "tables": "public/tables.html"}
+# Product pages. Verzio Tables is coming soon; the others are on sale.
+_PRODUCT_PAGES = {"book": "public/book.html", "loyalty": "public/loyalty.html",
+                  "messaging": "public/messaging.html", "tables": "public/tables.html"}
 
 
 @app.get("/products", response_class=HTMLResponse)
 def products(request: Request):
     return templates.TemplateResponse(request=request, name="public/products.html", context={"page": "products"})
+
+
+@app.get("/pricing", response_class=HTMLResponse)
+def pricing(request: Request):
+    return templates.TemplateResponse(request=request, name="public/pricing.html", context={"page": "pricing"})
 
 
 @app.get("/products/{product}", response_class=HTMLResponse)

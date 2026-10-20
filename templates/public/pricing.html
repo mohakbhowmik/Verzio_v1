@@ -1,0 +1,103 @@
+{% extends "public/_site.html" %}
+{% block title %}Pricing · Verzio Solutions{% endblock %}
+{% block description %}Verzio pricing: Verzio Book from ₹1,499, Verzio Loyalty ₹799, Verzio Messaging ₹2,499 (₹1,999 as an add-on), bundles from ₹2,499 a month. First month free for our first 10 businesses.{% endblock %}
+
+{% block head %}
+<style>
+.page-hero { padding-block: 28px 72px; position: relative; z-index: 1; }
+.page-hero h1 { font-size: clamp(2.6rem, 6vw, 4.4rem); line-height: 1; color: #f6f8f5; margin-top: 14px; max-width: 16ch; }
+.page-hero p.lede { color: #c4d3ca; max-width: 52ch; margin-top: 18px; font-size: 1.12rem; }
+.plist { border-top: 2px solid var(--ink); }
+.plist .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: baseline; padding: 20px 0; border-bottom: 1px solid var(--rule); }
+.plist h3 { font-size: 1.6rem; }
+.plist .d { color: var(--muted); margin-top: 4px; }
+.plist .p { font-family: var(--display); font-size: 1.9rem; white-space: nowrap; }
+.plist .p small { font-family: var(--body); font-size: .9rem; color: var(--muted); }
+.plist a { color: var(--forest); font-weight: 600; text-decoration: none; font-size: .95rem; }
+.bundles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 760px) { .bundles { grid-template-columns: 1fr; } }
+.bundle { background: var(--forest); color: #e8efe9; border-radius: 24px; padding: 32px; display: grid; gap: 12px; align-content: start; }
+.bundle .p { font-family: var(--display); font-size: 2.8rem; line-height: 1; color: #e0bd84; }
+.bundle .p small { font-family: var(--body); font-size: 1rem; color: #b9c9c0; }
+.bundle p { color: #c4d3ca; }
+.bundle .save { color: #e0bd84; font-size: .92rem; font-weight: 600; }
+.extras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 760px) { .extras { grid-template-columns: 1fr; } }
+.extras div { border-top: 1px solid var(--ink); padding-top: 16px; }
+.extras b { display: block; font-weight: 600; font-size: 1.05rem; }
+.extras span { color: var(--muted); }
+.founding { border: 1px solid var(--brass); background: #faf6ee; border-radius: 20px; padding: 22px 28px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.founding h3 { font-size: 1.8rem; color: #8a6a2f; }
+.founding p { max-width: 52ch; }
+.fine { color: var(--muted); font-size: .92rem; margin-top: 18px; }
+</style>
+{% endblock %}
+
+{% block hero %}
+<div class="page-hero">
+  <p class="eyebrow">Pricing</p>
+  <h1>Start with one. Add more when you're ready.</h1>
+  <p class="lede">Simple monthly plans, no long contracts. WhatsApp message charges for the included service are covered, so there are no surprise bills.</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<section>
+  <div class="wrap">
+    <div class="plist">
+      <div class="r">
+        <div><h3>Verzio Book Basic</h3><p class="d">Up to 200 bookings a month, 5 services, one booking per time slot. <a href="/products/book">About Verzio Book</a></p></div>
+        <p class="p">₹1,499 <small>/ month</small></p>
+      </div>
+      <div class="r">
+        <div><h3>Verzio Book Pro</h3><p class="d">Up to 1,000 bookings, unlimited services, up to 10 per time slot, morning summary, Excel export.</p></div>
+        <p class="p">₹3,499 <small>/ month</small></p>
+      </div>
+      <div class="r">
+        <div><h3>Verzio Loyalty</h3><p class="d">Counter QR, points, streaks, rewards and customer wallet pages. <a href="/products/loyalty">About Verzio Loyalty</a></p></div>
+        <p class="p">₹799 <small>/ month</small></p>
+      </div>
+      <div class="r">
+        <div><h3>Verzio Messaging</h3><p class="d">1,000 offer messages a month, every campaign checked. ₹1,999 when added to Book or Loyalty. <a href="/products/messaging">About Verzio Messaging</a></p></div>
+        <p class="p">₹2,499 <small>/ month</small></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="bundles" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head"><h2>Bundles.</h2><p>Everything works on the same WhatsApp number, with one owner portal.</p></div>
+    <div class="bundles">
+      <div class="bundle">
+        <p class="eyebrow">Cafe bundle</p>
+        <p class="p">₹2,499 <small>/ month</small></p>
+        <p>Verzio Loyalty + Verzio Messaging. Reward your regulars and send them your offers.</p>
+        <span class="save">Save ₹299 a month</span>
+      </div>
+      <div class="bundle">
+        <p class="eyebrow">Growth bundle</p>
+        <p class="p">₹5,999 <small>/ month</small></p>
+        <p>Verzio Book Pro + Loyalty + Messaging. Everything, on one number.</p>
+        <span class="save">Save ₹298 a month</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="extras">
+      <div><b>Extra 500 messages</b><span>₹999, whenever you need them</span></div>
+      <div><b>Setup</b><span>₹999 one-time, done with you</span></div>
+      <div><b>Pay yearly</b><span>12 months for the price of 10</span></div>
+    </div>
+    <div class="founding" style="margin-top:44px">
+      <h3>Founding offer</h3>
+      <p>Our first 10 businesses get their <b>first month free</b> and their <b>price locked for 12 months</b>.</p>
+      <a class="btn btn-dark" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20the%20Verzio%20founding%20offer"><svg><use href="#i-wa"/></svg>Claim a spot</a>
+    </div>
+    <p class="fine">All prices per month unless stated. Taxes extra where applicable. Verzio Tables is coming soon; <a href="/products/tables">join early access</a> for launch pricing.</p>
+  </div>
+</section>
+{% endblock %}

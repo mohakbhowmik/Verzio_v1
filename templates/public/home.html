@@ -14,8 +14,9 @@
 .stack a:hover { background: rgba(255,255,255,.1); border-color: rgba(201,162,90,.6); }
 .stack b { font-size: 1.15rem; color: #f6f8f5; font-weight: 600; }
 .stack span.d { grid-column: 1 / -1; color: #b9c9c0; font-size: .95rem; }
-.products { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-@media (max-width: 900px) { .products { grid-template-columns: 1fr; } }
+.products { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 760px) { .products { grid-template-columns: 1fr; } }
+.all-prices { margin-top: 28px; display: flex; justify-content: center; }
 .prod { background: #fff; border: 1px solid var(--rule); border-radius: 24px; padding: 28px; display: flex; flex-direction: column; gap: 12px; }
 .prod.soon { background: transparent; border-style: dashed; }
 .prod h3 { font-size: 1.9rem; }
@@ -49,6 +50,7 @@
   <div class="stack" aria-label="Our products">
     <a href="/products/book"><b>Verzio Book</b><span class="pill live">Live</span><span class="d">Appointment booking for clinics, salons, spas, studios and tutors</span></a>
     <a href="/products/loyalty"><b>Verzio Loyalty</b><span class="pill new">New</span><span class="d">Points, streaks and rewards for cafes and restaurants</span></a>
+    <a href="/products/messaging"><b>Verzio Messaging</b><span class="pill new">New</span><span class="d">Offers and greetings sent to your customers, every campaign checked</span></a>
     <a href="/products/tables"><b>Verzio Tables</b><span class="pill on-dark soon">Coming soon</span><span class="d">Restaurant table booking by zone and party size</span></a>
   </div>
 </div>
@@ -75,7 +77,7 @@
         <a class="go" href="/products/book">Explore Verzio Book <svg><use href="#i-arrow"/></svg></a>
       </div>
       <div class="prod">
-        <span class="pill new" style="align-self:flex-start">New · pilot spots open</span>
+        <span class="pill new" style="align-self:flex-start">New</span>
         <h3>Verzio Loyalty</h3>
         <p class="for">For cafes, bakeries and restaurants</p>
         <ul>
@@ -83,15 +85,27 @@
           <li><svg><use href="#i-check"/></svg>Progress bars turn green when a reward unlocks</li>
           <li><svg><use href="#i-check"/></svg>Streak bonuses bring regulars back sooner</li>
         </ul>
-        <p class="price">₹799 <small>/ month, pilot price</small></p>
+        <p class="price">₹799 <small>/ month</small></p>
         <a class="go" href="/products/loyalty">Explore Verzio Loyalty <svg><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="prod">
+        <span class="pill new" style="align-self:flex-start">New</span>
+        <h3>Verzio Messaging</h3>
+        <p class="for">For any business with customers to bring back</p>
+        <ul>
+          <li><svg><use href="#i-check"/></svg>Offers, new menus and greetings on WhatsApp</li>
+          <li><svg><use href="#i-check"/></svg>Every campaign checked to keep your number safe</li>
+          <li><svg><use href="#i-check"/></svg>1,000 messages a month, no surprise bills</li>
+        </ul>
+        <p class="price">₹2,499 <small>/ month, or ₹1,999 as an add-on</small></p>
+        <a class="go" href="/products/messaging">Explore Verzio Messaging <svg><use href="#i-arrow"/></svg></a>
       </div>
       <div class="prod soon">
         <span class="pill soon" style="align-self:flex-start">Coming soon</span>
         <h3>Verzio Tables</h3>
         <p class="for">For restaurants with seating zones</p>
         <ul>
-          <li><svg><use href="#i-check"/></svg>Guests pick indoor, outdoor or rooftop</li>
+          <li><svg><use href="#i-check"/></svg>Guests pick a zone: by the park, centre, by the water</li>
           <li><svg><use href="#i-check"/></svg>Party size and time, counted per zone</li>
           <li><svg><use href="#i-check"/></svg>Confirmations and reminders on WhatsApp</li>
         </ul>
@@ -99,6 +113,7 @@
         <a class="go" href="/products/tables">Join early access <svg><use href="#i-arrow"/></svg></a>
       </div>
     </div>
+    <div class="all-prices"><a class="btn btn-line" href="/pricing">See all prices and bundles <svg><use href="#i-arrow"/></svg></a></div>
   </div>
 </section>
 
