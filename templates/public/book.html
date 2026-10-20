@@ -184,6 +184,33 @@ details p { padding-bottom: 24px; color: var(--muted); max-width: 64ch; }
 .closing .contact { color: #b9c9c0; }
 .closing .contact b { display: block; color: #f6f8f5; font-size: 1.3rem; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
 
+/* ---------- phones: tighter rhythm ---------- */
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+  section { padding-block: 44px; }
+  .hero-grid { padding-block: 12px 56px; gap: 40px; }
+  .story .after { margin-top: 18px; font-size: 1rem; }
+  .section-head { margin-bottom: 24px; gap: 10px; }
+  .section-head h2 { font-size: 1.9rem; }
+  .steps li, .steps li + li { padding: 16px 0; }
+  .steps .n { font-size: 2.2rem; }
+  .steps h3 { font-size: 1.2rem; margin-top: 6px; }
+  .steps p { margin-top: 4px; font-size: .95rem; }
+  .feat { padding-block: 14px; gap: 12px; grid-template-columns: 30px minmax(0, 1fr); }
+  .feat svg { width: 22px; height: 22px; }
+  .plan { padding: 24px; border-radius: 22px; }
+  .plan h3 { font-size: 1.7rem; }
+  .price { margin-top: 14px; }
+  .price b { font-size: 2.8rem; }
+  .plan ul { margin: 18px 0 22px; gap: 9px; }
+  summary { padding: 16px 36px 16px 0; font-size: 1.02rem; }
+  details p { padding-bottom: 16px; }
+  .closing h2 { font-size: 2.1rem; }
+  .closing .row { gap: 22px; }
+  .phone { max-width: 330px; margin-inline: auto; }
+  .thread { min-height: 360px; padding-bottom: 96px; }
+}
+
 footer { background: #0e2a23; color: #8fa699; font-size: .9rem; padding-block: 26px; }
 footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 footer a { color: #b9c9c0; text-decoration: none; margin-right: 18px; }
@@ -215,6 +242,7 @@ footer a:hover { color: #fff; }
         <a href="#pricing">Pricing</a>
         <a class="nav-login" href="/owner/login"><span class="long">Owner login</span><span class="short">Log in</span></a>
         <a class="btn btn-brass nav-wa" aria-label="WhatsApp us" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20a%20Verzio%20demo"><svg class="wa-icon" width="20" height="20"><use href="#i-wa"/></svg><span class="wa-text">WhatsApp us</span></a>
+        {% include "public/_mnav.html" %}
       </div>
     </nav>
 

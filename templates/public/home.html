@@ -28,6 +28,20 @@
 .prod .price small { font-family: var(--body); font-size: .9rem; color: var(--muted); }
 .prod .go { margin-top: auto; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--forest); text-decoration: none; }
 .prod .go svg { width: 18px; height: 18px; }
+@media (max-width: 600px) {
+  .hero-home { padding-block: 8px 48px; }
+  .hero-home .lede { margin-top: 16px; }
+  .hero-home .ctas { margin-top: 24px; gap: 10px; }
+  .stack { gap: 8px; }                 /* compact product shortcuts on phones */
+  .stack a { padding: 12px 16px; border-radius: 14px; }
+  .stack b { font-size: 1.02rem; }
+  .stack span.d { display: none; }
+  .products { gap: 14px; }
+  .prod { padding: 22px; gap: 8px; border-radius: 20px; }
+  .prod h3 { font-size: 1.6rem; }
+  .prod li { font-size: .93rem; }
+  .why-grid { gap: 18px; }
+}
 .why { background: var(--paper-2); }
 .why-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
 @media (max-width: 820px) { .why-grid { grid-template-columns: 1fr; } }

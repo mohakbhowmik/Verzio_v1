@@ -105,6 +105,24 @@ details p { padding-bottom: 22px; color: var(--muted); max-width: 64ch; }
 .closing .contact { color: #b9c9c0; margin-top: 16px; }
 .closing .contact b { display: block; color: #f6f8f5; font-size: 1.25rem; font-weight: 600; margin-top: 2px; }
 
+/* phones: tighter rhythm so pages don't feel stretched */
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+  section { padding-block: 44px; }
+  .section-head { margin-bottom: 22px; gap: 10px; }
+  .section-head h2 { font-size: 1.9rem; }
+  .btn { padding: 12px 18px; font-size: .95rem; }
+  .steps, .steps.three { grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  .steps li { padding: 16px 0 4px; }
+  .steps .n { font-size: 2rem; }
+  .steps h3 { font-size: 1.1rem; margin-top: 6px; }
+  .steps p { font-size: .9rem; margin-top: 4px; }
+  .feat { padding-block: 14px; }
+  summary { padding: 16px 36px 16px 0; font-size: 1.02rem; }
+  details p { padding-bottom: 16px; }
+  .closing h2 { font-size: 2rem; }
+  .closing .row { gap: 22px; }
+}
 footer { background: #0e2a23; color: #8fa699; font-size: .9rem; padding-block: 30px; }
 footer .wrap { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
 footer a { color: #b9c9c0; text-decoration: none; margin-right: 18px; }
@@ -128,6 +146,7 @@ footer a:hover { color: #fff; }
         <a href="/pricing" {% if page == 'pricing' %}aria-current="page"{% endif %}>Pricing</a>
         <a class="nav-login" href="/owner/login"><span class="long">Owner login</span><span class="short">Log in</span></a>
         <a class="btn btn-brass nav-wa" aria-label="WhatsApp us" href="https://wa.me/918262858396?text={{ wa_text|default('Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio') }}"><svg class="wa-icon"><use href="#i-wa"/></svg><span class="wa-text">WhatsApp us</span></a>
+        {% include "public/_mnav.html" %}
       </div>
     </nav>
     {% block hero %}{% endblock %}

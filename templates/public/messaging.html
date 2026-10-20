@@ -25,7 +25,8 @@
 .price-card .row b small { font-family: var(--body); font-size: .9rem; color: #b9c9c0; }
 .price-card .note { color: #b9c9c0; font-size: .95rem; margin: 8px 0 24px; }
 .safe { border: 1px solid var(--rule); border-radius: 28px; padding: 34px; background: #fff; }
-.safe h3 { font-size: 1.8rem; } .safe ul { padding-left: 18px; color: var(--muted); display: grid; gap: 8px; margin: 16px 0 0; }
+.safe h3 { font-size: 1.8rem; }
+@media (max-width: 600px) { .hero-m { gap: 32px; padding-block: 4px 48px; } .hero-m .lede { margin-top: 16px; } .hero-m .ctas { margin-top: 22px; gap: 10px; } .price-card, .safe { padding: 24px; border-radius: 22px; } .price-card .row b { font-size: 1.6rem; } } .safe ul { padding-left: 18px; color: var(--muted); display: grid; gap: 8px; margin: 16px 0 0; }
 </style>
 {% endblock %}
 

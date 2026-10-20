@@ -1,0 +1,43 @@
+{# Phone menu: on narrow screens the top links fold into this button, so every
+   section is one tap away, as on desktop. No JavaScript: a <details> element. #}
+<style>
+.mnav { display: none; position: static; border: 0; max-width: none; }
+.mnav > summary { list-style: none; cursor: pointer; width: 42px; height: 42px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(232,239,233,.45); display: grid; place-items: center; color: #f2f5f1; font-size: 1rem; }
+.mnav > summary::-webkit-details-marker { display: none; }
+.mnav > summary::after { content: none; }
+.mnav > summary svg { width: 20px; height: 20px; }
+.mnav .i-close { display: none; }
+.mnav[open] .i-open { display: none; }
+.mnav[open] .i-close { display: block; }
+.mnav-panel { position: fixed; top: 76px; left: 16px; right: 16px; z-index: 60; background: #0e2a23; color: #e8efe9;
+  border: 1px solid rgba(201,162,90,.35); border-radius: 20px; padding: 10px 18px 18px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.6); }
+.mnav-panel .grp { font-size: .72rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #c9a25a; padding: 12px 0 4px; }
+.mnav-panel a { display: flex !important; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid rgba(232,239,233,.1); color: #f2f5f1 !important; text-decoration: none; font-size: 1.02rem; }
+.mnav-panel a small { color: #9fb4a8; font-size: .8rem; }
+.mnav-panel a.cta { margin-top: 14px; justify-content: center; border: 0; border-radius: 999px; background: #c9a25a;
+  color: #1d1708 !important; font-weight: 600; padding: 13px 18px; }
+@media (max-width: 760px) {
+  .mnav { display: block; }
+  .nav-links > a:not(.nav-login) { display: none !important; }
+}
+</style>
+<details class="mnav">
+  <summary aria-label="Menu">
+    <svg class="i-open" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+    <svg class="i-close" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+  </summary>
+  <nav class="mnav-panel" aria-label="Menu">
+    <div class="grp">Products</div>
+    <a href="/products/book">Verzio Book <small>Bookings</small></a>
+    <a href="/products/loyalty">Verzio Loyalty <small>Rewards</small></a>
+    <a href="/products/messaging">Verzio Messaging <small>Offers</small></a>
+    <a href="/products/tables">Verzio Tables <small>Coming soon</small></a>
+    <div class="grp">Company</div>
+    <a href="/products">All products</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/owner/login">Owner login</a>
+    <a class="cta" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Verzio">WhatsApp us</a>
+  </nav>
+</details>

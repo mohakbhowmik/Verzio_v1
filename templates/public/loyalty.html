@@ -34,7 +34,8 @@
 .plan-card ul { list-style: none; padding: 0; margin: 22px 0 26px; display: grid; gap: 10px; }
 .plan-card li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; } .plan-card li svg { width: 17px; height: 17px; margin-top: 4px; color: #e0a458; }
 .fair { border: 1px solid var(--rule); border-radius: 28px; padding: 34px; background: #fff; }
-.fair h3 { font-size: 1.8rem; } .fair ul { padding-left: 18px; color: var(--muted); display: grid; gap: 8px; margin: 16px 0 0; }
+.fair h3 { font-size: 1.8rem; }
+@media (max-width: 600px) { .hero-l { gap: 32px; padding-block: 4px 48px; } .hero-l .lede { margin-top: 16px; } .hero-l .ctas { margin-top: 22px; gap: 10px; } .plan-card, .fair { padding: 24px; border-radius: 22px; } .plan-card .p { font-size: 2.8rem; } } .fair ul { padding-left: 18px; color: var(--muted); display: grid; gap: 8px; margin: 16px 0 0; }
 </style>
 {% endblock %}
 
