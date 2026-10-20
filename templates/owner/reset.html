@@ -1,0 +1,46 @@
+{% extends "owner/auth_base.html" %}
+
+{% block title %}Set a new password · Verzio{% endblock %}
+
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+
+{% if expired %}
+<div class="auth-brand">
+    <h1>This link has expired</h1>
+    <p>Reset links work once and only for 24 hours. Message us and we'll send you a new one.</p>
+</div>
+<a class="btn-verzio-primary w-100 d-inline-flex justify-content-center align-items-center gap-2 text-decoration-none"
+   href="https://wa.me/918262858396?text=Hi%2C%20my%20Verzio%20password%20reset%20link%20expired.%20My%20business%20is%3A%20">
+    <i class="bi bi-whatsapp"></i> Ask for a new link
+</a>
+<p class="mt-4 mb-0 text-center"><a href="/owner/login">Back to sign in</a></p>
+{% else %}
+<div class="auth-brand">
+    <h1>Set a new password</h1>
+    <p>Hi {{ owner_name }}. Choose a new password for your Verzio owner portal.</p>
+</div>
+
+{% if error %}
+<div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+    <i class="bi bi-exclamation-circle mt-1"></i>
+    <span>{{ error }}</span>
+</div>
+{% endif %}
+
+<form method="post" action="/owner/reset/{{ token }}">
+    <div class="mb-3">
+        <label class="form-label" for="new_password">New password</label>
+        <input type="password" id="new_password" name="new_password" class="form-control-verzio" autocomplete="new-password" minlength="8" required>
+        <div class="form-text">At least 8 characters.</div>
+    </div>
+    <div class="mb-4">
+        <label class="form-label" for="confirm_password">New password again</label>
+        <input type="password" id="confirm_password" name="confirm_password" class="form-control-verzio" autocomplete="new-password" minlength="8" required>
+    </div>
+    <button type="submit" class="btn-verzio-primary w-100">Save and sign in</button>
+</form>
+{% endif %}
+
+{% endblock %}

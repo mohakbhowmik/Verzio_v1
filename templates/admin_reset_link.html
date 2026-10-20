@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Password reset link — Verzio Admin{% endblock %}
+{% block page_title %}Password reset link{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Reset link for {{ owner.full_name }}</h1>
+    <p class="page-subtitle">{{ business.name }} · {{ owner.email }}{% if owner.phone_number %} · {{ owner.phone_number }}{% endif %}</p>
+  </div>
+</div>
+
+<div class="card" style="max-width: 680px; padding: 22px 24px">
+  <p class="mb-2">Send this link to the owner. It works <b>once</b>, for <b>{{ hours }} hours</b>. Any older link for this owner has stopped working.</p>
+  <p class="mb-3 text-muted small">Only send it to the owner's own number. Anyone with the link can set the password.</p>
+  <label class="form-label small fw-bold" for="reset-url">Link</label>
+  <input id="reset-url" type="text" class="form-control mono mb-3" value="{{ url }}" readonly onclick="this.select()">
+  <div class="d-flex gap-2 flex-wrap">
+    {% if wa_link %}<a class="btn btn-success" href="{{ wa_link }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i> Send on WhatsApp</a>{% endif %}
+    <a class="btn btn-outline-secondary" href="/admin/businesses">Back to businesses</a>
+  </div>
+</div>
+{% endblock %}

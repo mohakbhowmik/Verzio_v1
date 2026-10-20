@@ -42,9 +42,19 @@ def _is_browser_page(request: Request) -> bool:
     return "text/html" in (request.headers.get("accept") or "")
 
 
+def password_matches(password: str) -> bool:
+    """The password set in Admin -> Password if there is one, otherwise ADMIN_PASSWORD from .env."""
+    from account_security import stored_admin_hash
+    from owner.owner_auth import verify_password
+    stored = stored_admin_hash()
+    if stored:
+        return verify_password(password or "", stored)
+    return hmac.compare_digest((password or "").encode("utf-8"), ADMIN_PASSWORD.encode("utf-8"))
+
+
 def credentials_match(username: str, password: str) -> bool:
     user_ok = hmac.compare_digest((username or "").encode("utf-8"), ADMIN_USERNAME.encode("utf-8"))
-    pass_ok = hmac.compare_digest((password or "").encode("utf-8"), ADMIN_PASSWORD.encode("utf-8"))
+    pass_ok = password_matches(password)
     return user_ok and pass_ok
 
 
@@ -64,8 +74,9 @@ def _basic_valid(auth_header: str | None) -> bool:
 # ------------------------------------------------------------------------
 
 def _password_fingerprint() -> str:
-    # Changing ADMIN_PASSWORD signs everyone out.
-    return hashlib.sha256(ADMIN_PASSWORD.encode("utf-8")).hexdigest()[:16]
+    # Changing the admin password (in Admin -> Password or in .env) signs everyone out.
+    from account_security import stored_admin_hash
+    return hashlib.sha256((stored_admin_hash() or ADMIN_PASSWORD).encode("utf-8")).hexdigest()[:16]
 
 
 def _sign(exp: int) -> str:

@@ -64,7 +64,15 @@ nav.top { display: flex; align-items: center; justify-content: space-between; pa
 .nav-links a:hover { color: #fff; }
 .nav-links .btn { padding: 10px 18px; font-size: .92rem; }
 .nav-links a.btn-brass, .nav-links a.btn-brass:hover { color: var(--brass-ink); }
-@media (max-width: 760px) { .nav-links a:not(.btn) { display: none; } }
+@media (max-width: 760px) { .nav-links a:not(.btn):not(.nav-login) { display: none; } .nav-links { gap: 14px; } }
+.nav-login .short, .nav-wa .wa-icon { display: none; }
+@media (max-width: 760px) {
+  .nav-login { border: 1px solid rgba(232,239,233,.45); border-radius: 999px; padding: 7px 14px; color: #f2f5f1 !important; }
+}
+@media (max-width: 520px) {
+  .nav-login .long { display: none; } .nav-login .short { display: inline; }
+  .nav-wa { padding: 9px !important; } .nav-wa .wa-text { display: none; } .nav-wa .wa-icon { display: block; }
+}
 .nav-links .btn { white-space: nowrap; }
 @media (max-width: 520px) { .wordmark small { display: none; } }
 
@@ -205,8 +213,8 @@ footer a:hover { color: #fff; }
         <a href="/products">Products</a>
         <a href="#how">How it works</a>
         <a href="#pricing">Pricing</a>
-        <a href="/owner/login">Owner login</a>
-        <a class="btn btn-brass" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20a%20Verzio%20demo">WhatsApp us</a>
+        <a class="nav-login" href="/owner/login"><span class="long">Owner login</span><span class="short">Log in</span></a>
+        <a class="btn btn-brass nav-wa" aria-label="WhatsApp us" href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20a%20Verzio%20demo"><svg class="wa-icon" width="20" height="20"><use href="#i-wa"/></svg><span class="wa-text">WhatsApp us</span></a>
       </div>
     </nav>
 

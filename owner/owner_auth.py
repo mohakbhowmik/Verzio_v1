@@ -62,7 +62,15 @@ def verify_password(password: str, stored_hash: str) -> bool:
 # Session Token Utilities (HMAC Signed Tokens)
 # ------------------------------------------------------------------------
 
-def create_session_token(owner_id: int, remember_me: bool = False) -> Tuple[str, Optional[int]]:
+def _signature(owner_id: int, exp: int, password_hash: str) -> str:
+    # The password hash is part of what is signed, so changing the password
+    # signs the owner out everywhere else.
+    from account_security import fingerprint
+    payload = f"{owner_id}:{exp}:{fingerprint(password_hash)}"
+    return hmac.new(SECRET_KEY.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def create_session_token(owner_id: int, remember_me: bool = False, password_hash: Optional[str] = None) -> Tuple[str, Optional[int]]:
     """
     Generate an HMAC-signed session token string.
     Returns (token, max_age_in_seconds).
@@ -70,11 +78,15 @@ def create_session_token(owner_id: int, remember_me: bool = False) -> Tuple[str,
     duration = 30 * 86400 if remember_me else 86400
     exp = int(time.time()) + duration
     payload = f"{owner_id}:{exp}"
-    signature = hmac.new(
-        SECRET_KEY.encode("utf-8"),
-        payload.encode("utf-8"),
-        hashlib.sha256
-    ).hexdigest()
+    if password_hash is None:
+        from database import SessionLocal
+        db = SessionLocal()
+        try:
+            owner = db.get(Owner, owner_id)
+            password_hash = owner.password_hash if owner else ""
+        finally:
+            db.close()
+    signature = _signature(owner_id, exp, password_hash)
     token = f"{payload}:{signature}"
     max_age = duration if remember_me else None
     return token, max_age
@@ -114,20 +126,12 @@ def verify_session_token(token: str, db: Session) -> Optional[Owner]:
         if time.time() > exp:
             return None
 
-        payload = f"{owner_id}:{exp}"
-        expected_sig = hmac.new(
-            SECRET_KEY.encode("utf-8"),
-            payload.encode("utf-8"),
-            hashlib.sha256
-        ).hexdigest()
-
-        if not hmac.compare_digest(signature, expected_sig):
-            return None
-
         owner = db.get(Owner, owner_id)
-        if owner and owner.is_active:
-            return owner
-        return None
+        if not owner or not owner.is_active:
+            return None
+        if not hmac.compare_digest(signature, _signature(owner_id, exp, owner.password_hash)):
+            return None
+        return owner
     except Exception as e:
         logger.debug(f"Session token verification error: {e}")
         return None
@@ -219,7 +223,7 @@ async def login_action(
             context={"request": request, "error": "Invalid email/phone or password."},
         )
 
-    token, max_age = create_session_token(owner.id, remember_me=is_remember)
+    token, max_age = create_session_token(owner.id, remember_me=is_remember, password_hash=owner.password_hash)
     response = RedirectResponse(url="/owner/dashboard", status_code=303)
     set_session_cookie(response, request, token, max_age)
     logger.info(f"Owner #{owner.id} ('{owner.full_name}') logged in successfully.")
@@ -231,4 +235,91 @@ async def logout_action():
     """Destroy session and redirect to login."""
     response = RedirectResponse(url="/owner/login", status_code=303)
     response.delete_cookie(SESSION_COOKIE_NAME)
+    return response
+
+
+# ------------------------------------------------------------------------
+# Change password (signed in) and reset by one-time link (see account_security.py)
+# ------------------------------------------------------------------------
+
+def _password_page(request: Request, owner: Optional[Owner], business: Optional[Business], **extra):
+    return templates.TemplateResponse(request=request, name="owner/password.html",
+                                      context={"request": request, "owner": owner, "business": business, **extra})
+
+
+@router.get("/password")
+async def password_page(request: Request, db: Session = Depends(get_db)):
+    owner, business, redirect = get_current_business_or_redirect(request, db)
+    if redirect:
+        return redirect
+    return _password_page(request, owner, business, done=request.query_params.get("done") == "1")
+
+
+@router.post("/password")
+async def change_password(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_password: str = Form(""),
+    new_password: str = Form(""),
+    confirm_password: str = Form(""),
+):
+    from account_security import MIN_OWNER_PASSWORD, password_problem
+    owner, business, redirect = get_current_business_or_redirect(request, db)
+    if redirect:
+        return redirect
+    if not verify_password(current_password.strip(), owner.password_hash):
+        return _password_page(request, owner, business, error="Your current password isn't right.")
+    problem = password_problem(new_password, confirm_password, MIN_OWNER_PASSWORD)
+    if problem is None and verify_password(new_password, owner.password_hash):
+        problem = "Choose a password you haven't used here before."
+    if problem:
+        return _password_page(request, owner, business, error=problem)
+    owner.password_hash = hash_password(new_password)
+    db.commit()
+    logger.info("Owner #%s changed their password", owner.id)
+    token, max_age = create_session_token(owner.id, remember_me=True, password_hash=owner.password_hash)
+    response = RedirectResponse(url="/owner/password?done=1", status_code=303)
+    set_session_cookie(response, request, token, max_age)    # this device stays signed in
+    return response
+
+
+@router.get("/forgot")
+async def forgot_page(request: Request):
+    return templates.TemplateResponse(request=request, name="owner/forgot.html", context={"request": request})
+
+
+def _reset_page(request: Request, token: str, **extra):
+    return templates.TemplateResponse(request=request, name="owner/reset.html",
+                                      context={"request": request, "token": token, **extra},
+                                      headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
+@router.get("/reset/{token}")
+async def reset_page(token: str, request: Request, db: Session = Depends(get_db)):
+    from account_security import valid_reset_link
+    link = valid_reset_link(db, token)
+    owner = db.get(Owner, link.owner_id) if link else None
+    if not owner or not owner.is_active:
+        return _reset_page(request, token, expired=True)
+    return _reset_page(request, token, owner_name=owner.full_name)
+
+
+@router.post("/reset/{token}")
+async def reset_action(token: str, request: Request, db: Session = Depends(get_db),
+                       new_password: str = Form(""), confirm_password: str = Form("")):
+    from account_security import MIN_OWNER_PASSWORD, password_problem, valid_reset_link
+    link = valid_reset_link(db, token)
+    owner = db.get(Owner, link.owner_id) if link else None
+    if not owner or not owner.is_active:
+        return _reset_page(request, token, expired=True)
+    problem = password_problem(new_password, confirm_password, MIN_OWNER_PASSWORD)
+    if problem:
+        return _reset_page(request, token, owner_name=owner.full_name, error=problem)
+    owner.password_hash = hash_password(new_password)
+    link.used_at = datetime.utcnow()
+    db.commit()
+    logger.info("Owner #%s set a new password with a reset link", owner.id)
+    token_, max_age = create_session_token(owner.id, remember_me=False, password_hash=owner.password_hash)
+    response = RedirectResponse(url="/owner/dashboard", status_code=303)
+    set_session_cookie(response, request, token_, max_age)
     return response

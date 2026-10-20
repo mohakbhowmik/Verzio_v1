@@ -406,7 +406,7 @@ def impersonate_business_owner(
         business_id=business_id,
     )
 
-    token, max_age = create_session_token(owner.id)
+    token, max_age = create_session_token(owner.id, password_hash=owner.password_hash)
     response = RedirectResponse(url="/owner/dashboard", status_code=303)
     set_session_cookie(response, request, token, max_age)
     return response

@@ -38,6 +38,8 @@ def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 def login(request: Request, username: str = Form(""), password: str = Form(""), next: str = Form("/admin")):
+    from account_security import refresh_admin_hash
+    refresh_admin_hash()            # picks up reset_admin_password.py without a restart
     ip = client_ip(request)
     next_url = _safe_next(next)
     if locked_out(ip):

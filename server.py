@@ -58,6 +58,7 @@ from customer_inbox import MEDIA_LABELS, classify_text, save_message, take_unfor
 from customer_inbox import ensure_tables as ensure_inbox_tables
 from reschedule import ensure_tables as ensure_reschedule_tables
 from loyalty.models import ensure_tables as ensure_loyalty_tables
+from account_security import ensure_tables as ensure_security_tables
 from loyalty import bot as loyalty_bot
 from whatsapp_client import (
     build_status_message,
@@ -81,6 +82,7 @@ from routers.admin_appointments import router as appointments_router
 from routers.admin_subscriptions import router as subscriptions_router
 from routers.admin_messages import router as messages_router
 from routers.admin_login import router as admin_login_router
+from routers.admin_security import router as admin_security_router
 from routers.whatsapp_onboarding import admin_router as whatsapp_admin_router
 from routers.whatsapp_onboarding import public_router as onboarding_router
 from whatsapp_accounts import (
@@ -149,6 +151,7 @@ app.middleware("http")(admin_auth_middleware)
 # Verzio Loyalty: "loyalty only" owners never see Verzio Book pages.
 app.middleware("http")(loyalty_only_guard)
 
+app.include_router(admin_security_router)
 app.include_router(business_router)
 app.include_router(services_router)
 app.include_router(system_router)
@@ -192,6 +195,7 @@ def startup() -> None:
     ensure_inbox_tables()
     ensure_reschedule_tables()
     ensure_loyalty_tables()
+    ensure_security_tables()
     _normalize_manager_numbers()
     if scheduler.enabled():
         app.state.scheduler_task = asyncio.create_task(scheduler.run_forever())

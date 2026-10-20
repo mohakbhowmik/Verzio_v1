@@ -1,0 +1,21 @@
+{% extends "owner/auth_base.html" %}
+
+{% block title %}Forgot password · Verzio{% endblock %}
+
+{% block content %}
+
+<div class="auth-brand">
+    <h1>Forgot your password?</h1>
+    <p>No problem. Message us on WhatsApp from your registered number and we'll send you a link to set a new one.</p>
+</div>
+
+<a class="btn-verzio-primary w-100 d-inline-flex justify-content-center align-items-center gap-2 text-decoration-none"
+   href="https://wa.me/918262858396?text=Hi%2C%20I%20forgot%20my%20Verzio%20owner%20password.%20My%20business%20is%3A%20">
+    <i class="bi bi-whatsapp"></i> Message Verzio on WhatsApp
+</a>
+
+<p class="mt-3 small text-muted">The link works once and expires after 24 hours. For your security, we only send it to the owner's number we have on file.</p>
+
+<p class="mt-4 mb-0 text-center"><a href="/owner/login">Back to sign in</a></p>
+
+{% endblock %}

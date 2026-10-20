@@ -64,6 +64,11 @@
               </button>
             </form>
 
+            <form method="post" action="/admin/businesses/{{ b.id }}/reset-password" class="m-0 d-inline-flex"
+                  onsubmit="return confirm('Create a one-time password reset link for this owner?');">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Reset password</button>
+            </form>
+
             <a href="/admin/whatsapp/{{ b.id }}" class="btn btn-sm btn-outline-success">
               WhatsApp
             </a>
