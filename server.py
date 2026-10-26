@@ -25,6 +25,9 @@ VERZIO STUDIO — APPLICATION ENTRY POINT
 - LY:  Verzio Loyalty (loyalty/). Off unless switched on in Admin -> Loyalty;
        then STAMP / WALLET / CLAIM messages are answered by loyalty/bot.py
        and everything else reaches the booking bot as before.
+- TB:  Verzio Tables (tables/). Off unless switched on in Admin -> Products;
+       then tables/bot.py handles every message except loyalty commands, and
+       the Book bot never answers on that number.
 """
 import asyncio
 import hashlib
@@ -60,6 +63,8 @@ from reschedule import ensure_tables as ensure_reschedule_tables
 from loyalty.models import ensure_tables as ensure_loyalty_tables
 from account_security import ensure_tables as ensure_security_tables
 from loyalty import bot as loyalty_bot
+from tables import bot as tables_bot
+from tables.models import ensure_tables as ensure_tables_tables
 from whatsapp_client import (
     build_status_message,
     build_customer_cancelled_template,
@@ -104,6 +109,9 @@ from loyalty.owner import router as loyalty_owner_router
 from loyalty.wallet import router as loyalty_wallet_router
 from loyalty.admin import router as loyalty_admin_router
 from loyalty.owner import loyalty_only_guard
+from tables.owner import router as tables_owner_router
+from tables.owner import tables_guard
+from tables.page import router as tables_page_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("VERZIO_SERVER")
@@ -150,6 +158,8 @@ app = FastAPI(
 app.middleware("http")(admin_auth_middleware)
 # Verzio Loyalty: "loyalty only" owners never see Verzio Book pages.
 app.middleware("http")(loyalty_only_guard)
+# Verzio Tables: door staff stay on Tonight; Tables businesses never see Verzio Book pages.
+app.middleware("http")(tables_guard)
 
 app.include_router(admin_security_router)
 app.include_router(business_router)
@@ -171,6 +181,8 @@ app.include_router(owner_reports_router)
 app.include_router(loyalty_owner_router)
 app.include_router(loyalty_wallet_router)
 app.include_router(loyalty_admin_router)
+app.include_router(tables_owner_router)
+app.include_router(tables_page_router)
 
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -195,6 +207,7 @@ def startup() -> None:
     ensure_inbox_tables()
     ensure_reschedule_tables()
     ensure_loyalty_tables()
+    ensure_tables_tables()
     ensure_security_tables()
     _normalize_manager_numbers()
     if scheduler.enabled():
@@ -653,6 +666,11 @@ async def process_message(val: dict, msg: dict) -> None:
 
         log_event(db=db, event_type="webhook_received", status="info",
                   message=f"Incoming {msg_type} message", business_id=business_id)
+
+        # Verzio Tables: off unless switched on in Admin -> Products. When on, it handles
+        # every message except loyalty commands, so the Book bot stays out of it.
+        if await tables_bot.handle_message(db, biz, tenant_id, sender, msg, val):
+            return
 
         # Verzio Loyalty: off unless switched on for this business in Admin -> Loyalty.
         # Loyalty messages (STAMP code, WALLET, CLAIM) are answered there; everything

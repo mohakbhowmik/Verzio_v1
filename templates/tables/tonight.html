@@ -1,0 +1,157 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>{{ day_label }}{% if not is_today %} <span class="loy-muted" style="font-size:18px">{{ day.strftime('%a %d %b') }}</span>{% endif %}</h1>
+    <p>{% if role == 'owner' %}Bookings at {{ business.name }}. Tap Arrived as guests come in.{% else %}Tap Arrived as guests come in.{% endif %}</p>
+  </div>
+  <div class="tb-day">
+    <a class="loy-btn ghost small" href="/owner/tables?day={{ prev }}" aria-label="Previous day"><i class="bi bi-chevron-left"></i></a>
+    {% if not is_today %}<a class="loy-btn ghost small" href="/owner/tables">Today</a>{% endif %}
+    <a class="loy-btn ghost small" href="/owner/tables?day={{ next }}" aria-label="Next day"><i class="bi bi-chevron-right"></i></a>
+  </div>
+</div>
+
+{% if role == 'owner' and not zones %}
+<div class="loy-setup" aria-label="Getting started">
+  <a class="loy-step" href="/owner/tables/plan"><i class="bi bi-1-circle"></i><span>Draw your floor plan</span></a>
+  <a class="loy-step" href="/owner/tables/settings#share"><i class="bi bi-2-circle"></i><span>Put your booking link on Google Maps</span></a>
+  <a class="loy-step" href="/owner/tables/settings#staff"><i class="bi bi-3-circle"></i><span>Add a login for the door</span></a>
+</div>
+{% endif %}
+
+<div class="tb-counts">
+  <div class="loy-stat"><b>{{ counts.bookings }}</b><span>bookings</span></div>
+  <div class="loy-stat"><b>{{ counts.guests }}</b><span>guests expected</span></div>
+  <div class="loy-stat"><b>{{ counts.arrived }}</b><span>arrived</span></div>
+  <div class="loy-stat"><b>{{ counts.waiting }}</b><span>still to come</span></div>
+</div>
+
+{% if live %}
+<div class="tb-live" aria-label="Right now">
+  {% for l in live %}
+  {% set pct = ((l.used / l.cap * 100) if l.cap else 0) | round | int %}
+  <div>
+    <b>{{ l.zone.name }}</b>
+    <span class="loy-meta">{% if not l.zone.is_active %}Closed{% else %}{{ l.used }} of {{ l.cap }} {{ 'tables' if l.zone.kind == 'tables' else 'guests' }} in use{% endif %}</span>
+    <div class="tb-meter"><i class="{{ 'hot' if pct >= 75 }}" style="width: {{ [pct, 100] | min }}%"></i></div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if pending and role == 'owner' %}
+<section class="loy-card mb-2" style="border-color: var(--brass)">
+  <h2><i class="bi bi-hourglass-split me-1"></i> Waiting for your OK</h2>
+  <p class="sub">Big groups need your answer. The guest is told on WhatsApp straight away.</p>
+  <ul class="loy-list">
+    {% for b in pending %}
+    <li>
+      <div><b>{{ b.name or 'Guest' }}</b>, {{ b.party }} people, {{ clock(b.start_at) }}, {{ b.zone.name if b.zone else '' }}
+        <div class="loy-meta">+{{ b.phone }}</div></div>
+      <div class="tb-acts">
+        <form method="post" action="/owner/tables/bookings/{{ b.id }}/approve"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small" type="submit">Accept</button></form>
+        <form method="post" action="/owner/tables/bookings/{{ b.id }}/decline"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small danger" type="submit">Decline</button></form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if not groups %}
+<div class="loy-card"><h2>No bookings {{ 'yet' if is_today else 'for this day' }}</h2>
+  <p class="sub mb-0">WhatsApp bookings appear here the moment a guest books. Add walk-ins and phone bookings below.</p></div>
+{% endif %}
+
+{% for time, rows in groups %}
+<div class="tb-time">{{ time }}</div>
+{% for b in rows %}
+{% set is_late = b.id in late %}
+<div class="tb-row {{ 'arrived' if b.status == 'arrived' }} {{ 'done' if b.status in ('cancelled', 'declined', 'no_show') }} {{ 'late' if is_late }}" id="b{{ b.id }}">
+  <div class="tb-who">
+    <b>{{ b.name or ('Walk-in' if b.source == 'walkin' else 'Guest') }}</b>
+    <span class="tb-badge {{ b.status }}">{{ labels[b.status] }}</span>
+    {% if is_late %}<span class="tb-badge late">Late: table released</span>{% endif %}
+    {% if b.guest_reply == 'coming' and b.status == 'confirmed' %}<span class="tb-badge arrived">Said they're coming</span>{% endif %}
+    {% if b.source == 'walkin' %}<span class="tb-badge">Walk-in</span>{% elif b.source == 'staff' %}<span class="tb-badge">Phone</span>{% endif %}
+    <div class="loy-meta">{{ b.party }} {{ 'person' if b.party == 1 else 'people' }}, {{ b.zone.name if b.zone else '' }}{% if b.zone and b.zone.kind == 'tables' and b.tables_used > 1 %} ({{ b.tables_used }} tables joined){% endif %}
+      {% if b.phone %} · <a href="tel:+{{ b.phone }}">Call</a> · <a href="https://wa.me/{{ b.phone }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}</div>
+  </div>
+  <div class="tb-acts">
+    {% if b.status in ('confirmed', 'pending') %}
+      <form method="post" action="/owner/tables/bookings/{{ b.id }}/arrived"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small" type="submit" style="background:var(--status-green);border-color:var(--status-green)"><i class="bi bi-check2"></i> Arrived</button></form>
+      {% if b.status == 'confirmed' %}<form method="post" action="/owner/tables/bookings/{{ b.id }}/no_show"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small ghost" type="submit">No-show</button></form>{% endif %}
+      {% if role == 'owner' %}<form method="post" action="/owner/tables/bookings/{{ b.id }}/cancel" onsubmit="return confirm('Cancel this booking? The guest will be told on WhatsApp.')"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small danger" type="submit">Cancel</button></form>{% endif %}
+    {% elif b.status == 'arrived' %}
+      {% if b.source != 'walkin' %}
+      <form method="post" action="/owner/tables/bookings/{{ b.id }}/bill" class="tb-bill">
+        <input type="hidden" name="day" value="{{ day }}">
+        <input class="form-control-verzio" name="bill" inputmode="numeric" placeholder="Bill ₹" value="{{ b.bill_amount or '' }}" aria-label="Final bill in rupees">
+        <button class="loy-btn small ghost" type="submit">Save</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/owner/tables/bookings/{{ b.id }}/undo"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small ghost" type="submit" title="Marked by mistake">Undo</button></form>
+    {% elif b.status == 'no_show' %}
+      <form method="post" action="/owner/tables/bookings/{{ b.id }}/arrived"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small ghost" type="submit">They came</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endfor %}
+
+{% if waitlist %}
+<section class="loy-card mt-4 loy-anchor" id="waitlist">
+  <h2><i class="bi bi-hourglass me-1"></i> Waitlist</h2>
+  <p class="sub">When a table frees up, the first guest who fits gets a WhatsApp to book it.</p>
+  <ul class="loy-list">
+    {% for w in waitlist %}
+    <li>
+      <div><b>{{ w.name or 'Guest' }}</b>, {{ w.party }} people for {{ clock(w.start_at) }}
+        <div class="loy-meta">{{ 'Offered a table' if w.status == 'offered' else 'Waiting' }} · +{{ w.phone }}</div></div>
+      <form method="post" action="/owner/tables/waitlist/{{ w.id }}/remove"><input type="hidden" name="day" value="{{ day }}"><button class="loy-btn small ghost" type="submit">Remove</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if zones %}
+<details class="loy-card mt-4 tb-add loy-anchor" id="add" {% if not groups %}open{% endif %}>
+  <summary><i class="bi bi-plus-circle me-1"></i> Add a walk-in or a phone booking</summary>
+  <form method="post" action="/owner/tables/add" class="mt-3" id="addForm">
+    <input type="hidden" name="day" value="{{ day }}">
+    <div class="loy-radio">
+      <label><input type="radio" name="kind" value="walkin" checked> Walk-in, seated now</label>
+      <label><input type="radio" name="kind" value="phone"> Booking for later (phone call)</label>
+    </div>
+    <div class="loy-fields">
+      <div><label for="a-party">Guests</label><input id="a-party" class="form-control-verzio" name="party" type="number" min="1" max="{{ settings.max_party }}" value="2" required></div>
+      <div><label for="a-zone">Area</label>
+        <select id="a-zone" class="form-control-verzio" name="zone_id" required>
+          {% for z in zones if z.is_active %}<option value="{{ z.id }}">{{ z.name }}</option>{% endfor %}
+        </select></div>
+      <div data-phone-only hidden><label for="a-at">Time</label>
+        <select id="a-at" class="form-control-verzio" name="at">
+          {% for v, l in slot_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+        </select></div>
+      <div><label for="a-name">Name (optional)</label><input id="a-name" class="form-control-verzio" name="name" maxlength="60"></div>
+      <div><label for="a-phone">Phone <span data-walkin-only>(optional)</span></label><input id="a-phone" class="form-control-verzio" name="phone" inputmode="tel" placeholder="98765 43210"></div>
+    </div>
+    <label class="loy-hint mt-2" data-phone-only hidden style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="notify" value="1" checked> Send the guest a WhatsApp confirmation and reminder</label>
+    <button class="loy-btn mt-3" type="submit">Add</button>
+  </form>
+</details>
+<script>
+(() => {
+  const f = document.getElementById("addForm"); if (!f) return;
+  const sync = () => {
+    const phone = f.kind.value === "phone";
+    f.querySelectorAll("[data-phone-only]").forEach(e => { e.hidden = !phone; if (e.tagName === "LABEL") e.style.display = phone ? "flex" : "none"; });
+    f.querySelectorAll("[data-walkin-only]").forEach(e => e.hidden = phone);
+  };
+  f.querySelectorAll("input[name=kind]").forEach(r => r.addEventListener("change", sync)); sync();
+})();
+</script>
+{% endif %}
+{% endblock %}

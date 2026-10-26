@@ -20,7 +20,8 @@
         ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
         ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
         ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
-    ] + ([("book", "/owner/dashboard", "bi-calendar3", "Book")] if has_book else []) %}
+    ] + ([("book", "/owner/dashboard", "bi-calendar3", "Book")] if has_book else [])
+      + ([("tables", "/owner/tables", "bi-calendar2-check", "Tables")] if has_tables else []) %}
 
     <header class="m-header">
         <a class="sidebar-brand text-decoration-none" href="/owner/loyalty" aria-label="Verzio Loyalty home">

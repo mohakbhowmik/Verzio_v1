@@ -356,8 +356,10 @@ async def tick() -> dict:
     db = SessionLocal()
     result = {}
     try:
+        from tables.jobs import run as tables_jobs        # Verzio Tables (tables/jobs.py)
         for name, job in (("reminders", send_reminders), ("pending", handle_pending),
-                          ("summaries", send_morning_summaries), ("plan_usage", check_plan_usage)):
+                          ("summaries", send_morning_summaries), ("plan_usage", check_plan_usage),
+                          ("tables", tables_jobs)):
             try:
                 result[name] = await job(db)
             except Exception:
@@ -374,7 +376,7 @@ async def run_forever() -> None:
     while True:
         try:
             result = await tick()
-            if any(v for v in result.values() if v not in (0, (0, 0))):
+            if any(v for v in result.values() if v not in (0, (0, 0)) and not (isinstance(v, dict) and not any(v.values()))):
                 logger.info("Scheduler tick: %s", result)
         except Exception:
             logger.exception("Scheduler tick failed")

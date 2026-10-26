@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include "tables/_guest_head.html" %}
+<title>Book a table · {{ biz.name }}</title>
+<style>
+  .who { color: var(--muted); font-size: .85rem; margin-top: 10px; }
+  h2 { font-size: 1rem; font-weight: 700; margin: 30px 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  h2 small { font-weight: 500; color: var(--muted); font-size: .82rem; }
+  .err { background: #3b2422; border: 1px solid #6e3a35; color: var(--err); border-radius: 12px; padding: 11px 13px; margin-top: 18px; font-size: .92rem; }
+
+  .scroller { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 6px; scroll-snap-type: x proximity; }
+  .scroller::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; scroll-snap-align: start; border: 1px solid var(--line); background: var(--deck); color: var(--ink); border-radius: 12px; padding: 9px 13px; cursor: pointer; text-align: left; line-height: 1.2; }
+  .chip small { display: block; color: var(--muted); font-size: .76rem; margin-top: 2px; }
+  .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+  .chip[aria-pressed="true"] small { color: #5b4220; }
+  .times .chip { min-width: 78px; text-align: center; font-weight: 600; }
+  .none { color: var(--muted); font-size: .9rem; padding: 8px 0; }
+
+  .party { display: flex; align-items: center; gap: 14px; }
+  .step { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line); background: var(--deck); color: var(--ink); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+  .step:disabled { opacity: .35; cursor: default; }
+  .count { font-family: var(--serif); font-size: 2.4rem; min-width: 64px; text-align: center; font-variant-numeric: lining-nums; }
+  .count-label { color: var(--muted); font-size: .9rem; }
+
+  /* The floor plan: the one place this page spends its boldness. */
+  .plan { position: relative; border: 2px solid #cfd9d2; border-radius: 6px; padding: 8px; background-color: #132f24;
+          background-image: radial-gradient(rgba(207,217,210,.16) 1px, transparent 1.2px); background-size: calc(100% / {{ cols }}) calc(100% / {{ rows }}); }
+  .plan::after { content: ""; position: absolute; left: 50%; bottom: -2px; width: 22%; transform: translateX(-50%); border-bottom: 2px solid var(--night); }
+  .door { position: absolute; left: 50%; bottom: -1.6em; transform: translateX(-50%); color: var(--muted); font-size: .72rem; }
+  .grid { display: grid; grid-template-columns: repeat({{ cols }}, 1fr); grid-template-rows: repeat({{ rows }}, minmax(34px, 1fr)); gap: 6px; aspect-ratio: {{ cols }} / {{ rows * 1.15 }}; }
+  .zone { position: relative; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(31,72,56,.75); color: var(--ink); padding: 7px 8px; text-align: left; cursor: pointer;
+          display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; min-width: 0; transition: background-color .2s, border-color .2s, transform .12s; }
+  .zone b { font-size: .86rem; line-height: 1.15; overflow-wrap: anywhere; }
+  .zone span { font-size: .72rem; color: var(--muted); line-height: 1.2; margin-top: 2px; overflow-wrap: anywhere; }
+  .zone .state { margin-top: auto; font-weight: 600; font-size: .72rem; }
+  .zone.free { background: rgba(95,191,140,.2); border-color: var(--free); }
+  .zone.free .state { color: var(--free); }
+  .zone.few { background: rgba(227,174,75,.18); border-color: var(--few); }
+  .zone.few .state { color: var(--few); }
+  .zone.full, .zone.off, .zone.small { background: rgba(79,95,88,.35); border-color: var(--full); border-style: dashed; color: #b9c5bf; }
+  .zone.full .state, .zone.off .state, .zone.small .state { color: #9aaaa2; }
+  .zone:active { transform: scale(.98); }
+  .zone[aria-pressed="true"] { outline: 3px solid var(--brass); outline-offset: 2px; }
+  .zone[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 5px; right: 7px; width: 20px; height: 20px; border-radius: 50%; background: var(--brass); color: var(--brass-ink); font-size: .75rem; font-weight: 700; display: grid; place-items: center; }
+  .plan.loading .zone { opacity: .55; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: .8rem; margin-top: 30px; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+
+  .name { width: 100%; background: var(--deck); border: 1px solid var(--line); color: var(--ink); border-radius: 12px; padding: 13px 14px; font-size: 1rem; }
+  .note { background: rgba(211,167,104,.12); border: 1px solid rgba(211,167,104,.35); color: #ecd2a8; border-radius: 12px; padding: 10px 13px; font-size: .88rem; margin-top: 14px; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(16,41,31,.96); backdrop-filter: blur(8px); border-top: 1px solid var(--line);
+         padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .bar-in { max-width: 560px; margin: 0 auto; display: flex; gap: 12px; align-items: center; }
+  .summary { flex: 1; min-width: 0; font-size: .86rem; color: var(--muted); line-height: 1.3; }
+  .summary b { color: var(--ink); display: block; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .go { border: 0; border-radius: 14px; padding: 15px 20px; background: var(--brass); color: var(--brass-ink); font-weight: 700; font-size: 1rem; cursor: pointer; white-space: nowrap; }
+  .go:disabled { background: var(--deck-2); color: #7f978a; cursor: default; }
+  .go.wait { background: var(--ink); color: var(--night); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="lede">Book a table at</p>
+  <h1 class="venue">{{ biz.name }}</h1>
+  <p class="who">Booking for WhatsApp {{ masked }}. Your table is held for about {{ (hours / 60) | round(1) | string | replace('.0', '') }} hours.</p>
+  {% if err %}<div class="err" role="alert">{{ err }}</div>{% endif %}
+
+  {% if not days %}
+  <p class="err">There are no times open for booking right now. Message {{ biz.name }} on WhatsApp and they'll help you.</p>
+  {% else %}
+  <form id="f" method="post" action="/t/{{ token }}/book">
+    <input type="hidden" name="at" id="at">
+    <input type="hidden" name="party" id="party">
+    <input type="hidden" name="zone_id" id="zone_id">
+
+    <h2>Day</h2>
+    <div class="scroller" id="days" role="group" aria-label="Day">
+      {% for d in days %}<button type="button" class="chip" data-day="{{ d.v }}" aria-pressed="false">{{ d.l }}<small>{{ d.sub }}</small></button>{% endfor %}
+    </div>
+
+    <h2>Arrival time</h2>
+    <div class="scroller times" id="times" role="group" aria-label="Arrival time"></div>
+
+    <h2>Guests</h2>
+    <div class="party">
+      <button type="button" class="step" id="minus" aria-label="One fewer guest">−</button>
+      <div class="count" id="count" aria-live="polite">2</div>
+      <button type="button" class="step" id="plus" aria-label="One more guest">+</button>
+      <div class="count-label" id="countLabel">people</div>
+    </div>
+    <div class="note" id="approvalNote" hidden>Groups of {{ approval_party }} or more are confirmed by the manager. You'll get a WhatsApp as soon as they do.</div>
+
+    <h2>Where would you like to sit? <small id="planHint">Tap an area</small></h2>
+    <div class="plan" id="plan">
+      <div class="grid">
+        {% for z in zones %}
+        <button type="button" class="zone" data-id="{{ z.id }}" aria-pressed="false"
+                style="grid-column: {{ z.x + 1 }} / span {{ z.w }}; grid-row: {{ z.y + 1 }} / span {{ z.h }};">
+          <b>{{ z.name }}</b>{% if z.note and z.h > 1 %}<span>{{ z.note }}</span>{% endif %}
+          <span class="state">Pick a time</span>
+        </button>
+        {% endfor %}
+      </div>
+      <span class="door">Entrance</span>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--free)"></i>Available</span>
+      <span><i style="background:var(--few)"></i>Almost full</span>
+      <span><i style="background:var(--full)"></i>Full</span>
+    </div>
+    <p class="hint" id="fullHint" hidden>{% if waitlist_on %}Full? Tap it anyway to join the waitlist. We'll message you if a table opens up.{% endif %}</p>
+
+    <h2><label for="name">Your name</label></h2>
+    <input class="name" id="name" name="name" value="{{ name }}" maxlength="60" autocomplete="name" placeholder="Name for the booking">
+  </form>
+  {% endif %}
+
+  <p class="foot">Bookings by <a href="https://verzio.codes" rel="noopener">Verzio</a></p>
+</main>
+
+{% if days %}
+<div class="bar">
+  <div class="bar-in">
+    <div class="summary" id="summary"><b>Pick a time</b>Then tap an area on the plan</div>
+    <button class="go" id="go" type="button" disabled>Book table</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const days = {{ days | tojson }};
+  const token = {{ token | tojson }};
+  const maxParty = {{ max_party | int }};
+  const approvalParty = {{ approval_party | int }};
+  const waitlistOn = {{ 'true' if waitlist_on else 'false' }};
+  const preAt = {{ pre_at | tojson }}, preZone = {{ pre_zone | string | tojson }};
+  const $ = (id) => document.getElementById(id);
+  const state = { day: null, at: null, party: Math.min(maxParty, Math.max(1, parseInt({{ pre_party | string | tojson }}, 10) || 2)), zone: null, zones: {} };
+  const zoneBtns = [...document.querySelectorAll(".zone")];
+  const labels = { free: "Available", few: "Almost full", full: "Full", off: "Closed", small: "" };
+  let seq = 0;
+
+  function pressed(list, el) { list.forEach(b => b.setAttribute("aria-pressed", b === el ? "true" : "false")); }
+
+  function pickDay(v, keepAt) {
+    state.day = v;
+    pressed([...$("days").children], [...$("days").children].find(b => b.dataset.day === v));
+    const d = days.find(x => x.v === v);
+    const box = $("times"); box.innerHTML = "";
+    if (!d || !d.times.length) { box.innerHTML = '<div class="none">No times left on this day.</div>'; return; }
+    d.times.forEach(t => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = t.l; b.dataset.at = t.v; b.setAttribute("aria-pressed", "false");
+      b.onclick = () => pickTime(t.v);
+      box.appendChild(b);
+    });
+    const want = keepAt && d.times.find(t => t.v === keepAt) ? keepAt : null;
+    if (want) pickTime(want); else { state.at = null; refresh(); }
+  }
+
+  function pickTime(v) {
+    state.at = v;
+    const chips = [...$("times").children];
+    const el = chips.find(b => b.dataset.at === v);
+    pressed(chips, el);
+    if (el) el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    refresh();
+  }
+
+  function setParty(n) {
+    state.party = Math.max(1, Math.min(maxParty, n));
+    $("count").textContent = state.party;
+    $("countLabel").textContent = state.party === 1 ? "person" : "people";
+    $("minus").disabled = state.party <= 1; $("plus").disabled = state.party >= maxParty;
+    $("approvalNote").hidden = !(approvalParty && state.party >= approvalParty);
+    clearTimeout(setParty.t); setParty.t = setTimeout(refresh, 220);
+  }
+
+  async function refresh() {
+    if (!state.at) { paint({}); update(); return; }
+    const mine = ++seq;
+    $("plan").classList.add("loading");
+    try {
+      const r = await fetch(`/t/${token}/zones?at=${encodeURIComponent(state.at)}&party=${state.party}`, { cache: "no-store" });
+      const data = await r.json();
+      if (mine !== seq) return;
+      if (r.status === 410) { location.reload(); return; }
+      const map = {};
+      (data.zones || []).forEach(z => map[z.id] = z);
+      state.zones = map;
+      paint(map);
+    } catch (e) { /* keep the last colours; the booking is checked again on submit */ }
+    finally { if (mine === seq) $("plan").classList.remove("loading"); }
+    update();
+  }
+
+  function paint(map) {
+    let anyFull = false;
+    zoneBtns.forEach(b => {
+      const z = map[b.dataset.id];
+      b.classList.remove("free", "few", "full", "off", "small");
+      const s = b.querySelector(".state");
+      if (!z) { s.textContent = state.at ? "" : "Pick a time"; return; }
+      b.classList.add(z.state);
+      s.textContent = z.state === "free" ? "Available" : (z.note || labels[z.state]);
+      if (z.state === "full") anyFull = true;
+    });
+    $("fullHint").hidden = !(anyFull && waitlistOn);
+    if (state.zone && map[state.zone] && !bookable(map[state.zone]) && !waitable(map[state.zone])) selectZone(null);
+  }
+
+  const bookable = (z) => z && (z.state === "free" || z.state === "few");
+  const waitable = (z) => waitlistOn && z && z.state === "full";
+
+  function selectZone(id) {
+    state.zone = id;
+    pressed(zoneBtns, zoneBtns.find(b => b.dataset.id === id));
+    update();
+  }
+
+  zoneBtns.forEach(b => b.addEventListener("click", () => {
+    if (!state.at) { $("times").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    const z = state.zones[b.dataset.id];
+    if (bookable(z) || waitable(z)) selectZone(b.dataset.id);
+  }));
+
+  function update() {
+    const go = $("go"), sum = $("summary");
+    const d = days.find(x => x.v === state.day);
+    const t = d && d.times.find(x => x.v === state.at);
+    const zb = zoneBtns.find(b => b.dataset.id === state.zone);
+    const z = state.zones[state.zone];
+    const people = `${state.party} ${state.party === 1 ? "person" : "people"}`;
+    if (!t) { sum.innerHTML = "<b>Pick a time</b>Then tap an area on the plan"; go.disabled = true; go.textContent = "Book table"; go.className = "go"; return; }
+    const when = `${d.l}, ${t.l}`;
+    if (!zb || !z) { sum.innerHTML = `<b>${when}</b>${people}. Now tap an area`; go.disabled = true; go.textContent = "Book table"; go.className = "go"; return; }
+    const area = zb.querySelector("b").textContent;
+    const wait = !bookable(z);
+    sum.innerHTML = `<b>${when}</b>${people}, ${area}`;
+    go.disabled = false;
+    go.className = wait ? "go wait" : "go";
+    go.textContent = wait ? "Join waitlist" : (approvalParty && state.party >= approvalParty ? "Send request" : "Book table");
+  }
+
+  $("go").addEventListener("click", () => {
+    const z = state.zones[state.zone];
+    if (!state.at || !z) return;
+    const f = $("f");
+    $("at").value = state.at; $("party").value = state.party; $("zone_id").value = state.zone;
+    f.action = bookable(z) ? `/t/${token}/book` : `/t/${token}/waitlist`;
+    $("go").disabled = true; $("go").textContent = "One moment…";
+    f.submit();
+  });
+
+  $("minus").onclick = () => setParty(state.party - 1);
+  $("plus").onclick = () => setParty(state.party + 1);
+  [...$("days").children].forEach(b => b.onclick = () => pickDay(b.dataset.day));
+
+  setParty(state.party);
+  const startDay = (preAt && days.find(d => d.times.some(t => t.v === preAt))) || days.find(d => d.times.length) || days[0];
+  if (preZone) state.zone = preZone;
+  pickDay(startDay.v, preAt);
+  if (preZone) pressed(zoneBtns, zoneBtns.find(b => b.dataset.id === preZone));
+})();
+</script>
+{% endif %}
+</body>
+</html>

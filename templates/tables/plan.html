@@ -1,0 +1,128 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Floor plan</h1>
+    <p>Each block is an area guests can book. Drag a block to move it, drag its corner to resize. Guests see it exactly like this.</p>
+  </div>
+</div>
+
+<div class="loy-grid two">
+  <section class="loy-card">
+    {% if zones %}
+    <div class="tb-plan" id="plan">
+      <div class="tb-grid" id="grid" style="grid-template-columns: repeat({{ cols }}, 1fr); grid-template-rows: repeat({{ rows }}, 42px);">
+        {% for z in zones %}
+        <div class="tb-zone {{ 'off' if not z.is_active }}" data-id="{{ z.id }}" tabindex="0"
+             style="grid-column: {{ z.x + 1 }} / span {{ z.w }}; grid-row: {{ z.y + 1 }} / span {{ z.h }};">
+          <b>{{ z.name }}</b>
+          <small>{% if z.kind == 'tables' %}{{ z.table_count }} × {{ z.seats_per_table }} seats{% else %}{{ z.people_capacity }} guests{% endif %}{% if not z.is_active %}, closed{% endif %}</small>
+          <span class="tb-handle" aria-hidden="true"></span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="tb-save mt-2" id="saveNote" role="status">Changes save as you go. The bottom edge is your entrance.</div>
+    {% else %}
+    <h2>Start your floor plan</h2>
+    <p class="sub">Add your areas one by one on the right, or start from an example rooftop layout and rename it.</p>
+    <form method="post" action="/owner/tables/zones/demo"><button class="loy-btn" type="submit"><i class="bi bi-magic"></i> Start from an example</button></form>
+    {% endif %}
+  </section>
+
+  <section class="loy-card loy-anchor" id="add">
+    <h2>Add an area</h2>
+    <p class="sub">A rooftop edge, a lounge, the bar counter, a private cabana: anything a guest might ask for.</p>
+    <form method="post" action="/owner/tables/zones">
+      {% set z = None %}{% set prefix = 'new' %}
+      {% include "tables/_zone_fields.html" %}
+      <button class="loy-btn mt-3" type="submit"><i class="bi bi-plus"></i> Add area</button>
+    </form>
+  </section>
+</div>
+
+{% if zones %}
+<section class="loy-card mt-4">
+  <h2>Your areas</h2>
+  <p class="sub">"Tables" areas are booked by the table (a group of 6 at tables of 4 takes 2 tables, joined). "Guests" areas just count people, for standing room or a bar counter.</p>
+  {% for z in zones %}
+  <div class="tb-zone-form" id="z{{ z.id }}">
+    <form method="post" action="/owner/tables/zones/{{ z.id }}">
+      {% set prefix = 'z' ~ z.id %}
+      {% include "tables/_zone_fields.html" %}
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <button class="loy-btn small" type="submit">Save</button>
+      </div>
+    </form>
+    <div class="d-flex gap-2 flex-wrap mt-2">
+      <form method="post" action="/owner/tables/zones/{{ z.id }}/toggle"><button class="loy-btn small ghost" type="submit">{{ 'Close for bookings' if z.is_active else 'Open for bookings' }}</button></form>
+      <form method="post" action="/owner/tables/zones/{{ z.id }}/delete" onsubmit="return confirm('Delete {{ z.name }}? Bookings already made stay on your list.')"><button class="loy-btn small danger" type="submit">Delete</button></form>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<script>
+(() => {
+  const grid = document.getElementById("grid"), note = document.getElementById("saveNote");
+  if (!grid) return;
+  const COLS = {{ cols }}, ROWS = {{ rows }};
+  const zones = {{ zones_json | tojson }};
+  const byId = Object.fromEntries(zones.map(z => [String(z.id), z]));
+  const gap = 6;
+  const cell = () => {
+    const r = grid.getBoundingClientRect();
+    return { w: (r.width + gap) / COLS, h: (42 + gap) };
+  };
+  const place = (el, z) => {
+    el.style.gridColumn = `${z.x + 1} / span ${z.w}`;
+    el.style.gridRow = `${z.y + 1} / span ${z.h}`;
+  };
+  async function save(z) {
+    note.textContent = "Saving…";
+    try {
+      const r = await fetch("/owner/tables/zones/layout", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{ id: z.id, x: z.x, y: z.y, w: z.w, h: z.h }]) });
+      note.textContent = r.ok ? "Saved." : "Couldn't save. Refresh and try again.";
+    } catch (e) { note.textContent = "Couldn't save. Check your connection."; }
+  }
+  grid.querySelectorAll(".tb-zone").forEach(el => {
+    const z = byId[el.dataset.id];
+    el.addEventListener("pointerdown", (ev) => {
+      const resize = ev.target.classList.contains("tb-handle");
+      const c = cell(), start = { x: ev.clientX, y: ev.clientY, zx: z.x, zy: z.y, zw: z.w, zh: z.h };
+      let moved = false;
+      el.setPointerCapture(ev.pointerId); el.classList.add("drag");
+      const move = (e) => {
+        const dx = Math.round((e.clientX - start.x) / c.w), dy = Math.round((e.clientY - start.y) / c.h);
+        if (resize) {
+          z.w = Math.max(1, Math.min(COLS - z.x, start.zw + dx));
+          z.h = Math.max(1, Math.min(ROWS - z.y, start.zh + dy));
+        } else {
+          z.x = Math.max(0, Math.min(COLS - z.w, start.zx + dx));
+          z.y = Math.max(0, Math.min(ROWS - z.h, start.zy + dy));
+        }
+        moved = moved || dx !== 0 || dy !== 0;
+        place(el, z);
+      };
+      const up = () => {
+        el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+        el.classList.remove("drag");
+        if (moved) save(z);
+      };
+      el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+    });
+    // Keyboard: arrows move, shift+arrows resize.
+    el.addEventListener("keydown", (e) => {
+      const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (!k) return;
+      e.preventDefault();
+      if (e.shiftKey) { z.w = Math.max(1, Math.min(COLS - z.x, z.w + k[0])); z.h = Math.max(1, Math.min(ROWS - z.y, z.h + k[1])); }
+      else { z.x = Math.max(0, Math.min(COLS - z.w, z.x + k[0])); z.y = Math.max(0, Math.min(ROWS - z.h, z.y + k[1])); }
+      place(el, z); clearTimeout(el._t); el._t = setTimeout(() => save(z), 400);
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

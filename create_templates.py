@@ -47,10 +47,17 @@ def build_request(key: str) -> dict:
     return {
         "name": TEMPLATE_NAMES[key],
         "language": TEMPLATE_LANG,
-        "category": "UTILITY",
+        "category": definition.get("category", "UTILITY"),
         "parameter_format": "POSITIONAL",
         "components": components,
     }
+
+
+def expected_category(name: str) -> str:
+    for key, template_name in TEMPLATE_NAMES.items():
+        if template_name == name:
+            return TEMPLATE_DEFINITIONS[key].get("category", "UTILITY")
+    return "UTILITY"
 
 
 def submit(client: httpx.Client, waba_id: str) -> int:
@@ -86,7 +93,8 @@ def show_status(client: httpx.Client, waba_id: str) -> None:
             print(f"  ⚠️  {name}: not submitted")
         else:
             flag = "✅" if t["status"] == "APPROVED" else ("❌" if t["status"] == "REJECTED" else "⏳")
-            note = "  <- Meta changed the category; utility is expected" if t.get("category") != "UTILITY" else ""
+            want = expected_category(t["name"])
+            note = f"  <- Meta changed the category; {want.lower()} is expected" if t.get("category") != want else ""
             print(f"  {flag} {name}: {t['status']} ({t.get('category')}, {t.get('language')}){note}")
 
 
@@ -116,7 +124,7 @@ def main() -> int:
             return 0
         print(f"Submitting {len(TEMPLATE_DEFINITIONS)} templates to WABA {args.waba_id}:")
         failures = submit(client, args.waba_id)
-    print("\nMeta usually reviews utility templates quickly. Check with --status.")
+    print("\nMeta usually reviews templates quickly. Check with --status.")
     return 1 if failures else 0
 
 

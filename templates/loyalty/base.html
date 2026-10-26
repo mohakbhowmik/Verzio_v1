@@ -40,6 +40,10 @@
                 <div style="border-top: 1px solid rgba(255,255,255,.12); margin: 14px 8px 10px"></div>
                 <a href="/owner/dashboard" class="nav-item"><i class="bi bi-calendar3"></i><span>Verzio Book</span></a>
                 {% endif %}
+                {% if has_tables %}
+                <div style="border-top: 1px solid rgba(255,255,255,.12); margin: 14px 8px 10px"></div>
+                <a href="/owner/tables" class="nav-item"><i class="bi bi-calendar2-check"></i><span>Verzio Tables</span></a>
+                {% endif %}
             </nav>
             {% if business %}
             <div class="sidebar-foot">
@@ -58,6 +62,7 @@
                 <a href="{{ href }}" class="{% if active_page == key %}active{% endif %}">{{ label }}</a>
                 {% endfor %}
                 {% if has_book %}<a href="/owner/dashboard">Verzio Book</a>{% endif %}
+                {% if has_tables %}<a href="/owner/tables">Verzio Tables</a>{% endif %}
             </nav>
             <header class="topbar">
                 <div class="topbar-left"><p class="page-current-title">{{ page_title }}</p></div>

@@ -147,6 +147,72 @@ TEMPLATE_DEFINITIONS = {
         ),
         "example": ["Glow Salon", "5", "10:00 AM Haircut (Priya) · 11:30 AM Facial (Anita) · 4:00 PM Manicure (Ritu)", "1"],
     },
+    # Verzio Tables (tables/bot.py, tables/jobs.py). "category" defaults to UTILITY.
+    "table_confirmed": {
+        "text": (
+            "Hi {{1}}, your table at {{2}} is booked.\n\n"
+            "When: {{3}}\nGuests: {{4}}\nArea: {{5}}\n\n"
+            "See you then!"
+        ),
+        "example": ["Priya", "Skyline Social", "Fri 31 Oct, 8:30 PM", "4 people", "Skyline edge"],
+    },
+    "table_request": {
+        "text": (
+            "New table request for {{1}}.\n\n"
+            "Guest: {{2}}\nWhen: {{3}}\nGuests: {{4}}\nArea: {{5}}\n\n"
+            "Please accept or decline using the buttons below."
+        ),
+        "example": ["Skyline Social", "Priya Sharma (+919876543210)", "Fri 31 Oct, 8:30 PM", "10 people", "Lounge"],
+        "buttons": ["Accept", "Decline"],
+    },
+    "table_reminder": {
+        "text": (
+            "Hi {{1}}, a reminder of your table at {{2}} today.\n\n"
+            "When: {{3}}\nGuests: {{4}}\n\n"
+            "Please tap a button below to let us know if you are coming."
+        ),
+        "example": ["Priya", "Skyline Social", "Fri 31 Oct, 8:30 PM", "4 people"],
+        "buttons": ["Yes, coming", "Cancel booking"],
+    },
+    "table_declined": {
+        "text": (
+            "Hi {{1}}, sorry, {{2}} couldn't confirm your table for {{3}}.\n\n"
+            "Reply to this message and we'll help you find another time."
+        ),
+        "example": ["Priya", "Skyline Social", "Fri 31 Oct, 8:30 PM"],
+    },
+    "table_cancelled": {
+        "text": (
+            "Hi {{1}}, your table at {{2}} for {{3}} has been cancelled.\n\n"
+            "Reply to this message if you have any questions."
+        ),
+        "example": ["Priya", "Skyline Social", "Fri 31 Oct, 8:30 PM"],
+    },
+    "table_feedback": {
+        "text": (
+            "Hi {{1}}, thank you for visiting {{2}} on {{3}}.\n\n"
+            "How was your visit? Tap a button below to tell us."
+        ),
+        "example": ["Priya", "Skyline Social", "Fri 31 Oct"],
+        "buttons": ["Loved it", "It was OK", "Not great"],
+    },
+    "table_waitlist": {
+        "text": (
+            "Hi {{1}}, good news: a table opened up at {{2}} for {{3}}.\n\n"
+            "Tap the button below to book it before someone else does."
+        ),
+        "example": ["Priya", "Skyline Social", "Fri 31 Oct, 8:30 PM"],
+        "buttons": ["Book it"],
+    },
+    "table_book_again": {
+        "category": "MARKETING",
+        "text": (
+            "Hi {{1}}, we miss you at {{2}}! Tables for this week are open.\n\n"
+            "Tap below to book in a few taps, or tap Stop offers to stop these messages."
+        ),
+        "example": ["Priya", "Skyline Social"],
+        "buttons": ["Book a table", "Stop offers"],
+    },
 }
 
 # Names can be overridden per environment, e.g. WA_TEMPLATE_BOOKING_CONFIRMED=booking_confirmed_v2

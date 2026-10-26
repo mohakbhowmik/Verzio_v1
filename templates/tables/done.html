@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include "tables/_guest_head.html" %}
+<title>{{ 'On the waitlist' if waitlist else ('Request sent' if booking.status == 'pending' else 'Table booked') }} · {{ biz.name }}</title>
+<style>
+  .ticket { margin-top: 26px; background: var(--deck); border: 1px solid var(--line); border-radius: 18px; padding: 22px 20px; }
+  .ticket h2 { font-family: var(--serif); font-weight: 500; font-size: 1.7rem; margin: 0 0 14px; line-height: 1.1; }
+  .ticket dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; }
+  .ticket dt { color: var(--muted); }
+  .ticket dd { margin: 0; font-weight: 600; }
+  .next { color: var(--muted); margin-top: 18px; font-size: .95rem; }
+  .mark { width: 54px; height: 54px; border-radius: 50%; background: var(--brass); color: var(--brass-ink); display: grid; place-items: center; font-size: 1.6rem; font-weight: 700; }
+  .mark.wait { background: var(--ink); color: var(--night); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="lede">{{ biz.name if biz else '' }}</p>
+  {% if waitlist and not booking %}
+  <div class="ticket">
+    <div class="mark wait" aria-hidden="true">⏳</div>
+    <h2 style="margin-top:16px">You're on the waitlist</h2>
+    <p class="next">We'll message you on WhatsApp the moment a table opens up. You can close this page.</p>
+  </div>
+  {% else %}
+  <div class="ticket">
+    <div class="mark {{ 'wait' if booking.status == 'pending' }}" aria-hidden="true">{{ '⏳' if booking.status == 'pending' else '✓' }}</div>
+    <h2 style="margin-top:16px">{% if booking.status == 'pending' %}Request sent{% elif booking.status == 'confirmed' %}Your table is booked{% else %}Booking {{ booking.status | replace('_', ' ') }}{% endif %}</h2>
+    <dl>
+      <dt>When</dt><dd>{{ when }}</dd>
+      <dt>Guests</dt><dd>{{ booking.party }}</dd>
+      <dt>Area</dt><dd>{{ booking.zone.name if booking.zone else 'Table' }}</dd>
+      {% if booking.name %}<dt>Name</dt><dd>{{ booking.name }}</dd>{% endif %}
+    </dl>
+    <p class="next">{% if booking.status == 'pending' %}The manager confirms groups this size. You'll get a WhatsApp as soon as they do.{% else %}The confirmation is on your WhatsApp, with a button to cancel if your plans change.{% endif %} You can close this page.</p>
+  </div>
+  {% endif %}
+  <p class="foot">Bookings by <a href="https://verzio.codes" rel="noopener">Verzio</a></p>
+</main>
+</body>
+</html>

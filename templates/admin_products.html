@@ -25,7 +25,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Products</h1>
-    <p class="page-subtitle">Which products each business has. Verzio Book's plan is set in <a href="/admin/subscriptions">Subscriptions</a>; Verzio Loyalty has its own plan here. Switching Book off makes the business "loyalty only": its WhatsApp number and owner portal are used for loyalty alone.</p>
+    <p class="page-subtitle">Which products each business has. Verzio Book's plan is set in <a href="/admin/subscriptions">Subscriptions</a>; Verzio Loyalty has its own plan here. Switching Book off makes the business "loyalty only": its WhatsApp number and owner portal are used for loyalty alone. Verzio Tables has its own plan here too; Book and Tables can't both be on for one number.</p>
   </div>
 </div>
 
@@ -83,6 +83,35 @@
           {% if r.loy_plan and not r.loy_plan.active %}<span class="pr-bad">Rewards paused</span> · {{ r.loy_plan.reason }}
           {% elif r.loy_plan and r.loy_plan.in_grace %}<span class="pr-warn">In grace</span> · {{ r.loy_plan.reason }}
           {% else %}Running · {{ r.members }} customer{{ '' if r.members == 1 else 's' }}{% endif %}
+        {% else %}Off{% endif %}
+      </div>
+    </div>
+
+    <div class="pr-prod {{ 'on' if r.tbl_on }}">
+      <label class="pr-switch"><input type="checkbox" name="tables_on" value="on" {% if r.tbl_on %}checked{% endif %}> Verzio Tables</label>
+      <div class="pr-row">
+        <div>
+          <label for="tp-{{ b.id }}">Plan</label>
+          <select id="tp-{{ b.id }}" name="tables_plan" class="form-select form-select-sm">
+            {% for key, label in [("trial", "Trial"), ("active", "Active (paid)"), ("suspended", "Suspended")] %}
+            <option value="{{ key }}" {% if (r.tbl.plan if r.tbl else 'trial') == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="tu-{{ b.id }}">Paid until</label>
+          <input id="tu-{{ b.id }}" type="date" name="tables_paid_until" class="form-control form-control-sm" value="{{ r.tbl.paid_until if r.tbl and r.tbl.paid_until else '' }}">
+        </div>
+        <div>
+          <label for="ta-{{ b.id }}">₹ / month</label>
+          <input id="ta-{{ b.id }}" type="number" min="0" name="tables_amount" class="form-control form-control-sm" value="{{ r.tbl.monthly_amount if r.tbl else 4999 }}">
+        </div>
+      </div>
+      <div class="pr-meta">
+        {% if r.tbl_on %}
+          {% if r.tbl_plan and not r.tbl_plan.active %}<span class="pr-bad">Bookings paused</span> · {{ r.tbl_plan.reason }}
+          {% elif r.tbl_plan and r.tbl_plan.in_grace %}<span class="pr-warn">In grace</span> · {{ r.tbl_plan.reason }}
+          {% else %}Running{% endif %}
         {% else %}Off{% endif %}
       </div>
     </div>

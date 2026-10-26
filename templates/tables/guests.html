@@ -1,0 +1,41 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Guests</h1>
+    <p>Everyone who booked a table, with their visits. Your regulars are at the top.</p>
+  </div>
+  <form class="loy-search" method="get" action="/owner/tables/guests">
+    <input class="form-control-verzio" name="q" value="{{ q }}" placeholder="Name or phone" aria-label="Search guests">
+    <button class="loy-btn ghost" type="submit">Search</button>
+  </form>
+</div>
+<section class="loy-card">
+  {% if guests %}
+  <div class="loy-scroll">
+    <table class="loy-table">
+      <thead><tr><th>Guest</th><th>Visits</th><th>No-shows</th><th>Last visit</th><th>Book-again offers</th></tr></thead>
+      <tbody>
+      {% for g in guests %}
+      <tr>
+        <td><b>{{ g.name or 'Guest' }}</b><div class="loy-meta"><a href="https://wa.me/{{ g.phone }}" target="_blank" rel="noopener">+{{ g.phone }}</a></div></td>
+        <td>{{ g.visits }}{% if g.visits >= 3 %} <span class="loy-pill-sm hot">Regular</span>{% endif %}</td>
+        <td>{% if g.no_shows %}<span class="loy-minus">{{ g.no_shows }}</span>{% else %}0{% endif %}</td>
+        <td>{{ g.last_visit.strftime('%d %b %Y') if g.last_visit else '–' }}</td>
+        <td>
+          <form method="post" action="/owner/tables/guests/{{ g.phone }}/offers" class="m-0">
+            <input type="hidden" name="on" value="{{ '1' if g.opted_out else '0' }}">
+            <button class="loy-btn small ghost" type="submit" title="{{ 'Guest said STOP' if g.opted_out else '' }}">{{ 'Off: turn on' if g.opted_out else 'On: turn off' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <h2>{{ 'No guests match' if q else 'No guests yet' }}</h2>
+  <p class="sub mb-0">{{ 'Try another name or number.' if q else 'Guests appear here after their first booking.' }}</p>
+  {% endif %}
+</section>
+{% endblock %}

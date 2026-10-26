@@ -76,6 +76,11 @@ async def _tell_customer(business, phone: str, text: str) -> None:
 # Pages
 # ------------------------------------------------------------------------
 
+def _tables_on(db: Session, business) -> bool:
+    from tables.engine import is_enabled
+    return is_enabled(db, business)
+
+
 def _render(request: Request, db: Session, page: str, template: str, extra=None):
     owner, business, settings, redirect = _auth(request, db)
     if redirect:
@@ -84,7 +89,8 @@ def _render(request: Request, db: Session, page: str, template: str, extra=None)
         "layout": "loyalty/base_mobile.html" if is_mobile(request) else "loyalty/base.html",
         "active_page": page or "dashboard", "page_title": PAGES[page],
         "owner": owner, "business": business, "settings": settings,
-        "has_book": not L.is_loyalty_only(db, business),
+        "has_book": not L.is_loyalty_only(db, business) and not _tables_on(db, business),
+        "has_tables": _tables_on(db, business),
         "running": L.running(db, business),
         "plan": L.plan_info(settings) if settings is not None else None,
         "ok": (request.query_params.get("ok") or "")[:160] or None,

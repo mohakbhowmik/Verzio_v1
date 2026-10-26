@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include "tables/_guest_head.html" %}
+<title>Booking link · {{ biz.name if biz else 'Verzio' }}</title>
+<style>
+  .box { margin-top: 26px; background: var(--deck); border: 1px solid var(--line); border-radius: 18px; padding: 22px 20px; }
+  .box h2 { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; margin: 0 0 10px; line-height: 1.15; }
+  .box p { color: var(--muted); margin: 0 0 8px; }
+  .box b { color: var(--ink); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  {% if biz %}<p class="lede">{{ biz.name }}</p>{% endif %}
+  <div class="box">
+    {% if problem == 'used' and booking %}
+      <h2>You've booked with this link</h2>
+      <p><b>{{ when }}</b>, {{ booking.party }} {{ 'person' if booking.party == 1 else 'people' }}, {{ booking.zone.name if booking.zone else 'Table' }}. Status: {{ booking.status | replace('_', ' ') }}.</p>
+      <p>Want another table? Say hi on WhatsApp and you'll get a fresh link.</p>
+    {% elif problem == 'expired' %}
+      <h2>This link has expired</h2>
+      <p>Booking links work for a few hours. Say hi to {{ biz.name if biz else 'the venue' }} on WhatsApp and you'll get a new one straight away.</p>
+    {% elif problem == 'paused' %}
+      <h2>Online booking is paused</h2>
+      <p>{{ biz.name }} isn't taking WhatsApp bookings right now. Please call or message the venue.</p>
+    {% else %}
+      <h2>This link doesn't work</h2>
+      <p>Check you opened the whole link from WhatsApp, or say hi to the venue to get a new one.</p>
+    {% endif %}
+  </div>
+  <p class="foot">Bookings by <a href="https://verzio.codes" rel="noopener">Verzio</a></p>
+</main>
+</body>
+</html>

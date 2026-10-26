@@ -216,6 +216,7 @@ def check_meta(client: httpx.Client) -> None:
         return
 
     from whatsapp_client import TEMPLATE_NAMES
+    from create_templates import expected_category
     for waba in wabas:
         try:
             subs = _graph(client, f"{waba}/subscribed_apps", token).get("data", [])
@@ -233,7 +234,7 @@ def check_meta(client: httpx.Client) -> None:
                     fail(f"WABA …{waba[-4:]}: template '{name}'", "not submitted — run create_templates.py")
                 elif t.get("status") != "APPROVED":
                     warn(f"WABA …{waba[-4:]}: template '{name}'", f"status {t.get('status')}")
-                elif t.get("category") != "UTILITY":
+                elif t.get("category") != expected_category(name):
                     warn(f"WABA …{waba[-4:]}: template '{name}'", f"approved but category {t.get('category')} (costs more)")
                 else:
                     ok(f"WABA …{waba[-4:]}: template '{name}' approved")

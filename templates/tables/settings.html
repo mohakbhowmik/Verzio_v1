@@ -1,0 +1,88 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Settings</h1>
+    <p>How guests book, what WhatsApp sends them, and who works the door.</p>
+  </div>
+</div>
+
+<section class="loy-card loy-anchor mb-2" id="share">
+  <h2><i class="bi bi-link-45deg me-1"></i> Your booking link</h2>
+  {% if share %}
+  <p class="sub">Put this link on your Google Maps profile (Reservations or Website), Instagram bio and website. It opens a WhatsApp chat with you; the bot replies with the booking page.</p>
+  <div class="tb-share">
+    <input class="form-control-verzio" id="shareLink" value="{{ share }}" readonly aria-label="Booking link">
+    <button class="loy-btn ghost" type="button" onclick="navigator.clipboard.writeText(document.getElementById('shareLink').value).then(() => this.textContent = 'Copied')">Copy</button>
+  </div>
+  {% else %}
+  <p class="sub mb-0">Your WhatsApp number isn't connected yet. Ask Verzio to finish connecting it, then your link appears here.</p>
+  {% endif %}
+</section>
+
+<form method="post" action="/owner/tables/settings">
+<div class="loy-grid two">
+  <section class="loy-card">
+    <h2>Booking rules</h2>
+    <p class="sub">Opening hours come from your business hours. A closing time after midnight works (e.g. 6 pm to 1 am).</p>
+    <div class="loy-fields">
+      <div><label for="s-seat">Table held for (minutes)</label><input id="s-seat" class="form-control-verzio" type="number" name="seating_minutes" min="30" max="720" value="{{ settings.seating_minutes }}"></div>
+      <div><label for="s-slot">Arrival times every (minutes)</label><input id="s-slot" class="form-control-verzio" type="number" name="slot_minutes" min="15" max="120" step="15" value="{{ settings.slot_minutes }}"></div>
+      <div><label for="s-last">Last arrival before closing (minutes)</label><input id="s-last" class="form-control-verzio" type="number" name="last_arrival_minutes" min="0" max="360" value="{{ settings.last_arrival_minutes }}"></div>
+      <div><label for="s-ahead">Book up to (days ahead)</label><input id="s-ahead" class="form-control-verzio" type="number" name="book_ahead_days" min="1" max="90" value="{{ settings.book_ahead_days }}"></div>
+      <div><label for="s-notice">Latest booking (minutes before)</label><input id="s-notice" class="form-control-verzio" type="number" name="min_notice_minutes" min="0" max="1440" value="{{ settings.min_notice_minutes }}"></div>
+      <div><label for="s-max">Biggest group online</label><input id="s-max" class="form-control-verzio" type="number" name="max_party" min="1" max="200" value="{{ settings.max_party }}"></div>
+      <div><label for="s-appr">Groups this big need your OK</label><input id="s-appr" class="form-control-verzio" type="number" name="approval_party" min="0" max="200" value="{{ settings.approval_party }}"></div>
+      <div><label for="s-rel">Free a table after a no-show (minutes)</label><input id="s-rel" class="form-control-verzio" type="number" name="release_minutes" min="5" max="180" value="{{ settings.release_minutes }}"></div>
+    </div>
+    <p class="loy-hint mt-2">Set "need your OK" to 0 to confirm every group straight away. Approval requests go to your manager number on WhatsApp.</p>
+  </section>
+
+  <section class="loy-card loy-anchor" id="growth">
+    <h2>Messages to guests</h2>
+    <div class="loy-switch"><div><label for="g-rem">Reminder on the day</label><p class="loy-hint">3 hours before: "Still coming?" A cancel frees the table.</p></div>
+      <input id="g-rem" type="checkbox" name="reminder_on" {% if settings.reminder_on %}checked{% endif %}></div>
+    <div class="loy-switch"><div><label for="g-wl">Waitlist</label><p class="loy-hint">Full areas take waitlist names; we message them when a table frees up.</p></div>
+      <input id="g-wl" type="checkbox" name="waitlist_on" {% if settings.waitlist_on %}checked{% endif %}></div>
+    <div class="loy-switch"><div><label for="g-rev">Ask how it was, next morning</label><p class="loy-hint">Happy guests get your Google review link.</p></div>
+      <input id="g-rev" type="checkbox" name="review_on" {% if settings.review_on %}checked{% endif %}></div>
+    <div class="mt-1 mb-2"><label for="g-url" class="loy-hint" style="font-weight:600">Google review link</label>
+      <input id="g-url" class="form-control-verzio" name="google_review_url" maxlength="300" value="{{ settings.google_review_url or '' }}" placeholder="https://g.page/r/…/review"></div>
+    <div class="loy-switch"><div><label for="g-again">Book-again offers</label><p class="loy-hint">One message to guests who haven't been back for a while. {{ used }} of {{ settings.offers_per_month }} used this month. Guests can reply STOP.</p></div>
+      <input id="g-again" type="checkbox" name="rebook_on" {% if settings.rebook_on %}checked{% endif %}></div>
+    <div class="loy-fields"><div><label for="g-weeks">Send after (weeks without a visit)</label><input id="g-weeks" class="form-control-verzio" type="number" name="rebook_weeks" min="1" max="26" value="{{ settings.rebook_weeks }}"></div></div>
+  </section>
+
+  <section class="loy-card">
+    <h2>Results</h2>
+    <p class="sub">Used to show the commission you save. Typed bills replace the average.</p>
+    <div class="loy-fields">
+      <div><label for="r-bill">Average bill per booking (₹)</label><input id="r-bill" class="form-control-verzio" type="number" name="avg_bill" min="0" value="{{ settings.avg_bill }}"></div>
+      <div><label for="r-pct">Platform commission (%)</label><input id="r-pct" class="form-control-verzio" type="number" name="commission_pct" min="0" max="50" value="{{ settings.commission_pct }}"></div>
+    </div>
+  </section>
+</div>
+<button class="loy-btn mt-3" type="submit">Save settings</button>
+</form>
+
+<section class="loy-card mt-4 loy-anchor" id="staff">
+  <h2><i class="bi bi-person-badge me-1"></i> Door staff logins</h2>
+  <p class="sub">Staff see tonight's bookings and can mark Arrived, No-show and add walk-ins. They can't see settings, guests or results.</p>
+  {% if staff %}
+  <ul class="loy-list mb-2">
+    {% for s in staff %}
+    <li><div><b>{{ s.full_name }}</b><div class="loy-meta">Login: {{ s.email }}</div></div>
+      <form method="post" action="/owner/tables/staff/{{ s.id }}/delete" onsubmit="return confirm('Remove {{ s.full_name }}\'s login?')"><button class="loy-btn small danger" type="submit">Remove</button></form></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/owner/tables/staff">
+    <div class="loy-fields">
+      <div><label for="st-name">Name</label><input id="st-name" class="form-control-verzio" name="name" maxlength="60" required placeholder="Rahul (door)"></div>
+      <div><label for="st-user">Login name</label><input id="st-user" class="form-control-verzio" name="username" maxlength="60" required placeholder="door.skyline" autocapitalize="off"></div>
+      <div><label for="st-pass">Password (8+ characters)</label><input id="st-pass" class="form-control-verzio" name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+    </div>
+    <button class="loy-btn mt-3" type="submit">Add login</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,57 @@
+{# Verzio Tables dashboard styles, on top of loyalty/_styles.html. #}
+<style>
+  .tb-day { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tb-day a { text-decoration: none; }
+  .tb-counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  @media (max-width: 560px) { .tb-counts { grid-template-columns: repeat(2, 1fr); } }
+  .tb-live { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 18px; }
+  .tb-live > div { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 12px; padding: 10px 12px; }
+  .tb-live b { display: block; font-size: 14px; }
+  .tb-meter { height: 6px; border-radius: 6px; background: var(--bg-sunken); margin-top: 6px; overflow: hidden; }
+  .tb-meter i { display: block; height: 100%; background: var(--status-green); }
+  .tb-meter i.hot { background: var(--status-amber, #c98a1b); }
+  .tb-time { font-family: var(--font-display); font-size: 22px; margin: 18px 0 8px; }
+  .tb-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 14px;
+            border: 1px solid var(--border-light); border-radius: 12px; background: var(--bg-surface); margin-bottom: 8px; scroll-margin-top: 90px; }
+  .tb-row.done { opacity: .62; }
+  .tb-row.arrived { border-color: #bfe0cc; background: #f3faf6; opacity: 1; }
+  .tb-row.late { border-color: #e9c48a; background: #fdf7ec; }
+  .tb-who { min-width: 0; flex: 1 1 220px; }
+  .tb-who b { font-size: 15.5px; }
+  .tb-who .loy-meta a { color: inherit; }
+  .tb-acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .tb-acts form { margin: 0; }
+  .tb-badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--bg-sunken); color: var(--text-muted); margin-left: 6px; }
+  .tb-badge.pending { background: var(--brass-soft); color: #7a5520; }
+  .tb-badge.arrived { background: #dff1e6; color: #1f5f3c; }
+  .tb-badge.no_show, .tb-badge.cancelled, .tb-badge.declined { background: #f6e3e2; color: #8a2a22; }
+  .tb-badge.late { background: #fbe9c8; color: #7a5520; }
+  .tb-bill { display: flex; gap: 6px; align-items: center; }
+  .tb-bill input { width: 110px; }
+  .tb-add summary { cursor: pointer; font-weight: 700; font-size: 15px; list-style: none; }
+  .tb-add summary::-webkit-details-marker { display: none; }
+  .tb-share { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tb-share input { flex: 1 1 260px; font-size: 13px; }
+  /* Floor plan editor */
+  .tb-plan { position: relative; border: 2px solid #2b4a3e; border-radius: 6px; padding: 8px; background: #f4f7f3;
+             background-image: radial-gradient(rgba(23,59,50,.18) 1px, transparent 1.2px); user-select: none; touch-action: none; }
+  .tb-grid { position: relative; display: grid; gap: 6px; }
+  .tb-zone { position: relative; border-radius: 10px; border: 1.5px solid #2f6b55; background: rgba(47,107,85,.14); padding: 6px 8px;
+             cursor: grab; overflow: hidden; font-size: 13px; line-height: 1.2; min-width: 0; }
+  .tb-zone.off { border-style: dashed; border-color: #8a958f; background: rgba(138,149,143,.15); color: #6b756f; }
+  .tb-zone.drag { cursor: grabbing; box-shadow: 0 6px 18px rgba(0,0,0,.18); z-index: 2; }
+  .tb-zone b { display: block; overflow-wrap: anywhere; }
+  .tb-zone small { color: var(--text-muted); }
+  .tb-handle { position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px; cursor: nwse-resize; border-right: 3px solid #2f6b55; border-bottom: 3px solid #2f6b55; border-radius: 0 0 6px 0; }
+  .tb-save { font-size: 13px; color: var(--text-muted); min-height: 20px; }
+  .tb-zone-form { border-top: 1px solid var(--border-subtle); padding: 14px 0; scroll-margin-top: 90px; }
+  .tb-zone-form:first-of-type { border-top: 0; }
+  .tb-kind { display: flex; gap: 14px; font-size: 14px; margin: 6px 0 10px; flex-wrap: wrap; }
+  /* Results */
+  .tb-hero { background: #173b32; color: #f3f6f3; border-radius: var(--radius-panel); padding: 24px 22px; margin-bottom: 18px; }
+  .tb-hero .big { font-family: var(--font-display); font-size: clamp(40px, 8vw, 64px); line-height: 1; margin: 6px 0 8px; color: #e2be86; }
+  .tb-hero p { color: #c4d3ca; margin: 0; max-width: 60ch; font-size: 14.5px; }
+  .tb-bars { display: flex; align-items: flex-end; gap: 3px; height: 110px; margin-top: 12px; }
+  .tb-bars div { flex: 1; background: #2f6b55; border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+  .tb-bars-x { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+</style>

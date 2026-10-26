@@ -1,0 +1,28 @@
+{# Zone fields. Needs `z` (a TablesZone or None) and `prefix` (unique per form). #}
+<div class="loy-fields">
+  <div><label for="{{ prefix }}-name">Name</label>
+    <input id="{{ prefix }}-name" class="form-control-verzio" name="name" maxlength="40" required value="{{ z.name if z else '' }}" placeholder="Skyline edge"></div>
+  <div><label for="{{ prefix }}-note">Short note for guests</label>
+    <input id="{{ prefix }}-note" class="form-control-verzio" name="note" maxlength="60" value="{{ z.note if z and z.note else '' }}" placeholder="Open air, city view"></div>
+</div>
+<div class="tb-kind">
+  <label><input type="radio" name="kind" value="tables" {% if not z or z.kind == 'tables' %}checked{% endif %}> Booked by the table</label>
+  <label><input type="radio" name="kind" value="people" {% if z and z.kind == 'people' %}checked{% endif %}> Counted in guests</label>
+</div>
+<div class="loy-fields">
+  <div><label for="{{ prefix }}-tc">Tables</label>
+    <input id="{{ prefix }}-tc" class="form-control-verzio" type="number" min="1" max="200" name="table_count" value="{{ z.table_count if z else 4 }}"></div>
+  <div><label for="{{ prefix }}-st">Seats per table</label>
+    <input id="{{ prefix }}-st" class="form-control-verzio" type="number" min="1" max="40" name="seats_per_table" value="{{ z.seats_per_table if z else 4 }}"></div>
+  <div><label for="{{ prefix }}-pc">Or: guests it holds</label>
+    <input id="{{ prefix }}-pc" class="form-control-verzio" type="number" min="1" max="2000" name="people_capacity" value="{{ z.people_capacity if z else 20 }}"></div>
+  <div><label for="{{ prefix }}-mp">Smallest group</label>
+    <input id="{{ prefix }}-mp" class="form-control-verzio" type="number" min="1" max="40" name="min_party" value="{{ z.min_party if z else 1 }}"></div>
+  {% if not z %}
+  <div><label for="{{ prefix }}-w">Width on plan</label>
+    <input id="{{ prefix }}-w" class="form-control-verzio" type="number" min="1" max="12" name="w" value="4"></div>
+  <div><label for="{{ prefix }}-h">Height on plan</label>
+    <input id="{{ prefix }}-h" class="form-control-verzio" type="number" min="1" max="8" name="h" value="2"></div>
+  {% endif %}
+</div>
+{% if not z %}<p class="loy-hint mt-1">"Tables" uses the first two numbers, "guests" uses the third. Smallest group keeps big areas (a cabana) for big groups.</p>{% endif %}

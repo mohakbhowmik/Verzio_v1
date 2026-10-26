@@ -1,0 +1,45 @@
+{% extends layout %}
+{% block content %}
+<div class="tb-hero">
+  <div>Commission saved in {{ r.month_label }}</div>
+  <div class="big">₹{{ inr(r.saved) }}</div>
+  <p>{{ r.seated }} WhatsApp booking{{ '' if r.seated == 1 else 's' }} seated, {{ r.guests }} guests, about ₹{{ inr(r.bills) }} in bills.
+     A booking platform charging {{ settings.commission_pct }}% would have taken ₹{{ inr(r.saved) }} of that.
+     {% if plan_price %}Verzio Tables costs ₹{{ inr(plan_price) }} a month.{% endif %}</p>
+</div>
+
+<div class="loy-stats" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 18px">
+  <div class="loy-stat"><b>{{ r.bookings }}</b><span>WhatsApp bookings</span></div>
+  <div class="loy-stat"><b>{{ r.seated }}</b><span>seated</span></div>
+  <div class="loy-stat"><b>{{ r.no_shows }}</b><span>no-shows{% if r.bookings %} ({{ (r.no_shows / r.bookings * 100) | round | int }}%){% endif %}</span></div>
+  <div class="loy-stat"><b>{{ r.cancelled_early }}</b><span>cancelled ahead, table resold</span></div>
+  <div class="loy-stat"><b>{{ r.loved }}</b><span>"Loved it" replies{% if r.reviews_asked %} of {{ r.reviews_asked }}{% endif %}</span></div>
+  <div class="loy-stat"><b>{{ r.offers_booked }}</b><span>came back after a book-again message</span></div>
+</div>
+
+<div class="loy-grid two">
+  <section class="loy-card">
+    <h2>Guests seated from WhatsApp bookings, by day</h2>
+    {% if r.seated %}
+    <div class="tb-bars" role="img" aria-label="Seated bookings per day this month">
+      {% for d, n in r.daily %}<div style="height: {{ (n / top * 100) | round | int }}%" title="{{ d }}: {{ n }}"></div>{% endfor %}
+    </div>
+    <div class="tb-bars-x"><span>{{ r.daily[0][0] if r.daily else '' }}</span><span>{{ r.daily[-1][0] if r.daily else '' }}</span></div>
+    {% else %}
+    <p class="sub mb-0">Nothing yet. Bookings count here once the door taps Arrived.</p>
+    {% endif %}
+  </section>
+  <section class="loy-card">
+    <h2>How this is worked out</h2>
+    <p class="sub">Only WhatsApp bookings marked Arrived count. Walk-ins and no-shows don't.</p>
+    <ul class="loy-list">
+      <li><span>Bills typed at the door</span><b>{{ r.typed_bills }} of {{ r.seated }}</b></li>
+      <li><span>Average bill used for the rest</span><b>₹{{ inr(settings.avg_bill) }}</b></li>
+      <li><span>Platform commission</span><b>{{ settings.commission_pct }}%</b></li>
+      <li><span>Book-again messages this month</span><b>{{ r.offers_sent }} of {{ r.offer_cap }}</b></li>
+      <li><span>Walk-ins added</span><b>{{ r.walkins }}</b></li>
+    </ul>
+    <p class="loy-hint mt-2">Change the average bill and commission in <a href="/owner/tables/settings">Settings</a>. Typing the final bill when a table pays makes this exact.</p>
+  </section>
+</div>
+{% endblock %}
