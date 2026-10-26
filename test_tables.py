@@ -406,6 +406,9 @@ with TestClient(server.app) as client:
     check("...then 'Hi' gets the Book bot again", out and out[0]["payload"]["type"] != "cta_url")
     db.close()
 
-os.unlink(tmp.name)
+try:
+    os.unlink(tmp.name)
+except OSError:
+    pass
 print("\nALL PASSED" if fails == 0 else f"\n{fails} FAILED")
 sys.exit(1 if fails else 0)
