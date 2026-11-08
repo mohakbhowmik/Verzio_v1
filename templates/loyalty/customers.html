@@ -15,12 +15,13 @@
   {% if members %}
   <div class="loy-scroll">
   <table class="loy-table">
-    <thead><tr><th>Customer</th><th>Points</th><th>Visits</th>{% if settings.daily_streak_on or settings.weekly_streak_on %}<th>Streak</th>{% endif %}<th>Last visit</th></tr></thead>
+    <thead><tr><th>Customer</th><th>Points</th><th>Visits</th>{% if settings.daily_streak_on or settings.weekly_streak_on %}<th>Streak</th>{% endif %}<th>Last visit</th>{% if settings.birthday_on %}<th>Birthday</th>{% endif %}</tr></thead>
     <tbody>
       {% for m in members %}
       {% set st = streaks[m.id] %}
       <tr>
-        <td><strong>{{ m.name or 'Customer' }}</strong><div class="loy-meta">+{{ m.phone }}</div></td>
+        <td><strong>{{ m.name or 'Customer' }}</strong>{% if tiers[m.id].key %} <span class="loy-pill-sm tier-{{ tiers[m.id].key }}">{{ tiers[m.id].emoji }} {{ tiers[m.id].label }}</span>{% endif %}
+          <div class="loy-meta">+{{ m.phone }}{% if m.offers_off %} · no offers (STOP){% endif %}</div></td>
         <td><strong>{{ m.points }}</strong></td>
         <td>{{ m.visits }}</td>
         {% if settings.daily_streak_on or settings.weekly_streak_on %}
@@ -31,6 +32,14 @@
         </td>
         {% endif %}
         <td class="loy-muted">{{ m.last_visit_date or '–' }}</td>
+        {% if settings.birthday_on %}
+        <td>
+          <form method="post" action="/owner/loyalty/customers/{{ m.id }}/birthday" class="loy-row-form" style="flex-wrap:nowrap">
+            <input class="form-control-verzio" name="birthday" value="{{ birthday_label(m.birthday) }}" placeholder="14 Aug" style="width:96px; padding:6px 8px" aria-label="Birthday of {{ m.name or 'customer' }}">
+            <button class="loy-btn ghost small" type="submit">Save</button>
+          </form>
+        </td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>

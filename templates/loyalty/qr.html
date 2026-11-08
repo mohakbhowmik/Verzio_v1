@@ -41,6 +41,7 @@
   <div class="poster">
     <div class="eyebrow">Rewards</div>
     <h1>{{ business.name }}</h1>
+    {% if outlet %}<p class="lead" style="margin-top:-2px">{{ outlet.name }}</p>{% endif %}
     <p class="lead">Scan to collect points on every visit</p>
     <div id="qr" role="img" aria-label="QR code">{% if qr_svg %}{{ qr_svg|safe }}{% else %}QR library missing: run pip install -r requirements.txt{% endif %}</div>
     <div class="steps">
@@ -54,6 +55,7 @@
     </div>
     {% endif %}
     {% if settings.daily_streak_on or settings.weekly_streak_on %}<div class="rewards" style="margin-top:10px">Come back {{ 'days' if settings.daily_streak_on else 'weeks' }} in a row for <strong>streak bonus points</strong></div>{% endif %}
+    {% if settings.bill_points_on %}<div class="rewards" style="margin-top:10px">Show your <strong>bill code</strong> when you pay: +{{ settings.points_per_100 }} points per ₹100</div>{% endif %}
     <div class="small">+{{ settings.points_per_visit }} points per visit, once a day · No app or sign-up needed</div>
   </div>
 {% endif %}

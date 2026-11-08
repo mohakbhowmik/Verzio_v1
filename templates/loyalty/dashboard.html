@@ -3,11 +3,22 @@
 <div class="loy-head">
   <div>
     <h1>{{ business.name }}</h1>
+    {% if is_staff %}
+    <p>Counter{% if staff_outlet_name %} · {{ staff_outlet_name }}{% endif %}: give rewards{% if settings.bill_points_on %}, add bill points{% endif %} and add visits.</p>
+    {% else %}
     <p>Give rewards at the counter and keep an eye on your regulars.</p>
+    {% endif %}
   </div>
+  {% if not is_staff %}<a class="loy-btn ghost" href="/owner/loyalty/results"><i class="bi bi-graph-up-arrow"></i> Results</a>{% endif %}
 </div>
 
-{% if reward_count == 0 or not qr_link %}
+{% if boosts_now %}
+<div class="loy-boost" role="status"><i class="bi bi-lightning-charge-fill"></i>
+  <span>{% if boost_now > 1 %}<strong>{{ boost_now }}x points right now.</strong>{% else %}Later today:{% endif %}
+  {% for b in boosts_now %}{{ describe_boost(b) }}{{ '' if loop.last else ' · ' }}{% endfor %}</span></div>
+{% endif %}
+
+{% if not is_staff and (reward_count == 0 or not qr_link) %}
 <div class="loy-setup" aria-label="Getting started">
   <a class="loy-step {{ 'done' if reward_count else '' }}" href="/owner/loyalty/rewards">
     <i class="bi {{ 'bi-check-circle-fill' if reward_count else 'bi-1-circle' }}"></i>
@@ -37,7 +48,7 @@
       {% if found and not problem %}
       <div class="loy-found ok">
         <div class="big">🎁 {{ found.reward_name }}</div>
-        <div class="loy-meta mt-1">{{ found.member.name or 'Customer' }} · +{{ found.member.phone }} ·
+        <div class="loy-meta mt-1">{{ found.member.name or 'Customer' }} · {{ mask(found.member.phone) if is_staff else '+' ~ found.member.phone }} ·
           {{ found.points }} points (has {{ found.member.points }}) · {{ found_visits }} visit{{ '' if found_visits == 1 else 's' }} so far ·
           code valid until {{ clock(found.expires_at) }}</div>
         <form method="post" action="/owner/loyalty/claims/{{ found.id }}/give" class="mt-3 mb-1">
@@ -59,7 +70,7 @@
       <li>
         <div>
           <div><span class="loy-pill">{{ c.code }}</span> · <strong>{{ c.reward_name }}</strong></div>
-          <div class="loy-meta">{{ c.member.name or ('+' ~ c.member.phone) }} · {{ c.member.visits }} visits · until {{ clock(c.expires_at) }}</div>
+          <div class="loy-meta">{{ c.member.name or (mask(c.member.phone) if is_staff else '+' ~ c.member.phone) }} · {{ c.member.visits }} visits · until {{ clock(c.expires_at) }}</div>
         </div>
         <form method="post" action="/owner/loyalty/claims/{{ c.id }}/give" class="m-0">
           <button class="loy-btn small" type="submit">Give</button>
@@ -73,15 +84,36 @@
   </section>
 
   <div class="d-flex flex-column gap-3">
+    {% if settings.bill_points_on %}
+    <section class="loy-card loy-anchor" id="bill">
+      <h2><i class="bi bi-receipt me-1"></i> Bill points</h2>
+      <p class="sub">The customer shows a 4-digit bill code after scanning the QR. Type it with the bill: {{ settings.points_per_100 }} points per ₹100.</p>
+      <form method="post" action="/owner/loyalty/bill">
+        <div class="loy-fields">
+          <div><label for="b-code">Bill code</label>
+            <input id="b-code" class="form-control-verzio loy-code-input" style="font-size:22px; max-width:none" name="code" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="0000"></div>
+          <div><label for="b-amt">Bill amount (₹)</label>
+            <input id="b-amt" class="form-control-verzio" style="font-size:22px" name="amount" inputmode="decimal" placeholder="450" required></div>
+        </div>
+        <details class="mt-2"><summary class="loy-hint" style="cursor:pointer">No code? Use the customer's WhatsApp number</summary>
+          <input class="form-control-verzio mt-2" name="phone" inputmode="tel" placeholder="98765 43210" aria-label="Customer's WhatsApp number">
+        </details>
+        <button class="loy-btn mt-2" type="submit">Add bill points</button>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if not is_staff %}
     <div class="loy-stats">
       <div class="loy-stat"><b>{{ stats.members }}</b><span>Customers</span></div>
       <div class="loy-stat"><b>{{ stats.visits_30d }}</b><span>Visits, 30 days</span></div>
       <div class="loy-stat"><b>{{ stats.rewards_30d }}</b><span>Rewards, 30 days</span></div>
     </div>
+    {% endif %}
 
     <section class="loy-card loy-anchor" id="points">
-      <h2><i class="bi bi-plus-circle me-1"></i> Add points</h2>
-      <p class="sub">For a customer who didn't scan the QR, or to fix a mistake. Always type a normal number, like 20.</p>
+      <h2><i class="bi bi-plus-circle me-1"></i> {{ 'Add a visit' if is_staff else 'Add points' }}</h2>
+      <p class="sub">{% if is_staff %}For a customer who couldn't scan the QR.{% else %}For a customer who didn't scan the QR, or to fix a mistake. Always type a normal number, like 20.{% endif %}</p>
       <form method="post" action="/owner/loyalty/points">
         <div class="loy-fields">
           <div><label for="loy-phone">Customer's WhatsApp</label>
@@ -91,12 +123,16 @@
           <div><label for="loy-pts">Points</label>
             <input id="loy-pts" class="form-control-verzio" name="points" inputmode="numeric" value="{{ settings.points_per_visit }}" required></div>
         </div>
+        {% if is_staff %}
+        <input type="hidden" name="kind" value="visit">
+        {% else %}
         <div class="loy-radio" role="radiogroup" aria-label="What to do">
           <label><input type="radio" name="kind" value="visit" checked> A visit</label>
           <label><input type="radio" name="kind" value="add"> Add points</label>
           <label><input type="radio" name="kind" value="remove"> Remove points</label>
         </div>
         <p class="loy-hint" style="margin-top:-4px; margin-bottom:10px">"A visit" counts towards streaks. "Add" and "Remove" are for fixing mistakes.</p>
+        {% endif %}
         <input class="form-control-verzio mb-2" name="note" maxlength="120" placeholder="Note (optional)" aria-label="Note">
         <button class="loy-btn" type="submit">Save points</button>
       </form>
@@ -104,6 +140,7 @@
   </div>
 </div>
 
+{% if not is_staff %}
 <section class="loy-card mt-3">
   <div class="d-flex justify-content-between align-items-center">
     <h2 class="mb-0"><i class="bi bi-clock-history me-1"></i> Recent activity</h2>
@@ -114,10 +151,10 @@
     {% for e, m in recent %}
     <li>
       <div>
-        <div>{{ m.name or ('+' ~ m.phone) }} · {{ e.note if e.kind in ('claim', 'streak_daily', 'streak_weekly') else labels.get(e.kind, e.kind) }}</div>
+        <div>{{ m.name or ('+' ~ m.phone) }} · {{ e.note if (e.kind in note_kinds and e.note) else labels.get(e.kind, e.kind) }}</div>
         <div class="loy-meta">{{ clock(e.created_at) }}, {{ e.created_at.strftime('%d %b') }} · balance {{ e.balance_after }}</div>
       </div>
-      <span class="{{ 'loy-plus' if e.delta > 0 else 'loy-minus' }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</span>
+      <span class="{{ 'loy-plus' if e.delta > 0 else ('loy-minus' if e.delta < 0 else 'loy-muted') }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</span>
     </li>
     {% endfor %}
   </ul>
@@ -125,4 +162,5 @@
   <p class="loy-muted mb-0 mt-2" style="font-size:14px">Nothing yet. Activity appears here when customers start scanning.</p>
   {% endif %}
 </section>
+{% endif %}
 {% endblock %}

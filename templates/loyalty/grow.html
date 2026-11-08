@@ -1,0 +1,136 @@
+{% extends layout %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Grow</h1>
+    <p>Extras that bring customers back more often. Each one is off until you switch it on.</p>
+  </div>
+  <button type="submit" form="loy-grow" class="loy-btn"><i class="bi bi-check2"></i> Save changes</button>
+</div>
+
+<form method="post" action="/owner/loyalty/grow" id="loy-grow">
+<div class="loy-grid two">
+  <div class="d-flex flex-column gap-3">
+
+    <section class="loy-card loy-anchor" id="tiers">
+      <div class="loy-switch">
+        <div><label for="g-tiers">🥈 Silver and 🥇 Gold members</label>
+          <p class="loy-hint">Regulars move up after a number of visits and get extra points on every visit and bill.</p></div>
+        <input id="g-tiers" type="checkbox" name="tiers_on" value="on" {% if settings.tiers_on %}checked{% endif %}>
+      </div>
+      <div class="loy-fields">
+        <div><label for="g-sv">Silver after (visits)</label>
+          <input id="g-sv" class="form-control-verzio" name="silver_visits" inputmode="numeric" value="{{ settings.silver_visits }}"></div>
+        <div><label for="g-sb">Silver extra points (%)</label>
+          <input id="g-sb" class="form-control-verzio" name="silver_bonus" inputmode="numeric" value="{{ settings.silver_bonus }}"></div>
+        <div><label for="g-gv">Gold after (visits)</label>
+          <input id="g-gv" class="form-control-verzio" name="gold_visits" inputmode="numeric" value="{{ settings.gold_visits }}"></div>
+        <div><label for="g-gb">Gold extra points (%)</label>
+          <input id="g-gb" class="form-control-verzio" name="gold_bonus" inputmode="numeric" value="{{ settings.gold_bonus }}"></div>
+      </div>
+      {% set sp = (settings.points_per_visit * (100 + settings.silver_bonus) / 100)|round|int %}
+      {% set gp = (settings.points_per_visit * (100 + settings.gold_bonus) / 100)|round|int %}
+      <div class="loy-example">With {{ settings.points_per_visit }} points per visit: Silver gets {{ sp }}, Gold gets {{ gp }}.</div>
+    </section>
+
+    <section class="loy-card loy-anchor" id="bill">
+      <div class="loy-switch">
+        <div><label for="g-bill">🧾 Points by bill amount</label>
+          <p class="loy-hint">After scanning, customers get a 4-digit bill code. Staff type it with the bill on the dashboard. Visit points still apply (set them to 0 in Settings for bill points only).</p></div>
+        <input id="g-bill" type="checkbox" name="bill_points_on" value="on" {% if settings.bill_points_on %}checked{% endif %}>
+      </div>
+      <div class="loy-fields">
+        <div><label for="g-p100">Points per ₹100</label>
+          <input id="g-p100" class="form-control-verzio" name="points_per_100" inputmode="numeric" value="{{ settings.points_per_100 }}"></div>
+        <div><label for="g-avg">Your average bill (₹)</label>
+          <input id="g-avg" class="form-control-verzio" name="avg_bill" inputmode="numeric" value="{{ settings.avg_bill }}"></div>
+      </div>
+      <p class="loy-hint mt-2">The average bill is used on the Results page to estimate the money repeat visits bring in, until bills are typed.</p>
+      <div class="loy-example">A ₹450 bill gives {{ (450 // 100) * settings.points_per_100 }} points (full ₹100s only).</div>
+    </section>
+
+    <section class="loy-card loy-anchor" id="summary">
+      <div class="loy-switch">
+        <div><label for="g-sum">📊 Monday summary on WhatsApp</label>
+          <p class="loy-hint">Every Monday morning: last week's new members, visits, repeat visits and rewards, sent to your manager number{% if business.manager_phone_number %} (+{{ business.manager_phone_number }}){% endif %}. Not sent if that's the same as the business number.</p></div>
+        <input id="g-sum" type="checkbox" name="summary_on" value="on" {% if settings.summary_on %}checked{% endif %}>
+      </div>
+    </section>
+  </div>
+
+  <div class="d-flex flex-column gap-3">
+    <section class="loy-card loy-anchor" id="referral">
+      <div class="loy-switch">
+        <div><label for="g-ref">🤝 Invite a friend</label>
+          <p class="loy-hint">Customers get an invite link (wallet page, or reply INVITE). When a friend makes their first visit, both get points. Up to 10 rewarded invites per customer a month.</p></div>
+        <input id="g-ref" type="checkbox" name="referral_on" value="on" {% if settings.referral_on %}checked{% endif %}>
+      </div>
+      <div class="loy-fields">
+        <div><label for="g-refp">Points for each of them</label>
+          <input id="g-refp" class="form-control-verzio" name="referral_points" inputmode="numeric" value="{{ settings.referral_points }}"></div>
+      </div>
+    </section>
+
+    <section class="loy-card loy-anchor" id="birthday">
+      <div class="loy-switch">
+        <div><label for="g-bday">🎂 Birthday gift</label>
+          <p class="loy-hint">On their second visit we ask for their birthday (or they add it on their wallet page). On the day, they get points and a happy-birthday message. Only for customers who visited in the last 6 months.</p></div>
+        <input id="g-bday" type="checkbox" name="birthday_on" value="on" {% if settings.birthday_on %}checked{% endif %}>
+      </div>
+      <div class="loy-fields">
+        <div><label for="g-bdp">Birthday points</label>
+          <input id="g-bdp" class="form-control-verzio" name="birthday_points" inputmode="numeric" value="{{ settings.birthday_points }}"></div>
+      </div>
+      <p class="loy-hint mt-2">If the customer hasn't messaged you in the last 24 hours, WhatsApp charges about ₹1 for this message (from your WhatsApp account). This month: {{ marketing_used }} of {{ settings.offers_per_month }}. Customers who reply STOP get no more offers.</p>
+    </section>
+
+    <section class="loy-card loy-anchor" id="review">
+      <div class="loy-switch">
+        <div><label for="g-rev">⭐ Ask for a Google review</label>
+          <p class="loy-hint">Once per customer, in the reply to their scan on the visit number you choose. Free: it's a reply.</p></div>
+        <input id="g-rev" type="checkbox" name="review_on" value="on" {% if settings.review_on %}checked{% endif %}>
+      </div>
+      <div class="loy-fields">
+        <div style="grid-column: 1 / -1"><label for="g-link">Your Google review link</label>
+          <input id="g-link" class="form-control-verzio" name="review_link" value="{{ settings.review_link or '' }}" placeholder="https://g.page/r/.../review"></div>
+        <div><label for="g-ra">Ask on visit number</label>
+          <input id="g-ra" class="form-control-verzio" name="review_after" inputmode="numeric" value="{{ settings.review_after }}"></div>
+      </div>
+      <p class="loy-hint mt-2">Find the link in Google Business Profile → Ask for reviews.</p>
+    </section>
+  </div>
+</div>
+</form>
+
+<section class="loy-card loy-anchor mt-3" id="boosts">
+  <h2><i class="bi bi-lightning-charge me-1"></i> Double points</h2>
+  <p class="sub">Fill quiet times: double or triple points on the days (and hours) you choose. Applies to visit and bill points.</p>
+  {% if boosts %}
+  <ul class="loy-list mb-3">
+    {% for b in boosts %}
+    <li>
+      <div><strong>{{ describe_boost(b) }}</strong>{% if not b.is_active %} <span class="loy-muted">· paused</span>{% endif %}</div>
+      <div class="d-flex gap-2">
+        <form method="post" action="/owner/loyalty/boosts/{{ b.id }}/toggle" class="m-0"><button class="loy-btn ghost small" type="submit">{{ 'Pause' if b.is_active else 'Turn on' }}</button></form>
+        <form method="post" action="/owner/loyalty/boosts/{{ b.id }}/delete" class="m-0"><button class="loy-btn danger small" type="submit" onclick="return confirm('Delete this rule?');">Delete</button></form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/owner/loyalty/boosts">
+    <label style="font-size:13px; font-weight:600">Days</label>
+    <div class="loy-days">
+      {% for d in day_names %}<label><input type="checkbox" name="days" value="{{ loop.index0 }}"> {{ d }}</label>{% endfor %}
+    </div>
+    <div class="loy-fields">
+      <div><label for="b-start">From (optional)</label><input id="b-start" class="form-control-verzio" type="time" name="start"></div>
+      <div><label for="b-end">To (optional)</label><input id="b-end" class="form-control-verzio" type="time" name="end"></div>
+      <div><label for="b-mult">Points</label>
+        <select id="b-mult" class="form-control-verzio" name="multiplier"><option value="2">Double (2x)</option><option value="3">Triple (3x)</option></select></div>
+    </div>
+    <p class="loy-hint mt-2">Leave the times empty for the whole day. Example: Tue and Wed, 15:00 to 18:00, double points.</p>
+    <button class="loy-btn mt-2" type="submit"><i class="bi bi-plus"></i> Add rule</button>
+  </form>
+</section>
+{% endblock %}

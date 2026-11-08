@@ -96,6 +96,14 @@
     .fill { transition: none; } .ticket, .badge, .reward-card.celebrate { animation: none !important; }
     .reward-card.unlocked .fill::after, .streak.hot .icon { animation: none; }
   }
+  .plus-card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin: 14px 0 0; font-size: 15px; }
+  .plus-card .sub { font-size: 13.5px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .plus-card.boost { border-color: var(--fill2); background: linear-gradient(180deg, #fff3e2, var(--paper)); }
+  .plus-btn { display: inline-block; margin-top: 10px; border: 0; border-radius: 12px; padding: 10px 14px; font-weight: 700;
+    font-size: 14.5px; background: var(--green); color: #fff; text-decoration: none; cursor: pointer; font-family: inherit; }
+  .bday { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .bday select { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; font: inherit; background: #fff; }
+  .bday .plus-btn { margin-top: 0; }
   #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
 </style>
 </head>
@@ -119,7 +127,25 @@
     {% elif progress %}
     <p class="next">Every reward is unlocked. Treat yourself! 🎉</p>
     {% endif %}
+    {% if tier.key or tier_next %}
+    <p class="next" style="margin-top:6px">{% if tier.key %}{{ tier.emoji }} <strong>{{ tier.label }} member</strong>: +{{ tier.bonus }}% points{% endif %}{% if tier.key and tier_next %} · {% endif %}{% if tier_next %}{{ tier_next[1] }} more visit{{ '' if tier_next[1] == 1 else 's' }} to {{ tier_next[0].label }}{% endif %}</p>
+    {% endif %}
   </section>
+
+  {% if boosts_today %}
+  <section class="plus-card boost" aria-label="Double points">
+    ⚡ {% if boost_now > 1 %}<strong>{{ boost_now }}x points right now!</strong>{% else %}<strong>Bonus points today</strong>{% endif %}
+    <div class="sub">{% for b in boosts_today %}{{ describe_boost(b) }}{{ '' if loop.last else ' · ' }}{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if bill_code %}
+  <section class="ticket" aria-live="polite">
+    <div class="label">Bill code: show it when you pay</div>
+    <div class="code">{{ bill_code.code }}</div>
+    <div class="timer">{{ settings.points_per_100 }} points per ₹100 · valid until {{ bill_until }}</div>
+  </section>
+  {% endif %}
 
   {% if streak.daily_on or streak.weekly_on %}
   <section class="streaks" aria-label="Streaks">
@@ -175,11 +201,38 @@
   <div class="how">{{ biz.name }} hasn't added rewards yet. Keep collecting points, they're saved here.</div>
   {% endfor %}
 
+  {% if invite %}
+  <section class="plus-card" aria-label="Invite friends">
+    <strong>🤝 Invite friends, get +{{ settings.referral_points }} points each</strong>
+    <div class="sub">When a friend makes their first visit with your link, you both get {{ settings.referral_points }} points.</div>
+    <a class="plus-btn" href="https://wa.me/?text={{ invite_text|urlencode }}" target="_blank" rel="noopener">Share on WhatsApp</a>
+  </section>
+  {% endif %}
+
+  {% if settings.birthday_on %}
+  <section class="plus-card" aria-label="Birthday">
+    {% if member.birthday %}
+    <strong>🎂 Birthday: {{ birthday }}</strong>
+    <div class="sub">On the day you'll get +{{ settings.birthday_points }} points from {{ biz.name }}.{% if member.offers_off %} (You replied STOP, so we won't message you. Reply START to get it again.){% endif %}</div>
+    {% else %}
+    <strong>🎂 Get a birthday treat</strong>
+    <div class="sub">Tell us your birthday (no year needed) and get +{{ settings.birthday_points }} points on the day. You can only set it once.</div>
+    <form method="post" action="/w/{{ token }}/birthday" class="bday">
+      <select name="day" aria-label="Day" required><option value="">Day</option>{% for d in range(1, 32) %}<option>{{ d }}</option>{% endfor %}</select>
+      <select name="month" aria-label="Month" required><option value="">Month</option>{% for m in months %}<option value="{{ loop.index }}">{{ m }}</option>{% endfor %}</select>
+      <button class="plus-btn" type="submit">Save</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <h2>How to earn</h2>
   <div class="how">
     Scan the QR code at the counter each time you visit: <strong>+{{ settings.points_per_visit }} points</strong> (once a day).
     {% if settings.daily_streak_on %}<br>🔥 Come on days in a row for a growing bonus: +{{ settings.daily_streak_step }}, +{{ settings.daily_streak_step * 2 }}… up to +{{ settings.daily_streak_max }}. Days we're closed don't break it.{% endif %}
     {% if settings.weekly_streak_on %}<br>📅 Visit every week for a weekly bonus: +{{ settings.weekly_streak_step }}, +{{ settings.weekly_streak_step * 2 }}… up to +{{ settings.weekly_streak_max }}.{% endif %}
+    {% if settings.bill_points_on %}<br>🧾 Show your bill code when you pay: +{{ settings.points_per_100 }} points per ₹100.{% endif %}
+    {% if settings.tiers_on %}<br>🥈 Silver after {{ settings.silver_visits }} visits (+{{ settings.silver_bonus }}%), 🥇 Gold after {{ settings.gold_visits }} (+{{ settings.gold_bonus }}%).{% endif %}
     <br>When a bar turns green, tap <strong>Claim</strong> and show the code to staff.
   </div>
 
@@ -188,10 +241,10 @@
     {% for e in history %}
     <div class="hist-row">
       <div>
-        <div>{{ e.note if e.kind in ('claim',) else labels.get(e.kind, e.kind) }}</div>
+        <div>{{ e.note if (e.kind in ('claim', 'bill', 'referral') and e.note) else labels.get(e.kind, e.kind) }}</div>
         <div class="when">{{ e.created_at.strftime('%d %b %Y') }}</div>
       </div>
-      <div class="{{ 'plus' if e.delta > 0 else 'minus' }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</div>
+      <div class="{{ 'plus' if e.delta > 0 else ('minus' if e.delta < 0 else 'when') }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</div>
     </div>
     {% else %}
     <div class="empty">No points yet.</div>

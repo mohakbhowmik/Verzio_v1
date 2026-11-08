@@ -213,6 +213,32 @@ TEMPLATE_DEFINITIONS = {
         "example": ["Priya", "Skyline Social"],
         "buttons": ["Book a table", "Stop offers"],
     },
+    # Verzio Loyalty Plus (loyalty/bot.py, loyalty/jobs.py).
+    "loyalty_referral": {
+        "text": (
+            "Hi {{1}}, {{2}} just made their first visit to {{3}} with your invite.\n\n"
+            "We've added {{4}} points to your wallet. Your balance is now {{5}} points."
+        ),
+        "example": ["Priya", "Rahul", "Bean There Cafe", "30", "120"],
+        "buttons": ["My wallet"],
+    },
+    "loyalty_birthday": {
+        "category": "MARKETING",
+        "text": (
+            "Happy birthday, {{1}}! 🎂 {{2}} has added {{3}} birthday points to your wallet.\n\n"
+            "Come in this week and treat yourself. Tap Stop offers to stop these messages."
+        ),
+        "example": ["Priya", "Bean There Cafe", "50"],
+        "buttons": ["My wallet", "Stop offers"],
+    },
+    "loyalty_weekly_summary": {
+        "text": (
+            "Your week at {{1}} with Verzio Loyalty.\n\n"
+            "New members: {{2}}\nVisits: {{3}}\nRepeat visits: {{4}}\nRewards given: {{5}}\n\n"
+            "Open your Verzio owner portal for full results."
+        ),
+        "example": ["Bean There Cafe", "18", "142", "96", "11"],
+    },
 }
 
 # Names can be overridden per environment, e.g. WA_TEMPLATE_BOOKING_CONFIRMED=booking_confirmed_v2

@@ -13,6 +13,7 @@ there, and sends a Tables business's owner away from Verzio Book pages.
 """
 import json
 import logging
+import re
 from datetime import date, datetime, timedelta
 from urllib.parse import quote_plus
 
@@ -499,7 +500,10 @@ async def delete_staff(staff_id: int, request: Request, db: Session = Depends(ge
 # ------------------------------------------------------------------------
 
 _BOOK_PAGES = {"dashboard", "appointments", "services", "reports", "settings"}
-_STAFF_OK = ("/owner/tables", "/owner/login", "/owner/logout", "/owner/password", "/owner/forgot", "/owner/reset")
+_STAFF_COMMON = ("/owner/login", "/owner/logout", "/owner/password", "/owner/forgot", "/owner/reset")
+# Loyalty counter staff: the dashboard's counter tools only (see loyalty/owner.py).
+_LOYALTY_STAFF_OK = {"/owner/loyalty", "/owner/loyalty/lookup", "/owner/loyalty/points", "/owner/loyalty/bill"}
+_LOYALTY_GIVE_RE = re.compile(r"/owner/loyalty/claims/\d+/give")
 
 
 async def tables_guard(request: Request, call_next):
@@ -511,11 +515,18 @@ async def tables_guard(request: Request, call_next):
             owner, business = resolve_owner_and_business(request, db)
             if owner is not None and business is not None:
                 if T.owner_role(db, owner.id) == "staff":
-                    allowed = path == "/owner/tables" or any(path.startswith(p + "/") or path == p for p in _STAFF_OK)
-                    if not allowed or path.startswith(("/owner/tables/plan", "/owner/tables/guests",
-                                                       "/owner/tables/results", "/owner/tables/settings",
-                                                       "/owner/tables/zones", "/owner/tables/staff")):
-                        return RedirectResponse(url="/owner/tables", status_code=303)
+                    # Staff logins: door staff (Tables "Tonight") and/or counter staff
+                    # (Loyalty counter tools), depending on which products are on.
+                    from loyalty import engine as L
+                    tables_on, loyalty_on = T.is_enabled(db, business), L.is_enabled(db, business)
+                    home = "/owner/tables" if tables_on or not loyalty_on else "/owner/loyalty"
+                    common = any(path == p or path.startswith(p + "/") for p in _STAFF_COMMON)
+                    tables_ok = tables_on and (path == "/owner/tables" or path.startswith("/owner/tables/")) and \
+                        not path.startswith(("/owner/tables/plan", "/owner/tables/guests", "/owner/tables/results",
+                                             "/owner/tables/settings", "/owner/tables/zones", "/owner/tables/staff"))
+                    loyalty_ok = loyalty_on and (path in _LOYALTY_STAFF_OK or _LOYALTY_GIVE_RE.fullmatch(path) is not None)
+                    if not (common or tables_ok or loyalty_ok):
+                        return RedirectResponse(url=home, status_code=303)
                 else:
                     parts = path.split("/")
                     if (path == "/owner" or (len(parts) >= 3 and parts[2] in _BOOK_PAGES)) and T.is_enabled(db, business):

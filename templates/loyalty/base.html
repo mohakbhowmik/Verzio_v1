@@ -15,12 +15,18 @@
 </head>
 <body>
     {# Verzio Loyalty's own dashboard: no Verzio Book pages in this menu. #}
+    {% if is_staff %}
+    {% set nav_items = [("dashboard", "/owner/loyalty", "bi-shop", "Counter")] %}
+    {% else %}
     {% set nav_items = [
         ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Dashboard"),
         ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
         ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
+        ("grow", "/owner/loyalty/grow", "bi-rocket-takeoff", "Grow"),
+        ("results", "/owner/loyalty/results", "bi-graph-up-arrow", "Results"),
         ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
     ] %}
+    {% endif %}
     {% set owner_name = owner.full_name if owner and owner.full_name else 'Owner' %}
     {% set owner_initials = (owner_name.split()[-2:] | map('first') | join | upper) if owner_name else 'O' %}
 
@@ -78,7 +84,7 @@
                                 <strong>{{ owner_name }}</strong>
                                 {% if business %}<span>{{ business.name }}</span>{% endif %}
                             </div>
-                            <a href="/owner/loyalty/settings" class="dropdown-item text-decoration-none"><i class="bi bi-sliders"></i><span>Settings</span></a>
+                            {% if not is_staff %}<a href="/owner/loyalty/settings" class="dropdown-item text-decoration-none"><i class="bi bi-sliders"></i><span>Settings</span></a>{% endif %}
                             <a href="/owner/password" class="dropdown-item text-decoration-none"><i class="bi bi-key"></i><span>Change password</span></a>
                             <form action="/owner/logout" method="post" class="m-0">
                                 <button type="submit" class="dropdown-item logout"><i class="bi bi-box-arrow-right"></i><span>Sign out</span></button>

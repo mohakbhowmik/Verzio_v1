@@ -8,7 +8,7 @@ their points, watch the bars fill, and claim an unlocked reward right here
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -49,6 +49,16 @@ def wallet_page(token: str, request: Request, db: Session = Depends(get_db)):
     settings = L.get_settings(db, biz.id)
     claim = L.active_claim(db, member)
     error = request.query_params.get("error")
+    from booking_engine import business_now
+    from loyalty.models import LoyaltyBillCode
+    now_local = business_now(biz)
+    bill_code = None
+    if settings.bill_points_on:
+        bill_code = (db.query(LoyaltyBillCode)
+                     .filter(LoyaltyBillCode.member_id == member.id, LoyaltyBillCode.status == "pending",
+                             LoyaltyBillCode.expires_at > datetime.utcnow())
+                     .order_by(LoyaltyBillCode.id.desc()).first())
+    invite = L.invite_link(db, settings, member) if settings.referral_on else None
     return templates.TemplateResponse(
         request=request,
         name="loyalty/wallet.html",
@@ -67,6 +77,19 @@ def wallet_page(token: str, request: Request, db: Session = Depends(get_db)):
             "labels": ENTRY_LABELS,
             "error": error[:120] if error else None,
             "token": token,
+            # Loyalty Plus
+            "tier": L.tier_for(settings, member.visits),
+            "tier_next": L.next_tier(settings, member.visits),
+            "boosts_today": L.boosts_today(db, biz, now_local),
+            "boost_now": L.active_boost(db, biz, now_local),
+            "describe_boost": L.describe_boost,
+            "bill_code": bill_code,
+            "bill_until": local_clock(biz, bill_code.expires_at) if bill_code else None,
+            "invite": invite,
+            "invite_text": (f"Join me at {biz.name} rewards on WhatsApp! ☕ Tap here to get "
+                            f"+{settings.referral_points} bonus points on your first visit: {invite}") if invite else "",
+            "birthday": L.birthday_label(member.birthday),
+            "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
         },
         headers=NO_CACHE,
     )
@@ -86,3 +109,18 @@ def wallet_claim(token: str, reward_id: int, db: Session = Depends(get_db)):
         from urllib.parse import quote_plus
         return RedirectResponse(url=f"/w/{token}?error={quote_plus(err.message)}", status_code=303)
     return RedirectResponse(url=f"/w/{token}#claim", status_code=303)
+
+
+@router.post("/w/{token}/birthday")
+def wallet_birthday(token: str, db: Session = Depends(get_db), day: str = Form(""), month: str = Form("")):
+    """Set once from the wallet page (customers can't change it later)."""
+    member, biz = _member(db, token)
+    if member is None:
+        return RedirectResponse(url=f"/w/{token}", status_code=303)
+    settings = L.get_settings(db, biz.id)
+    mmdd = L.parse_birthday(f"{day}-{month}") if day.isdigit() and month.isdigit() else None
+    if not settings or not settings.birthday_on or not mmdd:
+        return RedirectResponse(url=f"/w/{token}?error=Please+pick+a+day+and+month.", status_code=303)
+    if not L.set_birthday(db, member, mmdd):
+        return RedirectResponse(url=f"/w/{token}?error=Your+birthday+is+already+saved.", status_code=303)
+    return RedirectResponse(url=f"/w/{token}", status_code=303)

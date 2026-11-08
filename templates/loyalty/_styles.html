@@ -68,6 +68,27 @@
   .loy-search { display: flex; gap: 8px; max-width: 420px; }
   .loy-pill-sm { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); }
   .loy-pill-sm.hot { background: var(--brass-soft); color: #7a5520; }
+  .loy-pill-sm.tier-silver { background: #eceff1; color: #455a64; }
+  .loy-pill-sm.tier-gold { background: #fbf0d3; color: #7a5a10; }
+  .loy-boost { display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px;
+    background: var(--brass-soft); color: #5c4320; font-size: 14.5px; border: 1px solid #ead9b9; }
+  .loy-days { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+  .loy-days label { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-light); border-radius: 999px;
+    padding: 4px 10px; font-size: 13.5px; cursor: pointer; background: var(--bg-surface); font-weight: 500; }
+  .loy-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .loy-kpi { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-panel); padding: 14px; }
+  .loy-kpi b { display: block; font-family: var(--font-display); font-size: 30px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .loy-kpi span { color: var(--text-muted); font-size: 12.5px; }
+  .loy-kpi .chg { font-size: 12px; font-weight: 600; margin-left: 4px; }
+  .loy-kpi .chg.up { color: var(--status-green); } .loy-kpi .chg.down { color: var(--status-red); }
+  .loy-kpi.hero { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .loy-kpi.hero span { color: rgba(255,255,255,.8); }
+  .loy-bars { display: grid; grid-template-columns: repeat(14, 1fr); gap: 4px; align-items: end; height: 120px; margin-top: 12px; }
+  .loy-bars div { background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; position: relative; }
+  .loy-bars-x { display: grid; grid-template-columns: repeat(14, 1fr); gap: 4px; font-size: 10.5px; color: var(--text-muted); text-align: center; margin-top: 4px; }
+  .loy-period { display: inline-flex; border: 1px solid var(--border-light); border-radius: 999px; overflow: hidden; }
+  .loy-period a { padding: 6px 12px; font-size: 13px; text-decoration: none; color: var(--text-main); }
+  .loy-period a.on { background: var(--accent); color: #fff; }
   .loy-brand-mark { width: 34px; height: 30px; display: block; }
   /* Fallbacks so the layout holds even if the Bootstrap stylesheet fails to load. */
   .d-flex { display: flex; } .d-inline-flex { display: inline-flex; } .flex-column { flex-direction: column; }

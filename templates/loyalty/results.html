@@ -1,0 +1,72 @@
+{% extends layout %}
+{% macro chg(v) %}{% if v is not none %}<span class="chg {{ 'up' if v >= 0 else 'down' }}">{{ '+' if v >= 0 else '' }}{{ v }}%</span>{% endif %}{% endmacro %}
+{% block content %}
+<div class="loy-head">
+  <div>
+    <h1>Results</h1>
+    <p>What Verzio Loyalty did for {{ business.name }} in the last {{ r.days }} days. Changes compare with the {{ r.days }} days before.</p>
+  </div>
+  <nav class="loy-period" aria-label="Period">
+    {% for d in (7, 30, 90) %}<a href="/owner/loyalty/results?days={{ d }}" class="{{ 'on' if r.days == d else '' }}">{{ d }} days</a>{% endfor %}
+  </nav>
+</div>
+
+<div class="loy-kpis">
+  <div class="loy-kpi hero">
+    {% if r.extra_revenue is not none %}
+    <b>₹{{ '{:,}'.format(r.extra_revenue) }}</b>
+    <span>Estimated sales from repeat visits ({{ r.repeat }} × ₹{{ '{:,}'.format(r.avg_bill) }} {{ 'average bill' if r.avg_from_bills else 'your average bill' }})</span>
+    {% else %}
+    <b>{{ r.repeat }}</b>
+    <span>Repeat visits. <a href="/owner/loyalty/grow#bill" style="color:#fff; text-decoration:underline">Set your average bill</a> to see them in ₹.</span>
+    {% endif %}
+  </div>
+  <div class="loy-kpi"><b>{{ r.repeat }}{{ chg(r.repeat_change) }}</b><span>Repeat visits ({{ r.repeat_share }}% of all visits)</span></div>
+  <div class="loy-kpi"><b>{{ r.visits }}{{ chg(r.visits_change) }}</b><span>Visits with a scan</span></div>
+  <div class="loy-kpi"><b>{{ r.new_members }}</b><span>New members ({{ r.members }} in total)</span></div>
+  <div class="loy-kpi"><b>{{ r.regular_rate }}%</b><span>Of members came back at least once ({{ r.regulars }})</span></div>
+  <div class="loy-kpi"><b>{{ r.rewards_given }}</b><span>Rewards given</span></div>
+</div>
+
+<div class="loy-grid two mt-3">
+  <section class="loy-card">
+    <h2>Visits, last 14 days</h2>
+    <div class="loy-bars" role="img" aria-label="Visits per day for the last 14 days">
+      {% for day, n in r.daily %}<div style="height: {{ (n * 100 / r.peak)|round|int }}%" title="{{ day.strftime('%a %d %b') }}: {{ n }} visit{{ '' if n == 1 else 's' }}"></div>{% endfor %}
+    </div>
+    <div class="loy-bars-x">{% for day, n in r.daily %}<span>{{ day.strftime('%a')[:1] }}</span>{% endfor %}</div>
+  </section>
+
+  <section class="loy-card">
+    <h2>What brought them in</h2>
+    <ul class="loy-list">
+      <li><span>🤝 Friends who joined with an invite</span><strong>{{ r.referrals }}</strong></li>
+      <li><span>🎂 Birthday gifts sent</span><strong>{{ r.birthdays }}</strong></li>
+      <li><span>⚡ Visits during double points</span><strong>{{ r.boosted }}</strong></li>
+      {% if settings.bill_points_on or r.bill_count %}
+      <li><span>🧾 Bills typed ({{ r.bill_count }})</span><strong>₹{{ '{:,}'.format(r.bill_total) }}</strong></li>
+      {% endif %}
+    </ul>
+    <p class="loy-hint mt-2">Switch these on in <a href="/owner/loyalty/grow">Grow</a>.</p>
+  </section>
+</div>
+
+{% if r.by_outlet %}
+<section class="loy-card mt-3">
+  <h2>By outlet</h2>
+  <div class="loy-scroll">
+  <table class="loy-table">
+    <thead><tr><th>Outlet</th><th>Visits</th><th>Repeat</th><th>New members</th>{% if settings.bill_points_on %}<th>Bills</th>{% endif %}</tr></thead>
+    <tbody>
+      {% for name, o in r.by_outlet.items() %}
+      <tr><td><strong>{{ name }}</strong></td><td>{{ o.visits }}</td><td>{{ o.repeat }}</td><td>{{ o.new }}</td>
+        {% if settings.bill_points_on %}<td>₹{{ '{:,}'.format(o.bills) }}</td>{% endif %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<p class="loy-hint mt-3">A repeat visit is a scan (or a staff-added visit) by someone who had visited before. The sales estimate assumes each repeat visit spends the average bill; customers who would have come anyway are included, so treat it as a guide.</p>
+{% endblock %}

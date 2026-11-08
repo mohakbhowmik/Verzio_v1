@@ -80,7 +80,7 @@ def admin_products(request: Request, db: Session = Depends(get_db)):
 def admin_products_save(business_id: int, db: Session = Depends(get_db),
                         book_on: str = Form(""), loyalty_on: str = Form(""),
                         loyalty_plan: str = Form("trial"), loyalty_paid_until: str = Form(""),
-                        loyalty_amount: str = Form("799"), tables_on: str = Form(""),
+                        loyalty_amount: str = Form("1299"), tables_on: str = Form(""),
                         tables_plan: str = Form("trial"), tables_paid_until: str = Form(""),
                         tables_amount: str = Form("4999")):
     biz = db.get(Business, business_id)

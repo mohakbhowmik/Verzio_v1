@@ -87,6 +87,75 @@
   </form>
 </section>
 
+<section class="loy-card loy-anchor mt-3" id="outlets">
+  <h2><i class="bi bi-shop me-1"></i> Outlets</h2>
+  <p class="sub">Several counters or branches on this one WhatsApp number? Give each its own QR. Points and rewards work at every outlet, and Results show each outlet's visits.</p>
+  {% if outlets %}
+  <ul class="loy-list mb-3">
+    <li>
+      <form method="post" action="/owner/loyalty/outlets/main" class="loy-row-form m-0" style="flex:1">
+        <input class="form-control-verzio" name="name" value="{{ outlet_names[None] }}" maxlength="60" aria-label="Main outlet name" style="max-width:240px">
+        <button class="loy-btn ghost small" type="submit">Rename</button>
+        <span class="loy-meta">Main counter · code {{ settings.earn_code }} (the QR above)</span>
+      </form>
+    </li>
+    {% for o in outlets %}
+    <li>
+      <div><strong>{{ o.name }}</strong>{% if not o.is_active %} <span class="loy-muted">· paused</span>{% endif %}
+        <div class="loy-meta">Code <span class="loy-code-box" style="font-size:15px">{{ o.earn_code }}</span></div></div>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if o.is_active and qr_link %}<a class="loy-btn small" href="/owner/loyalty/qr?outlet={{ o.id }}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> QR</a>{% endif %}
+        <form method="post" action="/owner/loyalty/outlets/{{ o.id }}/rotate" class="m-0"><button class="loy-btn ghost small" type="submit" onclick="return confirm('Make a new QR for {{ o.name }}? Its old QR stops giving points.');">New code</button></form>
+        <form method="post" action="/owner/loyalty/outlets/{{ o.id }}/toggle" class="m-0"><button class="loy-btn {{ 'danger' if o.is_active else 'ghost' }} small" type="submit">{{ 'Pause' if o.is_active else 'Turn on' }}</button></form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/owner/loyalty/outlets" class="loy-row-form">
+    {% if not outlets %}<input class="form-control-verzio" name="main_name" maxlength="60" placeholder="This outlet's name, e.g. Baner" aria-label="Name of your current outlet">{% endif %}
+    <input class="form-control-verzio" name="name" maxlength="60" placeholder="New outlet, e.g. Koregaon Park" aria-label="New outlet name" required>
+    <button class="loy-btn" type="submit"><i class="bi bi-plus"></i> Add outlet</button>
+  </form>
+  <p class="loy-hint mt-2">Points can be collected once a day across all outlets. Outlets with their own WhatsApp number need a separate Verzio account.</p>
+</section>
+
+<section class="loy-card loy-anchor mt-3" id="staff">
+  <h2><i class="bi bi-person-badge me-1"></i> Counter staff logins</h2>
+  <p class="sub">Staff sign in at verzio.codes/owner/login and see only the counter: give rewards, add bill points, add a visit. They can't see your customer list, results or settings.</p>
+  {% if staff %}
+  <ul class="loy-list mb-3">
+    {% for s_, oid in staff %}
+    <li>
+      <div><strong>{{ s_.full_name }}</strong><div class="loy-meta">Login: {{ s_.email }}{% if outlets %} · {{ outlet_names.get(oid, outlet_names[None]) }}{% endif %}</div></div>
+      <form method="post" action="/owner/loyalty/staff/{{ s_.id }}/delete" class="m-0"><button class="loy-btn danger small" type="submit" onclick="return confirm('Remove {{ s_.full_name }}\'s login?');">Remove</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/owner/loyalty/staff">
+    <div class="loy-fields">
+      <div><label for="st-name">Name</label><input id="st-name" class="form-control-verzio" name="name" maxlength="60" required></div>
+      <div><label for="st-user">Login name</label><input id="st-user" class="form-control-verzio" name="username" placeholder="counter.baner" autocapitalize="none" required></div>
+      <div><label for="st-pass">Password (8+ characters)</label><input id="st-pass" class="form-control-verzio" type="password" name="password" minlength="8" autocomplete="new-password" required></div>
+      {% if outlets %}
+      <div><label for="st-out">Outlet</label>
+        <select id="st-out" class="form-control-verzio" name="outlet_id">
+          <option value="">{{ outlet_names[None] }}</option>
+          {% for o in outlets if o.is_active %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
+        </select></div>
+      {% endif %}
+    </div>
+    <button class="loy-btn mt-2" type="submit"><i class="bi bi-plus"></i> Add staff login</button>
+  </form>
+</section>
+
+<section class="loy-card mt-3">
+  <h2><i class="bi bi-rocket-takeoff me-1"></i> More ways to bring customers back</h2>
+  <p class="sub mb-2">Silver and Gold members, double points, bill points, invites, birthday gifts, Google reviews and a Monday summary.</p>
+  <a class="loy-btn ghost" href="/owner/loyalty/grow">Open Grow</a>
+</section>
+
 <section class="loy-card mt-3">
   <h2>Your plan</h2>
   <div class="loy-fields" style="margin-top:8px">
