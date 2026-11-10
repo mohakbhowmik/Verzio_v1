@@ -28,6 +28,7 @@ os.environ.update(
     COOKIE_SECURE="false",
     WHATSAPP_TEMPLATES="on",
     PUBLIC_BASE_URL="https://verzio.codes",
+    LOYALTY_PLUS="98765 43210",          # only Bean There Cafe's number gets Loyalty Plus
 )
 sys.path.insert(0, os.getcwd())
 import re
@@ -111,9 +112,9 @@ with TestClient(server.app) as client:
                     "loyalty_paid_until": "2027-12-31", "loyalty_amount": "1299"})
     owner = login("o@cafe.test")
     plain_owner = login("o@plain.test")
-    for c in (owner, plain_owner):
+    for c, number in ((owner, "98765 43210"), (plain_owner, "98765 00000")):
         c.post("/owner/loyalty/settings", data={"points_per_visit": "10", "welcome_bonus": "0",
-                                               "whatsapp_number": "98765 43210"})
+                                               "whatsapp_number": number})
         c.post("/owner/loyalty/rewards", data={"name": "Free Brownie", "points": "60"})
         c.post("/owner/loyalty/rewards", data={"name": "Free Lunch", "points": "400"})
     db.expire_all()
@@ -130,7 +131,7 @@ with TestClient(server.app) as client:
           "+10 points" in b and "Bill code" not in b and "Silver" not in b and "birthday" not in b.lower()
           and all(x["id"] != "loy_invite" for x in out[0]["payload"]["buttons"]), b)
     out = webhook(client, "PN_PLAIN", P, text("JOIN ABCDEF"))
-    check("Plus off: JOIN just welcomes, no referral saved", "Welcome to Plain Cafe rewards" in body_of(out)
+    check("not in LOYALTY_PLUS: JOIN just welcomes, no referral saved", "Welcome to Plain Cafe rewards" in body_of(out)
           and db.query(LoyaltyReferral).count() == 0, body_of(out))
     check("templates defined: loyalty_birthday (Marketing), loyalty_referral, loyalty_weekly_summary (Utility)",
           whatsapp_client.TEMPLATE_DEFINITIONS["loyalty_birthday"]["category"] == "MARKETING"
@@ -163,8 +164,33 @@ with TestClient(server.app) as client:
     check("owner switches on every Plus feature", "ok=" in r.headers["location"] and st.tiers_on and st.bill_points_on
           and st.birthday_on and st.referral_on and st.review_on and st.summary_on and st.gold_bonus == 100,
           r.headers["location"])
-    r = plain_owner.post("/owner/loyalty/grow", data={"bill_points_on": "on", "points_per_100": "0"}, follow_redirects=False)
+    r = owner.post("/owner/loyalty/grow", data={**GROW, "points_per_100": "0"}, follow_redirects=False)
     check("bill points need points per ₹100", "100" in r.headers["location"] and "err=" in r.headers["location"])
+    owner.post("/owner/loyalty/grow", data=GROW)
+
+    # ------------------------------------------------------------------ LOYALTY_PLUS switch
+    r = plain_owner.get("/owner/loyalty")
+    check("business not in LOYALTY_PLUS: menu exactly as before (no Grow, no Results)",
+          "/owner/loyalty/grow" not in r.text and "/owner/loyalty/results" not in r.text)
+    r = plain_owner.get("/owner/loyalty", headers=IPHONE)
+    check("business not in LOYALTY_PLUS: phone tab bar as before (4 tabs incl. Settings)",
+          "repeat(4, 1fr)" in r.text and 'href="/owner/loyalty/settings"' in r.text)
+    for path in ("/owner/loyalty/grow", "/owner/loyalty/results"):
+        r = plain_owner.get(path, follow_redirects=False)
+        check(f"business not in LOYALTY_PLUS can't open {path}", r.status_code == 303 and "Loyalty+Plus" in r.headers["location"])
+    r = plain_owner.post("/owner/loyalty/grow", data=GROW, follow_redirects=False)
+    check("business not in LOYALTY_PLUS can't save Plus settings", "Loyalty+Plus" in r.headers["location"])
+    r = plain_owner.get("/owner/loyalty/settings")
+    check("business not in LOYALTY_PLUS: Settings has no outlets or staff sections",
+          'id="outlets"' not in r.text and 'action="/owner/loyalty/staff"' not in r.text)
+    # Even with every Plus column switched on in the database, a business not in the list gets nothing.
+    db.expire_all(); ps = db.get(LoyaltySettings, plain.id)
+    for k, v in (("tiers_on", True), ("silver_visits", 1), ("bill_points_on", True), ("referral_on", True),
+                 ("birthday_on", True), ("review_on", True), ("review_link", "https://x.test"), ("review_after", 1),
+                 ("summary_on", True)):
+        setattr(ps, k, v)
+    db.commit()
+    db.add(LoyaltyBoost(business_id=plain.id, days="0,1,2,3,4,5,6", multiplier=3, is_active=True)); db.commit()
 
     # ------------------------------------------------------------------ outlets
     r = owner.post("/owner/loyalty/outlets", data={"main_name": "Baner", "name": "Koregaon Park"}, follow_redirects=False)
@@ -179,8 +205,9 @@ with TestClient(server.app) as client:
           and f"/owner/loyalty/qr?outlet={kp.id}" in r.text and 'action="/owner/loyalty/staff"' in r.text)
     r = owner.get(f"/owner/loyalty/qr?outlet={kp.id}")
     check("outlet QR poster shows the outlet name", r.status_code == 200 and "Koregaon Park" in r.text and "<svg" in r.text)
-    check("another business's outlet id -> not found", "Outlet+not+found" in
-          plain_owner.get(f"/owner/loyalty/qr?outlet={kp.id}", follow_redirects=False).headers["location"])
+    r = plain_owner.get(f"/owner/loyalty/qr?outlet={kp.id}", follow_redirects=False)
+    check("another business can't print this outlet's QR (gets its own main QR)",
+          r.status_code == 200 and kp.earn_code not in r.text and "Koregaon Park" not in r.text, r.status_code)
 
     # ------------------------------------------------------------------ scan at an outlet + bill code
     C = "919811112222"
@@ -221,13 +248,13 @@ with TestClient(server.app) as client:
     check("bill under ₹100 by phone: saved, 0 points, explained", "under+%E2%82%B9100" in r.headers["location"]
           and member(db, C).points == 70, r.headers["location"])
     r = plain_owner.post("/owner/loyalty/bill", data={"code": BILL, "amount": "500"}, follow_redirects=False)
-    check("a business without bill points can't add bills", "aren%27t+switched+on" in r.headers["location"], r.headers["location"])
+    check("a business without Loyalty Plus can't add bills", "Loyalty+Plus" in r.headers["location"], r.headers["location"])
 
     # ------------------------------------------------------------------ double points
     r = owner.post("/owner/loyalty/boosts", data={"days": ["2"], "start": "15:00", "end": "18:00", "multiplier": "2"},
                    follow_redirects=False)
     check("add a double-points rule (Wed 3–6 PM)", "ok=" in r.headers["location"]
-          and db.query(LoyaltyBoost).count() == 1, r.headers["location"])
+          and db.query(LoyaltyBoost).filter(LoyaltyBoost.business_id == cafe.id).count() == 1, r.headers["location"])
     r = owner.post("/owner/loyalty/boosts", data={"days": ["2"], "start": "18:00", "end": "15:00"}, follow_redirects=False)
     check("end before start refused", "end+time" in r.headers["location"], r.headers["location"])
     r = owner.post("/owner/loyalty/boosts", data={"start": "", "end": ""}, follow_redirects=False)
@@ -449,8 +476,7 @@ with TestClient(server.app) as client:
     check("Results: invites and birthdays counted", rs["referrals"] >= 2 and rs["birthdays"] >= 2, rs)
     r = owner.get("/owner/loyalty/results?days=7", headers=IPHONE)
     check("Results 7 days works on a phone", r.status_code == 200 and "7 days" in r.text)
-    r = plain_owner.get("/owner/loyalty/results")
-    check("Results for a business with no bills: set your average bill prompt", "Set your average bill" in r.text)
+
 
     # ------------------------------------------------------------------ Monday summary
     set_clock(datetime(2026, 11, 23, 10, 0))            # Monday 10 AM
@@ -479,8 +505,15 @@ with TestClient(server.app) as client:
     # ------------------------------------------------------------------ plain business still unchanged
     set_clock(datetime(2026, 11, 26, 12, 0))
     out = webhook(client, "PN_PLAIN", P, text(f"STAMP {PCODE}"))
-    check("Plus off business: second-day scan is plain +10 as before", "+10 points at Plain Cafe" in body_of(out)
+    check("not in LOYALTY_PLUS (Plus columns forced on, 3x rule): second-day scan is plain +10 as before", "+10 points at Plain Cafe" in body_of(out)
           and "Bill code" not in body_of(out) and "birthday" not in body_of(out).lower(), body_of(out))
+    pm = member(db, P)
+    r = TestClient(server.app).get(f"/w/{pm.wallet_token}")
+    check("not in LOYALTY_PLUS (with Plus columns forced on): wallet shows no invite, birthday or tier",
+          r.status_code == 200 and "Invite friends" not in r.text and "birthday treat" not in r.text
+          and "Silver" not in r.text, r.status_code)
+    out = webhook(client, "PN_PLAIN", P, text("invite"))
+    check("not in LOYALTY_PLUS: INVITE -> invites aren't on", "aren't on" in body_of(out), body_of(out))
     res = run_jobs()
     check("jobs leave a Plus-off business alone", not any(x["to"] == "919800000020" for x in outbox))
 

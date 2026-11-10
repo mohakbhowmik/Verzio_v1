@@ -34,7 +34,7 @@ def _businesses(db):
     out = []
     for biz in _live_businesses(db):
         settings = L.get_settings(db, biz.id)
-        if settings and settings.enabled and L.running(db, biz):
+        if settings and settings.enabled and L.plus_on(settings) and L.running(db, biz):
             out.append((biz, settings))
     return out
 
@@ -126,6 +126,16 @@ def week_numbers(db, biz, start_utc: datetime, end_utc: datetime) -> dict:
     return {"new": new, "visits": len(visits), "repeat": len(visits) - new, "given": given}
 
 
+def _local_midnight_utc(biz, now: datetime) -> datetime:
+    import pytz
+    try:
+        tz = pytz.timezone(biz.timezone or "UTC")
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.UTC
+    midnight = tz.localize(datetime(now.year, now.month, now.day))
+    return midnight.astimezone(pytz.UTC).replace(tzinfo=None)
+
+
 async def _weekly_summary(db, biz, settings, now: datetime, claim) -> int:
     if not settings.summary_on or now.weekday() != 0 or not (SUMMARY_HOURS[0] <= now.hour < SUMMARY_HOURS[1]):
         return 0
@@ -136,7 +146,7 @@ async def _weekly_summary(db, biz, settings, now: datetime, claim) -> int:
     year, week, _ = (now.date() - timedelta(days=7)).isocalendar()
     if not claim("loy_week", f"{biz.id}:{year}-{week:02d}"):
         return 0
-    end_utc = datetime.utcnow() - timedelta(hours=now.hour, minutes=now.minute)   # about local midnight
+    end_utc = _local_midnight_utc(biz, now)            # Monday 00:00 local, as UTC
     n = week_numbers(db, biz, end_utc - timedelta(days=7), end_utc)
     body = (f"📊 Your week at {biz.name} with Verzio Loyalty\n\n"
             f"New members: {n['new']}\nVisits: {n['visits']}\nRepeat visits: {n['repeat']}\n"

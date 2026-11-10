@@ -49,6 +49,8 @@ ENTRY_LABELS = {"visit": "Visit (QR)", "welcome": "Welcome bonus", "manual": "Vi
 NOTE_KINDS = ("claim", "streak_daily", "streak_weekly", "bill", "referral", "visit")
 
 
+PLUS_OFF = "That's part of Loyalty Plus, which isn't on for your business yet."
+
 PAGES = {"": "Dashboard", "rewards": "Rewards", "customers": "Customers", "grow": "Grow",
          "results": "Results", "settings": "Settings"}
 
@@ -109,10 +111,14 @@ def _render(request: Request, db: Session, page: str, template: str, extra=None)
     owner, business, settings, redirect = _auth(request, db) if page == "" else _auth_owner(request, db)
     if redirect:
         return redirect
+    plus = L.plus_on(settings)
+    if page in ("grow", "results") and not plus:
+        return _back(err=PLUS_OFF)
     staff = _is_staff(db, owner)
     staff_outlet = L.staff_outlet(db, owner.id) if staff else None
     context = {
         "is_staff": staff,
+        "plus": plus,
         "staff_outlet_name": (L.outlet_names(db, settings).get(staff_outlet) if staff and settings and staff_outlet else None),
         "note_kinds": NOTE_KINDS,
         "layout": "loyalty/base_mobile.html" if is_mobile(request) else "loyalty/base.html",
@@ -459,7 +465,7 @@ async def qr_poster(request: Request, db: Session = Depends(get_db)):
         return _back(err="Loyalty isn't switched on for your business.")
     outlet = None
     oid = request.query_params.get("outlet")
-    if oid and oid.isdigit():
+    if oid and oid.isdigit() and L.plus_on(settings):
         outlet = next((o for o in L.outlets(db, business.id) if o.id == int(oid)), None)
         if outlet is None:
             return _back(err="Outlet not found.", page="settings", anchor="outlets")
@@ -474,7 +480,7 @@ async def qr_poster(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request, name="loyalty/qr.html",
         context={"business": business, "settings": settings, "qr_link": link, "qr_svg": qr_svg,
-                 "rewards": L.rewards(db, business.id)[:3], "outlet": outlet},
+                 "rewards": L.rewards(db, business.id)[:3], "outlet": outlet, "plus": L.plus_on(settings)},
     )
 
 
@@ -488,6 +494,8 @@ async def add_bill(request: Request, db: Session = Depends(get_db), code: str = 
     owner, business, settings, redirect = _auth(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
     staff = _is_staff(db, owner)
@@ -537,6 +545,8 @@ async def save_grow(
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
     try:
@@ -580,6 +590,8 @@ async def add_boost(request: Request, db: Session = Depends(get_db), start: str 
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
     form = await request.form()
@@ -602,6 +614,8 @@ async def toggle_boost(rule_id: int, request: Request, db: Session = Depends(get
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     rule = _own(db, LoyaltyBoost, business, rule_id) if settings else None
     if rule is None:
         return _back(err="Rule not found.", page="grow", anchor="boosts")
@@ -616,6 +630,8 @@ async def delete_boost(rule_id: int, request: Request, db: Session = Depends(get
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     rule = _own(db, LoyaltyBoost, business, rule_id) if settings else None
     if rule is None:
         return _back(err="Rule not found.", page="grow", anchor="boosts")
@@ -634,6 +650,8 @@ async def add_outlet(request: Request, db: Session = Depends(get_db), name: str 
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
     if main_name.strip() and not settings.main_outlet_name:
@@ -654,6 +672,8 @@ async def rename_main(request: Request, db: Session = Depends(get_db), name: str
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
     clean = " ".join(name.split())[:60]
@@ -670,6 +690,8 @@ async def toggle_outlet(outlet_id: int, request: Request, db: Session = Depends(
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     outlet = _own(db, LoyaltyOutlet, business, outlet_id) if settings else None
     if outlet is None:
         return _back(err="Outlet not found.", page="settings", anchor="outlets")
@@ -685,6 +707,8 @@ async def rotate_outlet(outlet_id: int, request: Request, db: Session = Depends(
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     outlet = _own(db, LoyaltyOutlet, business, outlet_id) if settings else None
     if outlet is None:
         return _back(err="Outlet not found.", page="settings", anchor="outlets")
@@ -702,6 +726,8 @@ async def add_staff(request: Request, db: Session = Depends(get_db), name: str =
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     if settings is None:
         return _back(err="Loyalty isn't switched on for your business.")
     oid = int(outlet_id) if outlet_id.strip().isdigit() else None
@@ -721,6 +747,8 @@ async def delete_staff(staff_id: int, request: Request, db: Session = Depends(ge
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     try:
         staff = L.remove_staff(db, business, staff_id)
     except L.LoyaltyError as err:
@@ -737,6 +765,8 @@ async def owner_birthday(member_id: int, request: Request, db: Session = Depends
     _, business, settings, redirect = _auth_owner(request, db)
     if redirect:
         return redirect
+    if not L.plus_on(settings):
+        return _back(err=PLUS_OFF)
     member = _own(db, LoyaltyMember, business, member_id) if settings else None
     if member is None:
         return _back(err="Customer not found.", page="customers")

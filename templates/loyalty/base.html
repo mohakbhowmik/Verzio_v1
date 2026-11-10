@@ -17,13 +17,20 @@
     {# Verzio Loyalty's own dashboard: no Verzio Book pages in this menu. #}
     {% if is_staff %}
     {% set nav_items = [("dashboard", "/owner/loyalty", "bi-shop", "Counter")] %}
-    {% else %}
+    {% elif plus %}
     {% set nav_items = [
         ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Dashboard"),
         ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
         ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
         ("grow", "/owner/loyalty/grow", "bi-rocket-takeoff", "Grow"),
         ("results", "/owner/loyalty/results", "bi-graph-up-arrow", "Results"),
+        ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
+    ] %}
+    {% else %}
+    {% set nav_items = [
+        ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Dashboard"),
+        ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
+        ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
         ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
     ] %}
     {% endif %}

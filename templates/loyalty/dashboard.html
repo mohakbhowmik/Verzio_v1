@@ -4,12 +4,12 @@
   <div>
     <h1>{{ business.name }}</h1>
     {% if is_staff %}
-    <p>Counter{% if staff_outlet_name %} · {{ staff_outlet_name }}{% endif %}: give rewards{% if settings.bill_points_on %}, add bill points{% endif %} and add visits.</p>
+    <p>Counter{% if staff_outlet_name %} · {{ staff_outlet_name }}{% endif %}: give rewards{% if plus and settings.bill_points_on %}, add bill points{% endif %} and add visits.</p>
     {% else %}
     <p>Give rewards at the counter and keep an eye on your regulars.</p>
     {% endif %}
   </div>
-  {% if not is_staff %}<a class="loy-btn ghost" href="/owner/loyalty/results"><i class="bi bi-graph-up-arrow"></i> Results</a>{% endif %}
+  {% if plus and not is_staff %}<a class="loy-btn ghost" href="/owner/loyalty/results"><i class="bi bi-graph-up-arrow"></i> Results</a>{% endif %}
 </div>
 
 {% if boosts_now %}
@@ -84,7 +84,7 @@
   </section>
 
   <div class="d-flex flex-column gap-3">
-    {% if settings.bill_points_on %}
+    {% if plus and settings.bill_points_on %}
     <section class="loy-card loy-anchor" id="bill">
       <h2><i class="bi bi-receipt me-1"></i> Bill points</h2>
       <p class="sub">The customer shows a 4-digit bill code after scanning the QR. Type it with the bill: {{ settings.points_per_100 }} points per ₹100.</p>

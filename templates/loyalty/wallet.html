@@ -209,7 +209,7 @@
   </section>
   {% endif %}
 
-  {% if settings.birthday_on %}
+  {% if plus and settings.birthday_on %}
   <section class="plus-card" aria-label="Birthday">
     {% if member.birthday %}
     <strong>🎂 Birthday: {{ birthday }}</strong>
@@ -231,8 +231,8 @@
     Scan the QR code at the counter each time you visit: <strong>+{{ settings.points_per_visit }} points</strong> (once a day).
     {% if settings.daily_streak_on %}<br>🔥 Come on days in a row for a growing bonus: +{{ settings.daily_streak_step }}, +{{ settings.daily_streak_step * 2 }}… up to +{{ settings.daily_streak_max }}. Days we're closed don't break it.{% endif %}
     {% if settings.weekly_streak_on %}<br>📅 Visit every week for a weekly bonus: +{{ settings.weekly_streak_step }}, +{{ settings.weekly_streak_step * 2 }}… up to +{{ settings.weekly_streak_max }}.{% endif %}
-    {% if settings.bill_points_on %}<br>🧾 Show your bill code when you pay: +{{ settings.points_per_100 }} points per ₹100.{% endif %}
-    {% if settings.tiers_on %}<br>🥈 Silver after {{ settings.silver_visits }} visits (+{{ settings.silver_bonus }}%), 🥇 Gold after {{ settings.gold_visits }} (+{{ settings.gold_bonus }}%).{% endif %}
+    {% if plus and settings.bill_points_on %}<br>🧾 Show your bill code when you pay: +{{ settings.points_per_100 }} points per ₹100.{% endif %}
+    {% if plus and settings.tiers_on %}<br>🥈 Silver after {{ settings.silver_visits }} visits (+{{ settings.silver_bonus }}%), 🥇 Gold after {{ settings.gold_visits }} (+{{ settings.gold_bonus }}%).{% endif %}
     <br>When a bar turns green, tap <strong>Claim</strong> and show the code to staff.
   </div>
 

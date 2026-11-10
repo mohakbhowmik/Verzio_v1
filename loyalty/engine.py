@@ -159,6 +159,33 @@ def qr_link(settings: LoyaltySettings) -> str | None:
 
 
 # ------------------------------------------------------------------------
+# Loyalty Plus switch (server-wide)
+# ------------------------------------------------------------------------
+# LOYALTY_PLUS in .env decides which businesses get Loyalty Plus at all:
+#   empty / unset   nobody (Loyalty works exactly as before for everyone)
+#   918262858396    only the business whose Loyalty WhatsApp number is this
+#                   (several numbers: comma-separated; 10-digit numbers get +91)
+#   all             every business
+# Inside an allowed business each feature is still off until the owner switches it on.
+
+def _plus_numbers() -> tuple[bool, set]:
+    import os
+    raw = (os.getenv("LOYALTY_PLUS") or "").strip()
+    if raw.lower() == "all":
+        return True, set()
+    return False, {canonical_phone(x.strip(), "Asia/Kolkata") for x in raw.split(",") if x.strip()}
+
+
+def plus_on(settings: LoyaltySettings | None) -> bool:
+    if settings is None:
+        return False
+    everyone, numbers = _plus_numbers()
+    if everyone:
+        return True
+    return bool(numbers) and normalize_phone(settings.whatsapp_number) in numbers
+
+
+# ------------------------------------------------------------------------
 # Rewards
 # ------------------------------------------------------------------------
 
@@ -402,6 +429,8 @@ def match_code(db: Session, settings: LoyaltySettings, code: str) -> tuple[bool,
         return False, None
     if code == settings.earn_code.upper():
         return True, None
+    if not plus_on(settings):
+        return False, None
     outlet = (db.query(LoyaltyOutlet)
               .filter(LoyaltyOutlet.business_id == settings.business_id, LoyaltyOutlet.is_active == True,  # noqa: E712
                       LoyaltyOutlet.earn_code == code).first())
@@ -428,8 +457,9 @@ def earn_visit(db: Session, biz: Business, phone: str, code: str, name: str | No
     today = today or business_today(biz)
     member, created = get_or_create_member(db, biz, phone, name)
     outlet_id = outlet.id if outlet else None
+    plus = plus_on(settings)
     if member.last_visit_date == today.isoformat():
-        bill = issue_bill_code(db, biz, settings, member, outlet_id) if settings.bill_points_on else None
+        bill = issue_bill_code(db, biz, settings, member, outlet_id) if plus and settings.bill_points_on else None
         db.commit()
         return EarnResult(member=member, earned=0, already_today=True, newly_unlocked=[],
                           streak=streak_info(biz, settings, member, today), outlet=outlet, bill_code=bill,
@@ -453,10 +483,12 @@ def earn_visit(db: Session, biz: Business, phone: str, code: str, name: str | No
         result.tier_up = new_tier
     if visits_before == 0:
         _apply_referral(db, biz, settings, member, result, outlet_id)
-    if settings.bill_points_on:
+    if plus and settings.bill_points_on:
         result.bill_code = issue_bill_code(db, biz, settings, member, outlet_id)
     # At most one question per reply: the review ask first, the birthday on a later visit.
-    if (settings.review_on and settings.review_link and not member.review_asked
+    if not plus:
+        pass
+    elif (settings.review_on and settings.review_link and not member.review_asked
             and member.visits >= max(1, settings.review_after or 1)):
         member.review_asked = result.ask_review = True
     elif settings.birthday_on and not member.birthday and not member.birthday_asked and member.visits >= 2:
@@ -654,7 +686,7 @@ NO_TIER = Tier("", "", 0)
 
 
 def tier_for(settings: LoyaltySettings | None, visits: int) -> Tier:
-    if not settings or not settings.tiers_on:
+    if not settings or not settings.tiers_on or not plus_on(settings):
         return NO_TIER
     if visits >= settings.gold_visits:
         return Tier("gold", "Gold", max(0, settings.gold_bonus))
@@ -665,7 +697,7 @@ def tier_for(settings: LoyaltySettings | None, visits: int) -> Tier:
 
 def next_tier(settings: LoyaltySettings | None, visits: int) -> tuple[Tier, int] | None:
     """(the next tier, visits still needed), or None at the top / tiers off."""
-    if not settings or not settings.tiers_on:
+    if not settings or not settings.tiers_on or not plus_on(settings):
         return None
     if visits < settings.silver_visits:
         return Tier("silver", "Silver", settings.silver_bonus), settings.silver_visits - visits
@@ -719,12 +751,16 @@ def _boost_applies(rule: LoyaltyBoost, now: datetime) -> bool:
 
 def active_boost(db: Session, biz: Business, now: datetime) -> int:
     """The biggest multiplier of the rules that apply right now (business-local time), else 1."""
+    if not plus_on(get_settings(db, biz.id)):
+        return 1
     return max([r.multiplier for r in boosts(db, biz.id) if _boost_applies(r, now)] or [1])
 
 
 def boosts_today(db: Session, biz: Business, now: datetime) -> list[LoyaltyBoost]:
     """Rules for today that haven't finished yet (for the wallet and replies)."""
     out = []
+    if not plus_on(get_settings(db, biz.id)):
+        return out
     for r in boosts(db, biz.id):
         if now.weekday() in boost_days(r) and not (r.end and now.strftime("%H:%M") >= r.end):
             out.append(r)
@@ -880,7 +916,7 @@ def add_bill(db: Session, biz: Business, code: str | None, amount_raw, phone: st
     """Staff typed a bill: by bill code (from the customer's phone) or by phone number.
     Returns (member, points added, bill amount, newly unlocked rewards)."""
     settings = get_settings(db, biz.id)
-    if not settings or not settings.enabled or not settings.bill_points_on:
+    if not settings or not settings.enabled or not settings.bill_points_on or not plus_on(settings):
         raise LoyaltyError("Points by bill amount aren't switched on. Turn them on in Grow.")
     amount = clean_bill(amount_raw)
     row = None
@@ -938,7 +974,7 @@ def register_referral(db: Session, biz: Business, friend_phone: str, code: str) 
     """A friend sent 'JOIN <code>'. Returns (status, referrer):
     ok | already (invited before) | member (already a customer) | self | unknown | off."""
     settings = get_settings(db, biz.id)
-    if not settings or not settings.referral_on:
+    if not settings or not settings.referral_on or not plus_on(settings):
         return "off", None
     referrer = (db.query(LoyaltyMember)
                 .filter(LoyaltyMember.business_id == biz.id, LoyaltyMember.ref_code == (code or "").strip().upper())
@@ -971,7 +1007,7 @@ def _apply_referral(db: Session, biz: Business, settings: LoyaltySettings, membe
                     result: "EarnResult | None", outlet_id: int | None) -> None:
     """The friend's first visit: points for both (the inviter up to REFERRAL_MONTHLY_CAP a month)."""
     member._referral = None
-    if not settings.referral_on or settings.referral_points <= 0:
+    if not settings.referral_on or settings.referral_points <= 0 or not plus_on(settings):
         return
     row = (db.query(LoyaltyReferral)
            .filter(LoyaltyReferral.business_id == biz.id, LoyaltyReferral.friend_phone == member.phone,

@@ -23,6 +23,14 @@ Two terminals, both in the project folder:
         as <number>   switch to another customer, e.g.  as 919800001111
         reset         delete the demo database and start again
         quit
+
+      Loyalty Plus:
+        plus          switch on every Plus feature with demo values (or use Grow in the portal)
+        codes         counter codes (main + outlets) and your live bill code
+        scan <outlet> scan an outlet's QR, e.g.  scan koregaon
+        invite        your invite message; then  as 919855556666  and paste the JOIN line
+        birthday      pretend today is your birthday and run the birthday job
+        monday        pretend it's next Monday 10 AM and send the weekly summary
       Anything else is sent as a normal message ("hi", "STAMP ABC123", ...).
 """
 import os
@@ -50,6 +58,7 @@ os.environ.update(
     ADMIN_PASSWORD="verzio-dev-admin",
     COOKIE_SECURE="false",
     PUBLIC_BASE_URL="http://127.0.0.1:8000",
+    LOYALTY_PLUS="all",                  # demo database only: Loyalty Plus available
 )
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -66,7 +75,7 @@ import server
 import whatsapp_client
 from database import Business, Owner, SessionLocal, init_db
 from loyalty import engine as L
-from loyalty.models import LoyaltyMember, LoyaltyReward, ensure_tables
+from loyalty.models import LoyaltyBillCode, LoyaltyMember, LoyaltyReward, ensure_tables
 from owner.owner_auth import hash_password
 
 PNID = "SIM_CAFE"
@@ -171,8 +180,18 @@ def chat() -> None:
             print("OK, it's tomorrow. You can scan again." if low == "nextday"
                   else "OK, you skipped a few days. Your daily streak will restart.")
             continue
+        if low in ("plus", "codes", "birthday", "monday"):
+            plus_command(db, biz_id, phone, low)
+            continue
         db.expire_all()
         code = L.get_settings(db, biz_id).earn_code          # in case the owner made a new QR
+        if low.startswith("scan ") and len(low) > 5:
+            want = low[5:].strip()
+            outlet = next((o for o in L.outlets(db, biz_id) if want in o.name.lower()), None)
+            if outlet is None:
+                print("  No active outlet with that name. Add one in Settings -> Outlets, then type  codes\n")
+                continue
+            code, low = outlet.earn_code, "scan"
         if low == "scan":
             msg = {"type": "text", "text": {"body": f"STAMP {code}"}}
             print(f"(sending: STAMP {code})")
@@ -190,8 +209,87 @@ def chat() -> None:
         if not replies:
             print("  (no reply)\n")
         for r in replies:
+            if r["to"] != phone:
+                print(f"\n[WhatsApp to +{r['to']}]")
             show(r["payload"])
     client.__exit__(None, None, None)
+
+
+def plus_command(db, biz_id: int, phone: str, cmd: str) -> None:
+    """Loyalty Plus helpers for the simulator."""
+    import asyncio as _asyncio
+    from datetime import datetime as _dt, timedelta as _td
+    import booking_engine
+    from loyalty import jobs
+    db.expire_all()
+    biz = db.get(Business, biz_id)
+    settings = L.get_settings(db, biz_id)
+    if cmd == "plus":
+        settings.tiers_on, settings.silver_visits, settings.gold_visits = True, 3, 6
+        settings.bill_points_on, settings.points_per_100, settings.avg_bill = True, 5, 300
+        settings.birthday_on, settings.referral_on, settings.summary_on = True, True, True
+        settings.review_on, settings.review_link, settings.review_after = True, "https://g.page/r/demo/review", 4
+        db.commit()
+        print("  Plus switched on: Silver after 3 visits, Gold after 6, bill points (5 per ₹100), invites,\n"
+              "  birthday gift, review ask on visit 4, Monday summary. Change them in the portal: Grow.\n"
+              "  Add outlets and staff logins in Settings; double points in Grow.\n")
+        return
+    if cmd == "codes":
+        print(f"  {settings.main_outlet_name or 'Main counter'}: {settings.earn_code}")
+        for o in L.outlets(db, biz_id):
+            print(f"  {o.name}: {o.earn_code}   (type: scan {o.name.split()[0].lower()})")
+        member = L.find_member(db, biz_id, phone)
+        bill = None
+        if member:
+            bill = (db.query(LoyaltyBillCode).filter(LoyaltyBillCode.member_id == member.id,
+                                                     LoyaltyBillCode.status == "pending",
+                                                     LoyaltyBillCode.expires_at > _dt.utcnow())
+                    .order_by(LoyaltyBillCode.id.desc()).first())
+        print(f"  Your bill code: {bill.code if bill else '(none: scan first, with bill points on)'}\n")
+        return
+    real_now = booking_engine.business_now
+    if cmd == "birthday":
+        member = L.find_member(db, biz_id, phone)
+        if member is None:
+            print("  Scan first so you're a member.\n")
+            return
+        if not settings.birthday_on:
+            print("  Birthday gift is off. Type  plus  or switch it on in Grow.\n")
+            return
+        today = real_now(biz).date()
+        member.birthday, member.offers_off = today.strftime("%m-%d"), False
+        db.commit()
+        from scheduler import release
+        release("loy_bday", f"{member.id}:{today.year}")
+        fake = _dt.combine(today, _dt.min.time()).replace(hour=12)
+    else:
+        if not settings.summary_on:
+            print("  Monday summary is off. Type  plus  or switch it on in Grow.\n")
+            return
+        d = real_now(biz).date()
+        monday = d + _td(days=7 - d.weekday())          # next Monday: "last week" includes today
+        fake = _dt.combine(monday, _dt.min.time()).replace(hour=10)
+        from scheduler import release
+        year, week, _ = (monday - _td(days=7)).isocalendar()
+        release("loy_week", f"{biz_id}:{year}-{week:02d}")
+    booking_engine.business_now = lambda b: fake
+    replies.clear()
+    jdb = SessionLocal()
+    try:
+        result = _asyncio.run(jobs.run(jdb))
+    finally:
+        jdb.close()
+        booking_engine.business_now = real_now
+    if not replies:
+        print(f"  (nothing sent: {result})\n")
+    for r in replies:
+        print(f"\n[WhatsApp to +{r['to']}]")
+        p = r["payload"]
+        if p.get("type") == "template":
+            params = [x["text"] for c in p["template"]["components"] if c["type"] == "body" for x in c["parameters"]]
+            print(f"  (template {p['template']['name']}: {', '.join(params)})\n")
+        else:
+            show(p)
 
 
 def serve() -> None:

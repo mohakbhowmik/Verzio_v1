@@ -19,13 +19,21 @@
     {% if is_staff %}
     {% set tabs = [("dashboard", "/owner/loyalty", "bi-shop", "Counter")]
       + ([("tables", "/owner/tables", "bi-calendar2-check", "Tables")] if has_tables else []) %}
-    {% else %}
+    {% elif plus %}
     {% set tabs = [
         ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Today"),
         ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
         ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
         ("grow", "/owner/loyalty/grow", "bi-rocket-takeoff", "Grow"),
         ("results", "/owner/loyalty/results", "bi-graph-up-arrow", "Results")
+    ] + ([("book", "/owner/dashboard", "bi-calendar3", "Book")] if has_book else [])
+      + ([("tables", "/owner/tables", "bi-calendar2-check", "Tables")] if has_tables else []) %}
+    {% else %}
+    {% set tabs = [
+        ("dashboard", "/owner/loyalty", "bi-grid-1x2", "Today"),
+        ("rewards", "/owner/loyalty/rewards", "bi-gift", "Rewards"),
+        ("customers", "/owner/loyalty/customers", "bi-people", "Customers"),
+        ("settings", "/owner/loyalty/settings", "bi-sliders", "Settings")
     ] + ([("book", "/owner/dashboard", "bi-calendar3", "Book")] if has_book else [])
       + ([("tables", "/owner/tables", "bi-calendar2-check", "Tables")] if has_tables else []) %}
     {% endif %}
@@ -35,8 +43,8 @@
             <img class="loy-brand-mark" src="{{ url_for('static', path='img/verzio-mark.svg') }}" alt="">
             <span class="brand-word">Verzio Loyalty<small>{{ business.name if business else '' }}</small></span>
         </a>
-        {% if not is_staff %}<a href="/owner/loyalty/settings" class="m-header-action ms-auto {% if active_page == 'settings' %}active{% endif %}" aria-label="Settings" title="Settings"><i class="bi bi-sliders"></i></a>{% endif %}
-        <a href="/owner/password" class="m-header-action {{ 'ms-auto' if is_staff else '' }}" aria-label="Change password" title="Change password"><i class="bi bi-key"></i></a>
+        {% if plus and not is_staff %}<a href="/owner/loyalty/settings" class="m-header-action ms-auto {% if active_page == 'settings' %}active{% endif %}" aria-label="Settings" title="Settings"><i class="bi bi-sliders"></i></a>{% endif %}
+        <a href="/owner/password" class="m-header-action {{ '' if (plus and not is_staff) else 'ms-auto' }}" aria-label="Change password" title="Change password"><i class="bi bi-key"></i></a>
         <form action="/owner/logout" method="post" class="m-0">
             <button type="submit" class="m-header-action" aria-label="Sign out" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
         </form>

@@ -55,7 +55,7 @@
     </div>
     {% endif %}
     {% if settings.daily_streak_on or settings.weekly_streak_on %}<div class="rewards" style="margin-top:10px">Come back {{ 'days' if settings.daily_streak_on else 'weeks' }} in a row for <strong>streak bonus points</strong></div>{% endif %}
-    {% if settings.bill_points_on %}<div class="rewards" style="margin-top:10px">Show your <strong>bill code</strong> when you pay: +{{ settings.points_per_100 }} points per ₹100</div>{% endif %}
+    {% if plus and settings.bill_points_on %}<div class="rewards" style="margin-top:10px">Show your <strong>bill code</strong> when you pay: +{{ settings.points_per_100 }} points per ₹100</div>{% endif %}
     <div class="small">+{{ settings.points_per_visit }} points per visit, once a day · No app or sign-up needed</div>
   </div>
 {% endif %}

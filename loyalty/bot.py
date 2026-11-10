@@ -132,7 +132,7 @@ def _wallet_buttons(db: Session, member) -> list[dict]:
         buttons.append({"id": "loy_claim", "title": "Claim reward"})
     buttons.append({"id": "loy_wallet", "title": "My wallet"})
     settings = L.get_settings(db, member.business_id)
-    if settings and settings.referral_on and L.is_real_phone(settings.whatsapp_number or ""):
+    if settings and settings.referral_on and L.plus_on(settings) and L.is_real_phone(settings.whatsapp_number or ""):
         buttons.append({"id": "loy_invite", "title": "Invite friends"})
     return buttons
 
@@ -355,7 +355,7 @@ def _member_reply(db, biz, sender, msg) -> tuple[str | None, str | None]:
         return "stop", None
     if words in START_WORDS and member.offers_off:
         return "start", None
-    if member.birthday_asked and not member.birthday:
+    if member.birthday_asked and not member.birthday and L.plus_on(L.get_settings(db, biz.id)):
         mmdd = L.parse_birthday(body)
         if mmdd:
             return "birthday", mmdd
@@ -385,7 +385,7 @@ async def _join(db, biz, sender, code, send) -> None:
 async def _invite(db, biz, sender, send) -> None:
     settings = L.get_settings(db, biz.id)
     member = L.find_member(db, biz.id, sender)
-    if not settings or not settings.referral_on:
+    if not settings or not settings.referral_on or not L.plus_on(settings):
         await send({"type": "text", "body": f"Invites aren't on at {biz.name} right now."})
         return
     if member is None:

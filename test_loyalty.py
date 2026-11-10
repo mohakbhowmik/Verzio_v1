@@ -138,8 +138,8 @@ with TestClient(server.app) as client:
           and "/owner/appointments" not in r.text and "/owner/services" not in r.text and "OWNER PORTAL" not in r.text, r.status_code)
     check("Loyalty dashboard (with booking): link back to Verzio Book", 'href="/owner/dashboard"' in r.text)
     r = cafe_owner.get("/owner/loyalty", headers=IPHONE)
-    check("Loyalty dashboard (phone): 5 loyalty tabs + Book (Settings in the header)", r.status_code == 200 and "m-tabbar" in r.text
-          and "repeat(6, 1fr)" in r.text and 'href="/owner/loyalty/settings"' in r.text and "Give a reward" in r.text, r.status_code)
+    check("Loyalty dashboard (phone): 4 loyalty tabs + Book", r.status_code == 200 and "m-tabbar" in r.text
+          and "repeat(5, 1fr)" in r.text and "Give a reward" in r.text, r.status_code)
     r = cafe_owner.get("/owner/loyalty/rewards")
     check("Rewards page lists the rewards", r.status_code == 200 and "Free Brownie" in r.text and "Free Cappuccino" in r.text
           and "Add a reward" in r.text, r.status_code)
@@ -540,7 +540,7 @@ with TestClient(server.app) as client:
     check("loyalty only: dashboard has no Verzio Book link", 'href="/owner/dashboard"' not in r.text and "Verzio Book" not in r.text
           and "Rewards on WhatsApp" in r.text)
     r = cafe_owner.get("/owner/loyalty", headers=IPHONE)
-    check("loyalty only: phone tab bar has the 5 loyalty tabs", "repeat(5, 1fr)" in r.text and "/owner/appointments" not in r.text)
+    check("loyalty only: phone tab bar has the 4 loyalty tabs", "repeat(4, 1fr)" in r.text and "/owner/appointments" not in r.text)
     r = salon_owner.get("/owner/appointments")
     check("loyalty only elsewhere doesn't affect other businesses' Book portal", r.status_code == 200)
 

@@ -52,13 +52,14 @@ def wallet_page(token: str, request: Request, db: Session = Depends(get_db)):
     from booking_engine import business_now
     from loyalty.models import LoyaltyBillCode
     now_local = business_now(biz)
+    plus = L.plus_on(settings)
     bill_code = None
-    if settings.bill_points_on:
+    if plus and settings.bill_points_on:
         bill_code = (db.query(LoyaltyBillCode)
                      .filter(LoyaltyBillCode.member_id == member.id, LoyaltyBillCode.status == "pending",
                              LoyaltyBillCode.expires_at > datetime.utcnow())
                      .order_by(LoyaltyBillCode.id.desc()).first())
-    invite = L.invite_link(db, settings, member) if settings.referral_on else None
+    invite = L.invite_link(db, settings, member) if plus and settings.referral_on else None
     return templates.TemplateResponse(
         request=request,
         name="loyalty/wallet.html",
@@ -78,6 +79,7 @@ def wallet_page(token: str, request: Request, db: Session = Depends(get_db)):
             "error": error[:120] if error else None,
             "token": token,
             # Loyalty Plus
+            "plus": plus,
             "tier": L.tier_for(settings, member.visits),
             "tier_next": L.next_tier(settings, member.visits),
             "boosts_today": L.boosts_today(db, biz, now_local),
@@ -119,7 +121,7 @@ def wallet_birthday(token: str, db: Session = Depends(get_db), day: str = Form("
         return RedirectResponse(url=f"/w/{token}", status_code=303)
     settings = L.get_settings(db, biz.id)
     mmdd = L.parse_birthday(f"{day}-{month}") if day.isdigit() and month.isdigit() else None
-    if not settings or not settings.birthday_on or not mmdd:
+    if not settings or not settings.birthday_on or not L.plus_on(settings) or not mmdd:
         return RedirectResponse(url=f"/w/{token}?error=Please+pick+a+day+and+month.", status_code=303)
     if not L.set_birthday(db, member, mmdd):
         return RedirectResponse(url=f"/w/{token}?error=Your+birthday+is+already+saved.", status_code=303)
