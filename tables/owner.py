@@ -519,12 +519,13 @@ async def tables_guard(request: Request, call_next):
                     # (Loyalty counter tools), depending on which products are on.
                     from loyalty import engine as L
                     tables_on, loyalty_on = T.is_enabled(db, business), L.is_enabled(db, business)
+                    loyalty_on = loyalty_on and L.plus_on(L.get_settings(db, business.id))   # counter staff = Loyalty Plus
                     home = "/owner/tables" if tables_on or not loyalty_on else "/owner/loyalty"
                     common = any(path == p or path.startswith(p + "/") for p in _STAFF_COMMON)
                     tables_ok = tables_on and (path == "/owner/tables" or path.startswith("/owner/tables/")) and \
                         not path.startswith(("/owner/tables/plan", "/owner/tables/guests", "/owner/tables/results",
                                              "/owner/tables/settings", "/owner/tables/zones", "/owner/tables/staff"))
-                    loyalty_ok = loyalty_on and (path in _LOYALTY_STAFF_OK or _LOYALTY_GIVE_RE.fullmatch(path) is not None)
+                    loyalty_ok = loyalty_on and L.plus_on(L.get_settings(db, business.id)) and (path in _LOYALTY_STAFF_OK or _LOYALTY_GIVE_RE.fullmatch(path) is not None)
                     if not (common or tables_ok or loyalty_ok):
                         return RedirectResponse(url=home, status_code=303)
                 else:

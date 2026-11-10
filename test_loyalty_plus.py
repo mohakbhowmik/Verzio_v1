@@ -131,8 +131,12 @@ with TestClient(server.app) as client:
           "+10 points" in b and "Bill code" not in b and "Silver" not in b and "birthday" not in b.lower()
           and all(x["id"] != "loy_invite" for x in out[0]["payload"]["buttons"]), b)
     out = webhook(client, "PN_PLAIN", P, text("JOIN ABCDEF"))
-    check("not in LOYALTY_PLUS: JOIN just welcomes, no referral saved", "Welcome to Plain Cafe rewards" in body_of(out)
-          and db.query(LoyaltyReferral).count() == 0, body_of(out))
+    check("not in LOYALTY_PLUS: JOIN is not treated as an invite (handled as before), no referral saved",
+          "invited you" not in all_bodies(out) and db.query(LoyaltyReferral).count() == 0, all_bodies(out))
+    out = webhook(client, "PN_PLAIN", P, text("STOP"))
+    db.expire_all()
+    check("not in LOYALTY_PLUS: a member's STOP is handled as before (no 'no more offers', nothing saved)",
+          "no more offers" not in all_bodies(out) and not member(db, P).offers_off, all_bodies(out))
     check("templates defined: loyalty_birthday (Marketing), loyalty_referral, loyalty_weekly_summary (Utility)",
           whatsapp_client.TEMPLATE_DEFINITIONS["loyalty_birthday"]["category"] == "MARKETING"
           and "category" not in whatsapp_client.TEMPLATE_DEFINITIONS["loyalty_referral"]
@@ -317,6 +321,10 @@ with TestClient(server.app) as client:
     out = webhook(client, "PN_CAFE", F, text(f"JOIN {m.ref_code}"), name="Rahul Mehta")
     check("friend taps the link: welcomed, 'Asha invited you', referral saved", "Asha invited you" in body_of(out)
           and db.query(LoyaltyReferral).filter(LoyaltyReferral.friend_phone == F).count() == 1, body_of(out))
+    out = webhook(client, "PN_CAFE", "919800005555", text("I want to join yoga classes"))
+    check("a normal message containing 'join' is never taken as an invite",
+          "invited you" not in all_bodies(out) and db.query(LoyaltyReferral).filter(
+              LoyaltyReferral.friend_phone == "919800005555").count() == 0, all_bodies(out))
     out = webhook(client, "PN_CAFE", C, text(f"JOIN {m.ref_code}"))
     check("own invite code -> 'That's your own invite link'", "your own invite link" in body_of(out), body_of(out))
     out = webhook(client, "PN_CAFE", F, text("JOIN ZZZZZZ"))
@@ -513,7 +521,8 @@ with TestClient(server.app) as client:
           r.status_code == 200 and "Invite friends" not in r.text and "birthday treat" not in r.text
           and "Silver" not in r.text, r.status_code)
     out = webhook(client, "PN_PLAIN", P, text("invite"))
-    check("not in LOYALTY_PLUS: INVITE -> invites aren't on", "aren't on" in body_of(out), body_of(out))
+    check("not in LOYALTY_PLUS: INVITE is handled as before (no invite link)", "JOIN%20" not in all_bodies(out)
+          and "Invite friends" not in all_bodies(out), all_bodies(out))
     res = run_jobs()
     check("jobs leave a Plus-off business alone", not any(x["to"] == "919800000020" for x in outbox))
 

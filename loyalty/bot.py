@@ -46,9 +46,12 @@ WALLET_WORDS = {"wallet", "my wallet", "points", "my points", "point", "balance"
                 "my rewards", "loyalty", "stamps", "my stamps"}
 CLAIM_WORDS = {"claim", "claim reward", "redeem", "claim my reward"}
 CLAIM_ID_RE = re.compile(r"loy_claim_(\d+)")
-JOIN_RE = re.compile(r"\bjoin\b\W*([a-z0-9]{4,10})\b", re.I)
+# The invite link pre-types exactly "JOIN <6-letter code>": match only that, so normal
+# messages like "I want to join yoga" are never mistaken for an invite.
+JOIN_RE = re.compile(r"^\s*join\s+([a-z0-9]{6})\s*$", re.I)
 INVITE_WORDS = {"invite", "refer", "invite friends", "refer a friend", "invite a friend"}
 STOP_WORDS = {"stop", "unsubscribe", "stop offers", "stop messages"}
+PLUS_ACTIONS = {"join", "invite", "stop", "start", "birthday"}
 START_WORDS = {"start", "start offers", "subscribe"}
 
 
@@ -163,7 +166,7 @@ def classify(msg: dict) -> tuple[str | None, str | None]:
         m = STAMP_RE.search(body)
         if m:
             return "stamp", m.group(1)
-        m = JOIN_RE.search(body)
+        m = JOIN_RE.match(body)
         if m:
             return "join", m.group(1)
         words = _words(body)
@@ -183,7 +186,10 @@ async def handle_message(db: Session, biz: Business, tenant_id: str, sender: str
         return False
     only = settings.mode == "only"
     action, arg = classify(msg)
-    if action is None:
+    plus = L.plus_on(settings)
+    if action in PLUS_ACTIONS and not plus:
+        action, arg = None, None          # not a Loyalty Plus business: behave exactly as before
+    if action is None and plus:
         # Stateful replies that only make sense for a loyalty member: STOP / START
         # for offers, and their birthday right after we asked for it.
         action, arg = _member_reply(db, biz, sender, msg)
