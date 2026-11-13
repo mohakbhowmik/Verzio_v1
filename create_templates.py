@@ -73,7 +73,9 @@ def submit(client: httpx.Client, waba_id: str) -> int:
             continue
         error = data.get("error", {})
         message = error.get("error_user_msg") or error.get("message") or response.text[:200]
-        if "already exists" in message.lower() or error.get("error_subcode") == 2388024:
+        low = message.lower()
+        if ("already exists" in low or "content for this template" in low
+                or error.get("error_subcode") == 2388024):
             print(f"  ↪️  {payload['name']}: already exists, skipped")
         else:
             failures += 1

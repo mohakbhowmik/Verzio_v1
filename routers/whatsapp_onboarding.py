@@ -146,7 +146,9 @@ async def submit_templates(business_id: int, waba_id: str, token: str) -> None:
             try:
                 await _graph(client, "POST", f"{waba_id}/message_templates", token, json=payload)
             except GraphError as exc:
-                if "already exists" in str(exc).lower():
+                text_ = str(exc).lower()
+                # Meta words a duplicate as "already exists" or "already ... content for this template".
+                if "already exists" in text_ or "already english content" in text_ or "content for this template" in text_:
                     continue
                 failures.append(f"{payload['name']}: {exc}")
             except httpx.HTTPError as exc:
