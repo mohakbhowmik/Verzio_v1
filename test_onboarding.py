@@ -236,6 +236,19 @@ with TestClient(server.app) as client:
     syncs = [c["body"].get("sync_type") for c in calls("PN_COEX/smb_app_data")]
     check("Coexistence: contact and history sync started", syncs == ["smb_app_state_sync", "history"], syncs)
 
+    # --- Embedded Signup v5: owner chose the app number, event name unknown -> still Coexistence
+    token2b = new_link(client, aura.id)
+    meta_calls.clear()
+    r = client.post(f"/onboard/{token2b}/complete", json={"code": "C2b", "event": "FINISH_SOMETHING_NEW",
+                                                           "waba_id": "WABA_COEX", "chose_existing_app": True})
+    res = r.json()
+    check("v5: app-number choice with an unknown FINISH event is treated as Coexistence",
+          r.status_code == 200 and res["ok"] and res["coexistence"], r.text)
+    check("v5: app number NOT registered", not calls("/register"))
+    check("unknown non-finish event is still refused",
+          client.post(f"/onboard/{new_link(client, aura.id)}/complete",
+                      json={"code": "C2c", "event": "CANCEL", "chose_existing_app": True}).status_code == 400)
+
     # --- human takeover
     webhook(client, {"metadata": {"phone_number_id": "PN_COEX"},
                      "message_echoes": [{"from": "919876500002", "to": "917111111111", "id": f"wamid.e{next(ids)}",

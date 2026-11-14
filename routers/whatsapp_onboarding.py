@@ -276,9 +276,13 @@ async def complete_onboarding(
     meta_business_id = str(body.get("business_id") or "").strip() or None
     if not code:
         return _fail("Meta didn't return a sign-in code. Please try again.")
-    if event and event not in FINISH_EVENTS:
+    if event and event not in FINISH_EVENTS and not event.startswith("FINISH"):
         return _fail("Signup didn't finish. Please try again.")
-    coexistence = event == COEX_EVENT
+    chose_existing_app = body.get("chose_existing_app") is True
+    # Coexistence when Meta says so, or when the owner picked "My current WhatsApp
+    # Business number" and Meta didn't report a plain new-number finish (Embedded
+    # Signup v5 may name its events differently).
+    coexistence = event == COEX_EVENT or (chose_existing_app and event != "FINISH")
     warnings: list[str] = []
 
     try:

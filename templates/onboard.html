@@ -98,6 +98,9 @@
   var session = null, code = null, submitted = false, waitTimer = null;
   var statusEl = document.getElementById("status");
   var buttons = [document.getElementById("btn-coex"), document.getElementById("btn-new")];
+  // Test switch: add ?es=v5 to the link to try Meta's Embedded Signup v5 for app numbers.
+  var USE_V5 = /[?&]es=v5(&|$)/.test(window.location.search);
+  var chosenExistingApp = false;
 
   function show(kind, html) {
     statusEl.hidden = false;
@@ -144,7 +147,7 @@
     submitted = true;
     clearTimeout(waitTimer);
     show("", '<span class="spinner" aria-hidden="true"></span>Connecting your WhatsApp. This can take up to a minute…');
-    var body = Object.assign({ code: code }, session || {});
+    var body = Object.assign({ code: code, chose_existing_app: chosenExistingApp }, session || {});
     fetch(CONFIG.completeUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return { ok: false, error: "Unexpected response." }; }); })
       .then(function (res) {
@@ -184,8 +187,15 @@
     session = null; code = null; submitted = false;
     statusEl.hidden = true; statusEl.textContent = "";
     setBusy(true);
-    var extras = { setup: {}, sessionInfoVersion: "3" };
-    if (coexistence) extras.featureType = "whatsapp_business_app_onboarding";
+    chosenExistingApp = !!coexistence;
+    var extras;
+    if (coexistence && USE_V5) {
+      // Meta's Embedded Signup v5: WhatsApp Business app onboarding is on by default.
+      extras = { version: "v5" };
+    } else {
+      extras = { setup: {}, sessionInfoVersion: "3" };
+      if (coexistence) extras.featureType = "whatsapp_business_app_onboarding";
+    }
     FB.login(onLogin, {
       config_id: CONFIG.configId,
       response_type: "code",
