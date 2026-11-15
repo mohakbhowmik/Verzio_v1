@@ -318,6 +318,18 @@ with TestClient(server.app) as client:
     import whatsapp_health
     from whatsapp_health import WhatsAppHealth
     whatsapp_health.httpx = types.SimpleNamespace(AsyncClient=_fake_async_client, HTTPError=httpx.HTTPError)
+    # Telegram: capture alerts instead of calling Telegram.
+    import ops_alerts
+    telegram = []
+    def _tg_handler(request):
+        telegram.append(json.loads(request.content))
+        return httpx.Response(200, json={"ok": True})
+    def _tg_client(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(_tg_handler)
+        return _RealAsyncClient(*args, **kwargs)
+    ops_alerts.httpx = types.SimpleNamespace(AsyncClient=_tg_client, HTTPError=httpx.HTTPError)
+    os.environ["TELEGRAM_BOT_TOKEN"] = "123:TEST"
+    os.environ["TELEGRAM_CHAT_ID"] = "-100555"
     from database import ActivityEvent as _AE
 
     # Post-connect: Coexistence number that Meta says isn't on the app -> "Not finished"
@@ -365,9 +377,13 @@ with TestClient(server.app) as client:
     check("...WhatsApp alert sent from Verzio's number to you and the owner, with the reconnect link",
           to_list == ["919822222222", "919999900000"] and all(m["from"] == "PN_NEW" for m in outbox)
           and all(h.reconnect_token in json.dumps(m["payload"]) for m in outbox), outbox)
-    outbox.clear()
+    tg = [t for t in telegram if "offline" in t["text"]]
+    check("Telegram: team told once, with reason, Admin link and reconnect link, sound on",
+          len(tg) == 1 and "Aura Clinic" in tg[0]["text"] and "/admin/whatsapp/" in tg[0]["text"]
+          and h.reconnect_token in tg[0]["text"] and tg[0]["chat_id"] == "-100555" and tg[0]["disable_notification"] is False, telegram)
+    outbox.clear(); telegram.clear()
     asyncio.run(whatsapp_health.check_business(db, aura.id))
-    check("still offline an hour later: no repeat alert within 24 h", outbox == [], outbox)
+    check("still offline an hour later: no repeat alert within 24 h", outbox == [] and telegram == [], (outbox, telegram))
     r = client.get("/admin/businesses", auth=ADMIN)
     check("businesses list shows 'WhatsApp offline' for that business", "WhatsApp offline" in r.text)
     r = client.get(f"/admin/whatsapp/{aura.id}", auth=ADMIN)
@@ -381,6 +397,8 @@ with TestClient(server.app) as client:
     check("'Check now' after reconnect -> back to ok, offline cleared", r.status_code == 303 and h.state == "ok" and h.offline_since is None,
           (r.status_code, h.state))
     check("...'back online' logged", db.query(_AE).filter(_AE.event_type == "whatsapp_back_online", _AE.business_id == aura.id).count() == 1)
+    check("...and Telegram says it's working again (quietly)",
+          any("working again" in t["text"] and t["disable_notification"] for t in telegram), telegram)
 
     # Marketing Messages enrollment -> warning once
     meta["mm"]["WABA_COEX"] = "ONBOARDED"
@@ -426,6 +444,7 @@ with TestClient(server.app) as client:
           and db.query(Incident).filter(Incident.title == "WhatsApp payment problem").count() == 1)
     alerts = [m for m in outbox if m["from"] == "PN_NEW"]
     check("...you and the owner alerted from Verzio's number", len(alerts) == 2, outbox)
+    check("...and the team on Telegram", any("payment" in t["text"] for t in telegram), telegram)
     outbox.clear()
     asyncio.run(whatsapp_client.send_whatsapp("917000000009", "PN_COEX", {"type": "text", "text": {"body": "hi"}}, aura.id))
     check("...second failure the same day: no repeat alert", not [m for m in outbox if m["from"] == "PN_NEW"], outbox)
@@ -464,6 +483,9 @@ with TestClient(server.app) as client:
     db.expire_all()
     check("...and the reason is saved for Admin", "no access" in (db.query(WhatsAppAccount).filter_by(business_id=aura.id).first().last_error or ""))
     os.environ.pop("ALERT_FROM_BUSINESS_ID"); os.environ.pop("ALERT_WHATSAPP_TO")
+    check("Telegram test helper reports configured", ops_alerts.configured())
+    os.environ.pop("TELEGRAM_BOT_TOKEN"); os.environ.pop("TELEGRAM_CHAT_ID")
+    check("no Telegram settings -> nothing sent, no error", asyncio.run(ops_alerts.notify("x")) is False)
 
     # Connect page: laptop advice, primary choice, ✕-not-Back tip
     tok_page = new_link(client, glow.id)

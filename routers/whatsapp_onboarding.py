@@ -46,6 +46,7 @@ from whatsapp_accounts import (
 )
 from whatsapp_client import GRAPH_API_VERSION, TEMPLATE_DEFINITIONS, mask_phone, normalize_phone
 from whatsapp_health import WhatsAppHealth, alerts_configured
+from ops_alerts import configured as ops_alerts_configured
 
 logger = logging.getLogger("VERZIO_ONBOARDING")
 
@@ -229,6 +230,7 @@ def whatsapp_status_page(business_id: int, request: Request, db: Session = Depen
             "manager_is_business_number": manager_is_business_number,
             "health": db.get(WhatsAppHealth, business_id),
             "alerts_configured": alerts_configured(),
+            "telegram_configured": ops_alerts_configured(),
         },
     )
 

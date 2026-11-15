@@ -103,7 +103,8 @@
     {% endif %}
     <p class="small text-muted mt-3 mb-0">
       Verzio checks every connected number every hour.
-      {% if alerts_configured %}Problems are sent to you and the owner on WhatsApp.{% else %}WhatsApp alerts are off: set ALERT_FROM_BUSINESS_ID and ALERT_WHATSAPP_TO on the server to get them.{% endif %}
+      {% if telegram_configured %}You get alerts on Telegram.{% else %}Telegram alerts are off: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID on the server.{% endif %}
+      {% if alerts_configured %}Owners are alerted on WhatsApp.{% else %}Owner WhatsApp alerts are off (ALERT_FROM_BUSINESS_ID).{% endif %}
     </p>
   </div>
 </div>

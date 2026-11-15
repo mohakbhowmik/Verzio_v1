@@ -18,6 +18,7 @@ directly, every hour and right after a connect:
 Two failed checks in a row = Offline. Then Verzio:
 - records an incident and shows a red badge in Admin
 - creates a fresh one-time reconnect link
+- tells the Verzio team on Telegram (ops_alerts.py), with the reason and links
 - if ALERT_FROM_BUSINESS_ID is set, sends a WhatsApp alert (template
   "verzio_connection_alert") to ALERT_WHATSAPP_TO (you) and to the owner's
   manager number, with the reconnect link. Repeats at most once a day.
@@ -199,7 +200,22 @@ def _reconnect_url(db, business_id: int, row: WhatsAppHealth) -> str:
 
 
 def alerts_configured() -> bool:
+    """WhatsApp alerts (to owners, and to you if ALERT_WHATSAPP_TO is set)."""
     return bool(os.getenv("ALERT_FROM_BUSINESS_ID", "").strip())
+
+
+def _admin_url(business_id: int) -> str:
+    return f"{PUBLIC_BASE_URL}/admin/whatsapp/{business_id}"
+
+
+async def tell_team(text: str, urgent: bool = True) -> bool:
+    """Alert for the Verzio team (Telegram, see ops_alerts.py). Never raises."""
+    try:
+        import ops_alerts
+        return await ops_alerts.notify(text, urgent=urgent)
+    except Exception:
+        logger.exception("Team alert failed")
+        return False
 
 
 async def send_alert(db, biz, problem: str, link: str, to_owner: bool = True) -> int:
@@ -249,6 +265,8 @@ async def record(db, business_id: int, result: dict, alert: bool = True) -> What
         if was_offline:
             log_event(db=db, event_type="whatsapp_back_online", status="success",
                       message="WhatsApp connection is working again", business_id=business_id)
+            if biz and alert:
+                await tell_team(f"✅ {biz.name}: WhatsApp is working again.", urgent=False)
     elif result["state"] == "offline":
         row.fails_in_row = (row.fails_in_row or 0) + 1
         row.reason = result["reason"]
@@ -262,18 +280,28 @@ async def record(db, business_id: int, result: dict, alert: bool = True) -> What
                                 message=result["reason"], business_id=business_id)
             except Exception:
                 logger.exception("Could not record incident")
-        if row.state == "offline" and biz and alert and alerts_configured():
+        if row.state == "offline" and biz and alert:
             due = row.alerted_at is None or now - row.alerted_at >= timedelta(hours=REMIND_HOURS)
             if due:
                 link = _reconnect_url(db, business_id, row)
-                if await send_alert(db, biz, "your WhatsApp is no longer connected to Verzio, so the bot "
-                                             "isn't replying to customers.", link):
+                again = " (still offline)" if row.alerted_at else ""
+                sent = await tell_team(
+                    f"🔴 {biz.name}: WhatsApp offline{again}. The bot isn't replying to customers.\n\n"
+                    f"Why: {row.reason}\n\nAdmin: {_admin_url(business_id)}\nReconnect link for the owner: {link}")
+                if alerts_configured():
+                    sent = bool(await send_alert(db, biz, "your WhatsApp is no longer connected to Verzio, so the "
+                                                          "bot isn't replying to customers.", link)) or sent
+                if sent:
                     row.alerted_at = now
     else:  # unknown: Meta unreachable or an odd error; don't change the state
         row.reason = result["reason"] if row.state != "offline" else row.reason
 
     if row.mm_status == "ONBOARDED" and not row.mm_alerted:
         row.mm_alerted = True
+        if biz and alert:
+            await tell_team(f"⚠️ {biz.name}: enrolled in Meta's Marketing Messages. Tell the owner never to "
+                            f"disconnect or log out: the number couldn't be reconnected through the app.\n\n"
+                            f"Admin: {_admin_url(business_id)}", urgent=False)
         log_event(db=db, event_type="whatsapp_marketing_messages", status="warning",
                   message="Enrolled in Marketing Messages: don't disconnect this number (it can't be "
                           "reconnected through the app).", business_id=business_id)
@@ -364,6 +392,10 @@ async def note_payment_issue(business_id: int | None) -> None:
             except Exception:
                 logger.exception("Could not record incident")
             biz = db.get(Business, business_id)
+            if biz:
+                await tell_team(f"💳 {biz.name}: WhatsApp messages are failing for payment reasons (no payment "
+                                f"method or prepaid balance used up). The owner must add UPI funds in WhatsApp "
+                                f"Manager → Payment settings.\n\nAdmin: {_admin_url(business_id)}")
             if biz and alerts_configured():
                 await send_alert(db, biz, "messages are failing because WhatsApp needs a payment method or "
                                           "more prepaid balance. Add it in WhatsApp Manager → Payment settings.",
