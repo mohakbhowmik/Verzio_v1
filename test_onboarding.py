@@ -64,6 +64,10 @@ meta = {
                 "WABA_CLASH": [{"id": "PN_TAKEN", "display_phone_number": "+91 98765 00004", "verified_name": "Clash"}],
                 "WABA_SELF": [{"id": "PN_SELF", "display_phone_number": "+91 90000 00009", "verified_name": "Self"}]},
     "bad_code": "EXPIRED",
+    "lost": set(),            # objects Meta no longer lets Verzio read
+    "mm": {},                 # WABA -> Marketing Messages status
+    "off_app": set(),         # Coexistence numbers no longer on the app
+    "phone_status": {},       # phone id -> status
 }
 
 
@@ -82,6 +86,19 @@ def meta_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": {"granular_scopes": [
             {"scope": "whatsapp_business_management", "target_ids": ["WABA_FALLBACK"]},
             {"scope": "whatsapp_business_messaging", "target_ids": ["WABA_FALLBACK"]}]}})
+    if request.method == "GET" and path.endswith("/subscribed_apps"):
+        return httpx.Response(200, json={"data": [{"whatsapp_business_api_data": {"id": "1234567890", "name": "Verzio"}}]})
+    if request.method == "GET" and re.fullmatch(r"\w+", path) and "fields" in request.url.params:
+        obj, fields = path, request.url.params["fields"]
+        if obj in meta["lost"]:
+            return httpx.Response(400, json={"error": {"message": f"Unsupported get request. Object with ID '{obj}' does not exist, "
+                                                                  "cannot be loaded due to missing permissions, or does not support this operation."}})
+        if obj.startswith("WABA"):
+            return httpx.Response(200, json={"id": obj, "marketing_messages_onboarding_status": meta["mm"].get(obj, "ELIGIBLE")})
+        if fields == "is_on_biz_app":
+            return httpx.Response(200, json={"id": obj, "is_on_biz_app": obj not in meta["off_app"]})
+        return httpx.Response(200, json={"id": obj, "display_phone_number": "+91", "status": meta["phone_status"].get(obj, "CONNECTED"),
+                                         "platform_type": "CLOUD_API"})
     m = re.fullmatch(r"(\w+)/phone_numbers", path)
     if m:
         return httpx.Response(200, json={"data": meta["numbers"].get(m.group(1), [])})
@@ -205,12 +222,17 @@ with TestClient(server.app) as client:
     reg = calls("PN_NEW/register")
     check("registered with a 6-digit PIN using the client's token",
           len(reg) == 1 and re.fullmatch(r"\d{6}", reg[0]["body"].get("pin", "")) and reg[0]["auth"] == "Bearer BIZTOKEN_C1", reg)
-    check("app subscribed to the client's webhooks", len(calls("WABA_NEW/subscribed_apps")) == 1)
+    check("app subscribed to the client's webhooks",
+          len([c for c in calls("WABA_NEW/subscribed_apps") if c["method"] == "POST"]) == 1)
+    check("post-connect check with Meta: verified", res.get("verified") is True, res)
     check("no Coexistence sync for a new number", not calls("smb_app_data"))
     tpl = calls("WABA_NEW/message_templates")
     from whatsapp_client import TEMPLATE_DEFINITIONS
-    check(f"all {len(TEMPLATE_DEFINITIONS)} templates submitted with the client's token",
-          len(tpl) == len(TEMPLATE_DEFINITIONS) and all(c["auth"] == "Bearer BIZTOKEN_C1" for c in tpl), len(tpl))
+    client_keys = [k for k, d in TEMPLATE_DEFINITIONS.items() if d.get("clients", True)]
+    check(f"all {len(client_keys)} client templates submitted with the client's token",
+          len(tpl) == len(client_keys) and all(c["auth"] == "Bearer BIZTOKEN_C1" for c in tpl), len(tpl))
+    check("Verzio's own alert template is NOT put on a client's account",
+          not any(c["body"].get("name") == "verzio_connection_alert" for c in tpl))
     db.expire_all()
     check("account marked templates_submitted", db.query(WhatsAppAccount).filter_by(business_id=glow.id).first().templates_submitted)
     r = client.post(f"/onboard/{token}/complete", json={"code": "C1b", "event": "FINISH", "waba_id": "WABA_NEW"})
@@ -291,6 +313,164 @@ with TestClient(server.app) as client:
     ok = asyncio.run(whatsapp_client.send_whatsapp("+91 90000 00009", "PN_SELF", {"type": "text", "body": "x"}, selfb.id))
     check("sender refuses to message the business's own number", ok is False and outbox == [], (ok, outbox))
     check("...and records an incident", db.query(Incident).filter(Incident.title == "Manager number is the business number").count() >= 1)
+
+    # ================= connection reliability (whatsapp_health.py) =================
+    import whatsapp_health
+    from whatsapp_health import WhatsAppHealth
+    whatsapp_health.httpx = types.SimpleNamespace(AsyncClient=_fake_async_client, HTTPError=httpx.HTTPError)
+    from database import ActivityEvent as _AE
+
+    # Post-connect: Coexistence number that Meta says isn't on the app -> "Not finished"
+    tok_off = new_link(client, aura.id)
+    meta["off_app"].add("PN_COEX")
+    r = client.post(f"/onboard/{tok_off}/complete", json={"code": "COFF", "event": "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING",
+                                                          "waba_id": "WABA_COEX", "chose_existing_app": True})
+    res = r.json()
+    check("post-connect check: number not on the app -> verified False with a reason",
+          res.get("ok") and res.get("verified") is False and "WhatsApp Business app" in res.get("verify_note", ""), res)
+    meta["off_app"].discard("PN_COEX")
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("...one failed check recorded, not yet Offline (needs two in a row)", h and h.fails_in_row == 1 and h.state != "offline",
+          (h.state, h.fails_in_row) if h else None)
+
+    # Healthy hourly check clears it
+    asyncio.run(whatsapp_health.check_business(db, aura.id))
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("healthy check -> state ok, Marketing Messages ELIGIBLE, webhooks ok, on the app",
+          h.state == "ok" and h.fails_in_row == 0 and h.mm_status == "ELIGIBLE" and h.webhooks_ok and h.on_biz_app == "yes",
+          (h.state, h.mm_status, h.webhooks_ok, h.on_biz_app))
+
+    # Owner logs out: Meta denies access. Alerts configured from Verzio's own number (glow = sender).
+    os.environ["ALERT_FROM_BUSINESS_ID"] = str(glow.id)
+    os.environ["ALERT_WHATSAPP_TO"] = "+91 99999 00000"
+    meta["lost"].update({"PN_COEX", "WABA_COEX"})
+    outbox.clear()
+    asyncio.run(whatsapp_health.check_business(db, aura.id))
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("access lost, first failure: not Offline yet, nobody alerted", h.fails_in_row == 1 and h.state == "ok" and outbox == [],
+          (h.state, h.fails_in_row, outbox))
+    asyncio.run(whatsapp_health.check_business(db, aura.id))
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("second failure in a row -> Offline with a plain reason", h.state == "offline" and h.offline_since
+          and "lost access" in (h.reason or ""), (h.state, h.reason))
+    check("...critical incident recorded", db.query(Incident).filter(Incident.title == "WhatsApp disconnected",
+                                                                     Incident.business_id == aura.id).count() == 1)
+    link_row = db.get(OnboardingLink, h.reconnect_token) if h.reconnect_token else None
+    check("...fresh reconnect link created", link_row is not None and link_row.business_id == aura.id and link_row.used_at is None)
+    to_list = sorted(m["to"] for m in outbox)
+    check("...WhatsApp alert sent from Verzio's number to you and the owner, with the reconnect link",
+          to_list == ["919822222222", "919999900000"] and all(m["from"] == "PN_NEW" for m in outbox)
+          and all(h.reconnect_token in json.dumps(m["payload"]) for m in outbox), outbox)
+    outbox.clear()
+    asyncio.run(whatsapp_health.check_business(db, aura.id))
+    check("still offline an hour later: no repeat alert within 24 h", outbox == [], outbox)
+    r = client.get("/admin/businesses", auth=ADMIN)
+    check("businesses list shows 'WhatsApp offline' for that business", "WhatsApp offline" in r.text)
+    r = client.get(f"/admin/whatsapp/{aura.id}", auth=ADMIN)
+    check("admin WhatsApp page shows Offline and the reason", "Offline since" in r.text and "lost access" in r.text)
+
+    # Reconnected: back online
+    meta["lost"].clear()
+    r = client.post(f"/admin/whatsapp/{aura.id}/check", auth=ADMIN, follow_redirects=False)
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("'Check now' after reconnect -> back to ok, offline cleared", r.status_code == 303 and h.state == "ok" and h.offline_since is None,
+          (r.status_code, h.state))
+    check("...'back online' logged", db.query(_AE).filter(_AE.event_type == "whatsapp_back_online", _AE.business_id == aura.id).count() == 1)
+
+    # Marketing Messages enrollment -> warning once
+    meta["mm"]["WABA_COEX"] = "ONBOARDED"
+    asyncio.run(whatsapp_health.check_business(db, aura.id))
+    asyncio.run(whatsapp_health.check_business(db, aura.id))
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("Marketing Messages ONBOARDED on an app number -> warning state, recorded once",
+          h.state == "warning" and h.mm_status == "ONBOARDED"
+          and db.query(Incident).filter(Incident.title == "Enrolled in Marketing Messages").count() == 1, (h.state, h.mm_status))
+    r = client.get(f"/admin/whatsapp/{aura.id}", auth=ADMIN)
+    check("admin page warns: never disconnect", "Never disconnect this number" in r.text)
+    meta["mm"].pop("WABA_COEX")
+
+    # Scheduler job: skips recently checked accounts, re-checks stale ones
+    n = asyncio.run(whatsapp_health.run(db))
+    check("hourly job skips accounts checked in the last hour", n == 0, n)
+    for row in db.query(WhatsAppHealth).all():
+        row.checked_at = datetime.utcnow() - timedelta(hours=2)
+    db.commit()
+    n = asyncio.run(whatsapp_health.run(db))
+    check("hourly job re-checks stale accounts", n >= 1, n)
+
+    # account_update webhook -> re-check soon
+    body = json.dumps({"entry": [{"id": "WABA_COEX", "changes": [{"field": "account_update",
+                                                                  "value": {"event": "PARTNER_REMOVED"}}]}]}).encode()
+    sig = "sha256=" + hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
+    r = client.post("/webhook", content=body, headers={"X-Hub-Signature-256": sig, "Content-Type": "application/json"})
+    db.expire_all()
+    check("account_update webhook -> account queued for a re-check", r.status_code == 200
+          and db.get(WhatsAppHealth, aura.id).checked_at is None)
+
+    # Payment problem (131042) -> recorded and alerted once a day
+    async def pay_fail(recipient, pnid, payload, token=None):
+        outbox.append({"to": recipient, "from": pnid, "payload": payload, "token": token})
+        return 'Meta API 400: {"error":{"code":131042,"message":"Business eligibility payment issue"}}' if pnid == "PN_COEX" else None
+    whatsapp_client._post = pay_fail
+    outbox.clear()
+    asyncio.run(whatsapp_client.send_whatsapp("917000000009", "PN_COEX", {"type": "text", "text": {"body": "hi"}}, aura.id))
+    db.expire_all()
+    h = db.get(WhatsAppHealth, aura.id)
+    check("131042 -> payment problem recorded + incident", h.payment_issue_at is not None
+          and db.query(Incident).filter(Incident.title == "WhatsApp payment problem").count() == 1)
+    alerts = [m for m in outbox if m["from"] == "PN_NEW"]
+    check("...you and the owner alerted from Verzio's number", len(alerts) == 2, outbox)
+    outbox.clear()
+    asyncio.run(whatsapp_client.send_whatsapp("917000000009", "PN_COEX", {"type": "text", "text": {"body": "hi"}}, aura.id))
+    check("...second failure the same day: no repeat alert", not [m for m in outbox if m["from"] == "PN_NEW"], outbox)
+    whatsapp_client._post = fake_post
+    r = client.get(f"/admin/whatsapp/{aura.id}", auth=ADMIN)
+    check("admin page shows the payment problem", "failed for payment reasons" in r.text)
+
+    # Alert template goes only on the alert sender's own account
+    meta_calls.clear()
+    asyncio.run(onboarding.submit_templates(glow.id, "WABA_NEW", "T"))
+    check("alert sender's account gets the verzio_connection_alert template",
+          any(c["body"].get("name") == "verzio_connection_alert" for c in calls("WABA_NEW/message_templates")))
+
+    meta_calls.clear()
+    r = client.post(f"/admin/whatsapp/{glow.id}/templates", auth=ADMIN, follow_redirects=False)
+    check("Admin 'Submit again' re-sends templates with the client's token",
+          r.status_code == 303 and len(calls("WABA_NEW/message_templates")) >= 20
+          and all(c["auth"] == "Bearer BIZTOKEN_C1" for c in calls("WABA_NEW/message_templates")), len(calls("WABA_NEW/message_templates")))
+
+    # No access: template submission stops after the first failure instead of 20 identical errors
+    meta_calls.clear()
+    _orig_handler = meta_handler
+    def _deny(request):
+        if request.url.path.endswith("/message_templates"):
+            meta_calls.append({"method": request.method, "path": request.url.path.split("/", 2)[-1], "auth": "", "body": {}, "params": {}})
+            return httpx.Response(400, json={"error": {"message": "Object does not exist, cannot be loaded due to missing permissions"}})
+        return _orig_handler(request)
+    def _deny_client(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(_deny)
+        return _RealAsyncClient(*args, **kwargs)
+    onboarding.httpx = types.SimpleNamespace(AsyncClient=_deny_client, HTTPError=httpx.HTTPError, Response=httpx.Response)
+    asyncio.run(onboarding.submit_templates(aura.id, "WABA_COEX", "T"))
+    onboarding.httpx = types.SimpleNamespace(AsyncClient=_fake_async_client, HTTPError=httpx.HTTPError, Response=httpx.Response)
+    check("no access: template submission stops after the first error", len(calls("/message_templates")) == 1,
+          len(calls("/message_templates")))
+    db.expire_all()
+    check("...and the reason is saved for Admin", "no access" in (db.query(WhatsAppAccount).filter_by(business_id=aura.id).first().last_error or ""))
+    os.environ.pop("ALERT_FROM_BUSINESS_ID"); os.environ.pop("ALERT_WHATSAPP_TO")
+
+    # Connect page: laptop advice, primary choice, ✕-not-Back tip
+    tok_page = new_link(client, glow.id)
+    r = client.get(f"/onboard/{tok_page}")
+    check("connect page: laptop advice, Connect tip and 'don't press Back'",
+          "laptop" in r.text and "tap <strong>Connect</strong>" in r.text and "don't press Back" in r.text and "mobile-warning" in r.text)
+    check("connect page: no booking-only wording", "customers book on" not in r.text)
 
     # --- config missing -> onboarding blocked with a clear message
     saved = os.environ.pop("META_ES_CONFIG_ID")

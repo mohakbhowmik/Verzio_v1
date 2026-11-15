@@ -19,7 +19,8 @@ After the client finishes Meta's pop-up, the server, with no manual steps:
      existing WhatsApp Business app number (Coexistence): skips registration
      and starts the contact + history sync (must happen within 24 hours)
   5. stores the token encrypted and routes the number to this business
-  6. submits the five message templates on the client's account (background)
+  6. asks Meta whether it really works (whatsapp_health.probe) before saying "Connected"
+  7. submits the message templates on the client's account (background)
 """
 import logging
 import os
@@ -44,6 +45,7 @@ from whatsapp_accounts import (
     valid_onboarding_link,
 )
 from whatsapp_client import GRAPH_API_VERSION, TEMPLATE_DEFINITIONS, mask_phone, normalize_phone
+from whatsapp_health import WhatsAppHealth, alerts_configured
 
 logger = logging.getLogger("VERZIO_ONBOARDING")
 
@@ -136,23 +138,39 @@ async def list_phone_numbers(client: httpx.AsyncClient, token: str, waba_id: str
     return data.get("data", [])
 
 
+def _templates_for(business_id: int) -> list[str]:
+    """Client templates, plus Verzio's own alert template on the alert sender's account."""
+    alert_sender = os.getenv("ALERT_FROM_BUSINESS_ID", "").strip()
+    return [key for key, d in TEMPLATE_DEFINITIONS.items()
+            if d.get("clients", True) or alert_sender == str(business_id)]
+
+
 async def submit_templates(business_id: int, waba_id: str, token: str) -> None:
     """Background task: submit Verzio's templates on the client's account."""
     from create_templates import build_request  # same definitions the sender uses
-    failures = []
+    failures, existing, submitted = [], 0, 0
     async with httpx.AsyncClient(timeout=30) as client:
-        for key in TEMPLATE_DEFINITIONS:
+        for key in _templates_for(business_id):
             payload = build_request(key)
             try:
                 await _graph(client, "POST", f"{waba_id}/message_templates", token, json=payload)
+                submitted += 1
             except GraphError as exc:
                 text_ = str(exc).lower()
                 # Meta words a duplicate as "already exists" or "already ... content for this template".
                 if "already exists" in text_ or "already english content" in text_ or "content for this template" in text_:
+                    existing += 1
                     continue
                 failures.append(f"{payload['name']}: {exc}")
+                # No access to this account: every other template would fail the same way.
+                if any(h in text_ for h in ("does not exist", "missing permissions", "access token", "(190)")):
+                    failures.append("stopped: Verzio has no access to this WhatsApp account")
+                    break
             except httpx.HTTPError as exc:
                 failures.append(f"{payload['name']}: network error {exc}")
+    logger.info("Templates for business_id=%s: %s submitted, %s already there, %s failed%s",
+                business_id, submitted, existing, len(failures),
+                (". First problem: " + failures[0][:300]) if failures else "")
 
     from database import SessionLocal
     db = SessionLocal()
@@ -209,8 +227,35 @@ def whatsapp_status_page(business_id: int, request: Request, db: Session = Depen
             "links": [{"url": f"{base_url}/onboard/{l.token}", "expires_at": l.expires_at} for l in links],
             "config_problems": _config_problems(),
             "manager_is_business_number": manager_is_business_number,
+            "health": db.get(WhatsAppHealth, business_id),
+            "alerts_configured": alerts_configured(),
         },
     )
+
+
+@admin_router.post("/{business_id}/templates")
+def resubmit_templates(business_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Submit the message templates again on this client's account (existing ones are skipped)."""
+    from whatsapp_accounts import decrypt
+    biz = _business_or_404(db, business_id)
+    acct = db.query(WhatsAppAccount).filter(WhatsAppAccount.business_id == biz.id).first()
+    token = decrypt(acct.access_token_enc) if acct else None
+    if acct and acct.status == "connected" and acct.waba_id and token:
+        background_tasks.add_task(submit_templates, biz.id, acct.waba_id, token)
+        log_event(db=db, event_type="templates_resubmit", status="info",
+                  message="Templates sent to Meta again from Admin", business_id=biz.id)
+    return RedirectResponse(url=f"/admin/whatsapp/{biz.id}", status_code=303)
+
+
+@admin_router.post("/{business_id}/check")
+async def check_now(business_id: int, db: Session = Depends(get_db)):
+    biz = _business_or_404(db, business_id)
+    try:
+        import whatsapp_health
+        await whatsapp_health.check_business(db, biz.id)
+    except Exception:
+        logger.exception("Manual health check failed for business_id=%s", biz.id)
+    return RedirectResponse(url=f"/admin/whatsapp/{biz.id}", status_code=303)
 
 
 @admin_router.post("/{business_id}/link")
@@ -380,11 +425,29 @@ async def complete_onboarding(
                        f"{mask_phone(acct.display_phone_number)}" + (f". Warnings: {'; '.join(warnings)}" if warnings else ""))[:500],
               business_id=biz.id)
 
-    # 6. Templates go to Meta for review in the background.
+    # 6. Ask Meta whether the connection really works before saying "Connected".
+    verified, verify_note = None, ""
+    if acct.status == "connected":
+        try:
+            import whatsapp_health
+            async with httpx.AsyncClient(timeout=20) as client:
+                result = await whatsapp_health.probe(client, access_token, waba_id, acct.phone_number_id,
+                                                     coexistence, _config()["app_id"] or None, fix_webhooks=True)
+            await whatsapp_health.record(db, biz.id, result, alert=False)
+            if result["state"] in ("ok", "warning"):
+                verified = True
+            elif result["state"] == "offline":
+                verified, verify_note = False, result["reason"]
+        except Exception:
+            logger.exception("Post-connect check failed for business_id=%s", biz.id)
+
+    # 7. Templates go to Meta for review in the background.
     background_tasks.add_task(submit_templates, biz.id, waba_id, access_token)
 
     return JSONResponse({
         "ok": True,
+        "verified": verified,
+        "verify_note": verify_note,
         "status": acct.status,
         "business_name": biz.name,
         "display_phone_number": acct.display_phone_number,

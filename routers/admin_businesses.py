@@ -119,10 +119,13 @@ def _form_context(biz: Business | None = None, error: str | None = None) -> dict
 @router.get("")
 async def list_businesses(request: Request, db: Session = Depends(get_db)):
     businesses = db.query(Business).order_by(Business.name.asc()).all()
+    from whatsapp_health import WhatsAppHealth
+    offline = {h.business_id for h in db.query(WhatsAppHealth).filter(WhatsAppHealth.state == "offline").all()}
 
     for b in businesses:
         # UI helpers
         b.initials = _business_initials(b.name)
+        b.whatsapp_offline = b.id in offline
 
         if not b.is_active:
             b.status_class = "status-inactive"

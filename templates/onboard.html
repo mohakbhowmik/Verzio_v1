@@ -17,6 +17,7 @@
       --warn: #e7b450; --warn-soft: #33290f; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px 48px; }
   main { max-width: 480px; margin: 0 auto; display: grid; gap: 16px; }
   .brand { font-weight: 700; letter-spacing: .02em; color: var(--accent); font-size: .9rem; text-transform: uppercase; }
@@ -41,6 +42,8 @@
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
   a { color: var(--accent); }
   .small { font-size: .85rem; }
+  .linkish { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+  .linkish:disabled { opacity: .55; cursor: wait; }
 </style>
 </head>
 <body>
@@ -62,22 +65,30 @@
     <div class="card" id="intro">
       <p class="muted">Takes about 5 minutes. You'll need:</p>
       <ol>
+        <li>A <strong>laptop or computer</strong> (Facebook's window often fails on phones)</li>
         <li>Your Facebook login (the one that manages your business)</li>
-        <li>The phone with your business's WhatsApp</li>
+        <li>The phone with your business's WhatsApp Business app, next to you</li>
       </ol>
+      <p class="small muted"><strong>While connecting:</strong> your phone gets a "Connect" message from Facebook Business
+        inside WhatsApp Business: tap <strong>Connect</strong>. Keep this page open until you see ✅.
+        If Facebook shows an error, close its window with ✕ (don't press Back) and tell Verzio.</p>
+    </div>
+
+    <div class="card status warn" id="mobile-warning" hidden>
+      <p><strong>Please open this link on a laptop.</strong> On phones, Facebook's window often can't send the result
+        back to this page, and the connection fails halfway.</p>
+      <button class="choice" id="btn-anyway" type="button"><strong>Continue on this phone anyway</strong></button>
     </div>
 
     <div class="card" id="choices">
-      <p><strong>Which number should customers book on?</strong></p>
+      <p><strong>Which WhatsApp number should Verzio use?</strong><br>
+        <span class="small muted">Customers message this number for rewards, bookings and updates.</span></p>
       <button class="choice primary" id="btn-coex" type="button" disabled>
         <strong>My current WhatsApp Business number</strong>
-        <span>Keep using the WhatsApp Business app on your phone. Your chats stay as they are.</span>
-      </button>
-      <button class="choice" id="btn-new" type="button" disabled>
-        <strong>A new number</strong>
-        <span>A number that isn't on WhatsApp yet. You'll verify it with a code.</span>
+        <span>Keep using the WhatsApp Business app on your phone. Your chats stay as they are. Most businesses choose this.</span>
       </button>
       <p class="small muted" id="loading">Loading Facebook…</p>
+      <p class="small"><button class="linkish" id="btn-new" type="button" disabled>Use a different number that isn't on WhatsApp at all</button></p>
     </div>
 
     <div class="status" id="status" role="status" aria-live="polite" hidden></div>
@@ -158,24 +169,35 @@
         }
         document.getElementById("choices").hidden = true;
         document.getElementById("intro").hidden = true;
+        var kind = "ok";
         var html = "<strong>✅ Connected" + (res.display_phone_number ? ": " + esc(res.display_phone_number) : "") + "</strong>";
         if (res.status === "no_number") {
+          kind = "warn";
           html = "<strong>Your WhatsApp account was created, but no phone number was added.</strong><br>Ask Verzio for a new link to add your number.";
+        } else if (res.verified === false) {
+          kind = "warn";
+          html = "<strong>⚠️ Not finished yet" + (res.display_phone_number ? " for " + esc(res.display_phone_number) : "") + ".</strong><br>" +
+                 "Meta hasn't confirmed the connection: " + esc(res.verify_note || "") +
+                 "<br><br>Don't try again right away. Verzio checks again automatically and will tell you. " +
+                 "If you just disconnected this number, Meta can take up to a day to release it.";
+        } else if (res.verified !== true) {
+          html += '<br><span class="small">Verzio is double-checking with Meta and will tell you if anything is wrong.</span>';
         }
         html += "<br><br><strong>Next steps</strong><ol>";
-        html += '<li>Add a payment method in <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener">WhatsApp Manager</a>, unless Verzio is adding one for you. WhatsApp needs it to deliver messages.</li>';
+        html += '<li>Add ₹500 by UPI (or a payment method) in <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener">WhatsApp Manager</a> → Payment settings. WhatsApp needs it to deliver messages. If Meta offers "marketing messages", say no.</li>';
         if (res.coexistence) {
           html += "<li>Keep the WhatsApp Business app open for a few minutes while your contacts sync.</li>";
           html += "<li>Open the app at least once every 14 days so the connection stays active.</li>";
         }
-        html += "<li>Verzio will finish setting up your booking menu.</li></ol>";
+        html += "<li>Don't log out of WhatsApp Business, reinstall it or change phones without telling Verzio first: it disconnects the bot.</li>";
+        html += "<li>Verzio will finish setting up your account.</li></ol>";
         if (res.manager_is_business_number) {
           html += "<br>Bookings will be confirmed automatically, because approval requests can't be sent to this same number. You'll see every booking in the WhatsApp Business app and your owner portal.";
         }
         if (res.warnings && res.warnings.length) {
           html += '<br><span class="small">Note for Verzio: ' + esc(res.warnings.join("; ")) + "</span>";
         }
-        show("ok", html);
+        show(kind, html);
       })
       .catch(function () {
         submitted = false; code = null; session = null; setBusy(false);
@@ -201,6 +223,16 @@
       response_type: "code",
       override_default_response_type: true,
       extras: extras
+    });
+  }
+
+  var IS_PHONE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  if (IS_PHONE) {
+    document.getElementById("mobile-warning").hidden = false;
+    document.getElementById("choices").hidden = true;
+    document.getElementById("btn-anyway").addEventListener("click", function () {
+      document.getElementById("mobile-warning").hidden = true;
+      document.getElementById("choices").hidden = false;
     });
   }
 

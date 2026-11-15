@@ -98,6 +98,8 @@ from whatsapp_accounts import (
     pause_bot,
     resume_bot,
 )
+import whatsapp_health
+from whatsapp_health import ensure_tables as ensure_health_tables
 
 from owner.owner_auth import router as owner_auth_router
 from owner.owner_dashboard import router as owner_dashboard_router
@@ -204,6 +206,7 @@ def startup() -> None:
         )
     ensure_window_table()
     ensure_account_tables()
+    ensure_health_tables()
     ensure_inbox_tables()
     ensure_reschedule_tables()
     ensure_loyalty_tables()
@@ -753,11 +756,28 @@ def process_status(val: dict, status: dict) -> None:
         message = f"Delivery to {mask_phone(status.get('recipient_id'))} failed: {code} {title}"
         if code == 131047:
             message += " (outside the 24-hour window: check this business's message templates are approved)"
+        if code == 131042:
+            message += " (payment problem: add a payment method or UPI funds in WhatsApp Manager)"
         logger.warning(message)
         log_event(db=db, event_type="whatsapp_delivery_failed", status="error",
                   message=message[:500], business_id=biz.id if biz else None)
+        if code == 131042 and biz:
+            # Runs in a worker thread (sync background task), so it can start its own event loop.
+            asyncio.run(whatsapp_health.note_payment_issue(biz.id))
     except Exception:
         logger.exception("Could not process delivery status")
+    finally:
+        db.close()
+
+
+def _account_update(waba_id, val: dict) -> None:
+    db = SessionLocal()
+    try:
+        event = str((val or {}).get("event") or "")
+        logger.info("account_update for WABA %s: %s", waba_id, event or "(no event name)")
+        whatsapp_health.request_check(db, waba_id or ((val or {}).get("waba_info") or {}).get("waba_id"))
+    except Exception:
+        logger.exception("Could not handle account_update")
     finally:
         db.close()
 
@@ -784,6 +804,10 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     for entry in data.get("entry") or []:
         for change in entry.get("changes") or []:
             val = change.get("value") or {}
+            if change.get("field") == "account_update":
+                # e.g. the owner disconnected or Meta changed the account: re-check it soon.
+                background_tasks.add_task(_account_update, entry.get("id"), val)
+                continue
             for msg in val.get("messages") or []:
                 if claim_message(msg.get("id")):
                     background_tasks.add_task(process_message, val, msg)

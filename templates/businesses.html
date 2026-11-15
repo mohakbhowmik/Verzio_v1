@@ -69,9 +69,15 @@
               <button type="submit" class="btn btn-sm btn-outline-secondary">Reset password</button>
             </form>
 
+            {% if b.whatsapp_offline %}
+            <a href="/admin/whatsapp/{{ b.id }}" class="btn btn-sm btn-danger" title="WhatsApp is offline: reconnect needed">
+              WhatsApp offline
+            </a>
+            {% else %}
             <a href="/admin/whatsapp/{{ b.id }}" class="btn btn-sm btn-outline-success">
               WhatsApp
             </a>
+            {% endif %}
 
             <a href="/admin/businesses/{{ b.id }}/edit" class="icon-btn" style="width:30px;height:30px;" aria-label="Edit {{ b.name }}">
               <i class="bi bi-pencil"></i>

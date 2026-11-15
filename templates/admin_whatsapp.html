@@ -32,14 +32,18 @@
   <div class="section-head"><h2 class="section-title">Connection</h2></div>
   <div class="p-3">
     {% if account and account.status == "connected" %}
-      <p class="mb-2"><span class="status-badge status-active"><span class="dot"></span>Connected</span></p>
+      <p class="mb-2"><span class="status-badge status-active"><span class="dot"></span>Connected</span>
+        <span class="small text-muted">(Verzio's record. The live check below says whether it really works.)</span></p>
       <table class="table table-sm mb-0">
         <tr><th class="text-muted fw-normal" style="width:220px">WhatsApp number</th><td>{{ account.display_phone_number or "—" }}</td></tr>
         <tr><th class="text-muted fw-normal">Name shown to customers</th><td>{{ account.verified_name or "—" }}</td></tr>
         <tr><th class="text-muted fw-normal">Type</th><td>{% if account.coexistence %}Existing WhatsApp Business app number (Coexistence){% else %}Cloud API number{% endif %}</td></tr>
         <tr><th class="text-muted fw-normal">Phone number ID</th><td><code>{{ account.phone_number_id }}</code></td></tr>
         <tr><th class="text-muted fw-normal">WhatsApp account (WABA) ID</th><td><code>{{ account.waba_id }}</code></td></tr>
-        <tr><th class="text-muted fw-normal">Templates</th><td>{% if account.templates_submitted %}Submitted for review{% else %}Not submitted yet, or failed (see below){% endif %}</td></tr>
+        <tr><th class="text-muted fw-normal">Templates</th><td>{% if account.templates_submitted %}Submitted for review{% else %}Not submitted yet, or failed (see below){% endif %}
+          <form method="post" action="/admin/whatsapp/{{ business.id }}/templates" class="d-inline ms-2">
+            <button type="submit" class="btn btn-sm btn-outline-secondary py-0">Submit again</button>
+          </form></td></tr>
         <tr><th class="text-muted fw-normal">Connected</th><td>{{ account.connected_at.strftime("%d %b %Y, %H:%M") if account.connected_at else "—" }} UTC</td></tr>
       </table>
     {% elif account and account.status == "no_number" %}
@@ -53,6 +57,57 @@
     {% endif %}
   </div>
 </div>
+
+{% if account and account.status == "connected" %}
+<div class="section-container mb-4">
+  <div class="section-head d-flex justify-content-between align-items-center">
+    <h2 class="section-title">Live check with Meta</h2>
+    <form method="post" action="/admin/whatsapp/{{ business.id }}/check" class="m-0">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Check now</button>
+    </form>
+  </div>
+  <div class="p-3">
+    {% if not health or health.state == "unknown" %}
+      <p class="mb-2"><span class="status-badge status-inactive"><span class="dot"></span>Not checked yet</span>
+      {% if health and health.reason %}<span class="small text-muted">{{ health.reason }}</span>{% endif %}</p>
+    {% elif health.state == "offline" %}
+      <div class="alert alert-danger mb-3">
+        <strong>Offline{% if health.offline_since %} since {{ health.offline_since.strftime("%d %b, %H:%M") }} UTC{% endif %}.</strong>
+        {{ health.reason }}
+        <div class="mt-2 small">Fix: create an onboarding link below and reconnect on a laptop ("My current WhatsApp Business number").
+        If the number was disconnected in the last day, Meta may ask you to wait first.</div>
+      </div>
+    {% elif health.state == "warning" %}
+      <p class="mb-2"><span class="status-badge status-active"><span class="dot"></span>Working</span>
+      <span class="small text-warning">{{ health.reason }}</span></p>
+    {% elif health.fails_in_row %}
+      <p class="mb-2"><span class="status-badge status-inactive"><span class="dot"></span>Checking again</span>
+      <span class="small text-muted">The last check failed: {{ health.reason }}</span></p>
+    {% else %}
+      <p class="mb-2"><span class="status-badge status-active"><span class="dot"></span>Working</span></p>
+    {% endif %}
+    {% if health %}
+    <table class="table table-sm mb-0">
+      <tr><th class="text-muted fw-normal" style="width:220px">Last checked</th><td>{{ health.checked_at.strftime("%d %b %Y, %H:%M") if health.checked_at else "—" }} UTC</td></tr>
+      <tr><th class="text-muted fw-normal">Number status at Meta</th><td>{{ health.phone_status or "—" }}</td></tr>
+      {% if account.coexistence %}<tr><th class="text-muted fw-normal">On the WhatsApp Business app</th><td>{{ {"yes": "Yes", "no": "No"}.get(health.on_biz_app, "—") }}</td></tr>{% endif %}
+      <tr><th class="text-muted fw-normal">Messages reach Verzio (webhooks)</th><td>{% if health.webhooks_ok is none %}—{% elif health.webhooks_ok %}Yes{% else %}No{% endif %}</td></tr>
+      <tr><th class="text-muted fw-normal">Marketing Messages</th><td>
+        {% if health.mm_status == "ONBOARDED" %}<strong class="text-danger">Enrolled</strong> <span class="small">Never disconnect this number: it can't be reconnected through the app.</span>
+        {% elif health.mm_status %}Not enrolled ({{ health.mm_status }}). <span class="small text-muted">Decline any "marketing messages" offer from Meta.</span>
+        {% else %}—{% endif %}</td></tr>
+      <tr><th class="text-muted fw-normal">Payment</th><td>
+        {% if health.payment_issue_at %}<strong class="text-danger">Messages failed for payment reasons</strong> on {{ health.payment_issue_at.strftime("%d %b, %H:%M") }} UTC. Add UPI funds or a payment method in WhatsApp Manager.
+        {% else %}No payment problems seen{% endif %}</td></tr>
+    </table>
+    {% endif %}
+    <p class="small text-muted mt-3 mb-0">
+      Verzio checks every connected number every hour.
+      {% if alerts_configured %}Problems are sent to you and the owner on WhatsApp.{% else %}WhatsApp alerts are off: set ALERT_FROM_BUSINESS_ID and ALERT_WHATSAPP_TO on the server to get them.{% endif %}
+    </p>
+  </div>
+</div>
+{% endif %}
 
 <div class="section-container">
   <div class="section-head d-flex justify-content-between align-items-center">
@@ -71,8 +126,9 @@
       <p class="text-muted mb-0">No active links. Each link works once and expires after a few days.</p>
     {% endfor %}
     <p class="small text-muted mt-3 mb-0">
-      Open the link on the owner's phone or laptop during your visit, or send it to them on WhatsApp.
-      They need their Facebook login, and for an existing number, the WhatsApp Business app on their phone.
+      Open the link on a <strong>laptop</strong> (Chrome, ideally Incognito), during your visit or on a screen-share.
+      The owner needs their Facebook login and, for an existing number, the WhatsApp Business app on their phone.
+      If Meta shows an error, close its window with ✕, never Back.
     </p>
   </div>
 </div>

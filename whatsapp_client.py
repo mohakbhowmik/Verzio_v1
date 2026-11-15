@@ -231,6 +231,19 @@ TEMPLATE_DEFINITIONS = {
         "example": ["Priya", "Bean There Cafe", "50"],
         "buttons": ["My wallet", "Stop offers"],
     },
+    # Verzio's own alerts (whatsapp_health.py). Submitted only on the account of
+    # ALERT_FROM_BUSINESS_ID, never on clients' accounts.
+    "verzio_connection_alert": {
+        "text": (
+            "Verzio alert for {{1}}: {{2}}\n\n"
+            "Fix it here: {{3}}\n\n"
+            "This is an automatic message from Verzio."
+        ),
+        "example": ["Bean There Cafe",
+                    "your WhatsApp is no longer connected to Verzio, so the bot isn't replying to customers.",
+                    "https://verzio.codes/onboard/abc123"],
+        "clients": False,
+    },
     "loyalty_weekly_summary": {
         "text": (
             "Your week at {{1}} with Verzio Loyalty.\n\n"
@@ -635,6 +648,16 @@ async def _post(recipient: str, phone_number_id: str, payload: dict, token: str 
     return last_error
 
 
+async def _note_payment(business_id: int | None, error: str | None) -> None:
+    """Meta error 131042 = payment problem (no payment method / prepaid balance used up)."""
+    if business_id and "131042" in (error or ""):
+        try:
+            from whatsapp_health import note_payment_issue  # local import avoids a cycle
+            await note_payment_issue(business_id)
+        except Exception:
+            logger.exception("Could not record payment issue")
+
+
 def _describe(payload: dict) -> str:
     if payload.get("type") == "template":
         return f"template '{payload['template'].get('name')}'"
@@ -672,6 +695,7 @@ async def send_whatsapp(
         if error is None:
             _log(business_id, "whatsapp_sent", "success", f"Sent {_describe(template)} to {mask_phone(recipient)}")
             return True
+        await _note_payment(business_id, error)
         reason = f"{_describe(template)} not delivered ({error}). Is it approved on this business's WhatsApp account?"
         logger.warning("WhatsApp to %s: %s Falling back to a normal message.", mask_phone(recipient), reason)
         _log(business_id, "whatsapp_template_failed", "warning", reason[:500])
@@ -683,6 +707,7 @@ async def send_whatsapp(
         _log(business_id, "whatsapp_sent", "success", f"Sent {_describe(payload)} to {mask_phone(recipient)}")
         return True
 
+    await _note_payment(business_id, error)
     logger.error("WhatsApp send to %s failed: %s", mask_phone(recipient), error)
     _log(business_id, "whatsapp_failed", "error", error[:500])
     _record_incident(business_id, recipient, "Outbound message failed", error)

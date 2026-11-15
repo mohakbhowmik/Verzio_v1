@@ -358,9 +358,10 @@ async def tick() -> dict:
     try:
         from tables.jobs import run as tables_jobs        # Verzio Tables (tables/jobs.py)
         from loyalty.jobs import run as loyalty_jobs      # Verzio Loyalty Plus (loyalty/jobs.py)
+        from whatsapp_health import run as health_job     # is each client's WhatsApp really connected?
         for name, job in (("reminders", send_reminders), ("pending", handle_pending),
                           ("summaries", send_morning_summaries), ("plan_usage", check_plan_usage),
-                          ("tables", tables_jobs), ("loyalty", loyalty_jobs)):
+                          ("tables", tables_jobs), ("loyalty", loyalty_jobs), ("whatsapp_health", health_job)):
             try:
                 result[name] = await job(db)
             except Exception:
