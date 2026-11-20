@@ -1,0 +1,97 @@
+{% extends "loyalty/v3/base.html" %}
+{% import "loyalty/v3/_macros.html" as ui %}
+{% macro chg(v) %}{% if v is not none %}<span class="chg {{ 'up' if v >= 0 else 'down' }}">{{ '+' if v >= 0 else '' }}{{ v }}%</span>{% endif %}{% endmacro %}
+{% block content %}
+<header class="head">
+  <div>
+    <span class="eyebrow">Results</span>
+    <h1>Is it working?</h1>
+    <p>What Verzio Loyalty did for {{ business.name }} in the last {{ r.days }} days. Changes compare with the {{ r.days }} days before.</p>
+  </div>
+  <nav class="period" aria-label="Period">
+    {% for d in (7, 30, 90) %}<a href="/owner/loyalty/results?days={{ d }}" class="{{ 'on' if r.days == d else '' }}" {% if r.days == d %}aria-current="page"{% endif %}>{{ d }} days</a>{% endfor %}
+  </nav>
+</header>
+
+<section class="hero" aria-label="Money brought back">
+  <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 6px">
+    <span class="when">Brought back in the last {{ r.days }} days</span>
+    {% if r.extra_revenue is not none %}
+    <strong class="big-money">₹{{ '{:,}'.format(r.extra_revenue) }}</strong>
+    <span style="font-size: 14px; color: #c9d6d0">{{ r.repeat }} repeat visits × ₹{{ '{:,}'.format(r.avg_bill) }} {{ 'average bill' if r.avg_from_bills else 'your average bill' }}{% if v3.plan_month %}. Verzio costs ₹{{ '{:,}'.format(v3.plan_month) }} a month.{% endif %}</span>
+    {% else %}
+    <strong class="big-money">{{ r.repeat }}</strong>
+    <span style="font-size: 14px; color: #c9d6d0">repeat visits. <a href="/owner/loyalty/grow#bill" style="color: #fff">Set your average bill</a> to see them in ₹.</span>
+    {% endif %}
+  </div>
+  <div class="kpis">
+    <div class="kpi"><b>{{ r.visits }}{{ chg(r.visits_change) }}</b><span>Visits</span><small>{{ r.repeat_share }}% were repeat</small></div>
+    <div class="kpi"><b>{{ r.new_members }}</b><span>New members</span><small>{{ r.members }} in total</small></div>
+    <div class="kpi"><b>{{ r.rewards_given }}</b><span>Rewards given</span><small>{{ r.regular_rate }}% came back</small></div>
+    {% if v3.roi %}
+    <div class="kpi hl"><b>{{ v3.roi }}x</b><span>Return on Verzio</span><small>Estimate vs plan price</small></div>
+    {% else %}
+    <div class="kpi hl"><b>{{ r.repeat }}{{ chg(r.repeat_change) }}</b><span>Repeat visits</span><small>{{ r.regulars }} regulars</small></div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="row stretch">
+  <section class="card grow1" aria-labelledby="res-chart">
+    <h2 id="res-chart">Visits per day, last 14 days</h2>
+    <div class="bars" role="img" aria-label="Visits per day for the last 14 days{% if r.daily %}, {{ r.daily[-1][1] }} today{% endif %}">
+      {% for day, n in r.daily %}<div class="{{ 'today' if loop.last else '' }}" style="height: {{ (n * 100 / r.peak)|round|int }}%; animation-delay: {{ loop.index0 * 0.03 }}s" title="{{ day.strftime('%a %d %b') }}: {{ n }} visit{{ '' if n == 1 else 's' }}"></div>{% endfor %}
+    </div>
+    <div class="bars-x" aria-hidden="true">{% for day, n in r.daily %}<span>{{ day.strftime('%a')[:1] }}</span>{% endfor %}</div>
+  </section>
+
+  <section class="card side" aria-labelledby="res-why">
+    <h2 id="res-why">What brought them in</h2>
+    {% set whys = [("Counter scans", r.visits), ("Friends who joined with an invite", r.referrals), ("Birthday gifts", r.birthdays), ("Visits during double points", r.boosted)] %}
+    {% set top = [r.visits, 1] | max %}
+    {% for label, v in whys %}
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="between" style="font-size: 14px"><span>{{ label }}</span><strong class="num">{{ v }}</strong></div>
+      <div class="meter"><div class="{{ 'em' if loop.first else '' }}" style="width: {{ (v * 100 / top)|round|int }}%; animation-delay: {{ loop.index0 * 0.08 }}s"></div></div>
+    </div>
+    {% endfor %}
+    {% if settings.bill_points_on or r.bill_count %}
+    <div class="between" style="font-size: 14px"><span>Bills typed ({{ r.bill_count }})</span><strong class="num">₹{{ '{:,}'.format(r.bill_total) }}</strong></div>
+    {% endif %}
+    <p class="hint">Switch these on in <a href="/owner/loyalty/grow">Grow</a>.</p>
+  </section>
+</div>
+
+<div class="row stretch">
+  <section class="card grow1" aria-labelledby="res-top" style="flex-basis: 380px">
+    <h2 id="res-top">Top regulars (all time)</h2>
+    {% for m in v3.top %}
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span class="num" style="width: 22px; font-weight: 800; color: #8a5a1c">{{ loop.index }}</span>
+      {{ ui.avatar(m, 's') }}
+      <strong style="flex: 1 1 auto; font-size: 14.5px">{{ m.name or ('+' ~ m.phone) }}</strong>
+      <span class="num hint">{{ m.visits }} visits</span>
+    </div>
+    {% else %}
+    <div class="empty">Regulars appear here after a few visits.</div>
+    {% endfor %}
+  </section>
+  {% if r.by_outlet %}
+  <section class="card side" aria-labelledby="res-out" style="flex-basis: 380px">
+    <h2 id="res-out">By outlet</h2>
+    <div class="scroll">
+    <table class="table">
+      <thead><tr><th scope="col">OUTLET</th><th scope="col">VISITS</th><th scope="col">REPEAT</th><th scope="col">NEW</th>{% if settings.bill_points_on %}<th scope="col">BILLS</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for name, o in r.by_outlet.items() %}
+        <tr><td><strong>{{ name }}</strong></td><td class="num">{{ o.visits }}</td><td class="num">{{ o.repeat }}</td><td class="num">{{ o.new }}</td>{% if settings.bill_points_on %}<td class="num">₹{{ '{:,}'.format(o.bills) }}</td>{% endif %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<p class="hint">A repeat visit is a scan (or a staff-added visit) by someone who had visited before. The money figure assumes each repeat visit spends the average bill and includes customers who would have come anyway, so treat it as a guide.</p>
+{% endblock %}

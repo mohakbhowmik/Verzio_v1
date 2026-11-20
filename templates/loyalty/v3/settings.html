@@ -1,0 +1,184 @@
+{% extends "loyalty/v3/base.html" %}
+{% import "loyalty/v3/_macros.html" as ui %}
+{% block content %}
+<header class="head">
+  <div>
+    <span class="eyebrow">Settings</span>
+    <h1>Your business</h1>
+    <p>Your rewards program. Counter staff can't see this page. Nothing here affects Verzio Book.</p>
+  </div>
+  <button type="submit" form="loy-settings" class="btn">Save changes</button>
+</header>
+
+<div class="row">
+  <nav class="subnav" aria-label="Settings sections">
+    <a href="#business">Business</a>
+    <a href="#earning">Earning</a>
+    <a href="#streaks">Streak bonuses</a>
+    <a href="#qr">Counter QR</a>
+    {% if plus %}<a href="#outlets">Outlets</a><a href="#staff">Counter staff</a>{% endif %}
+    <a href="#whatsapp">WhatsApp</a>
+    <a href="#plan">Your plan</a>
+  </nav>
+
+  <div class="grow1">
+    <form method="post" action="/owner/loyalty/settings" id="loy-settings" style="display: flex; flex-direction: column; gap: 18px">
+      <section class="card anchor" id="business" aria-labelledby="s-biz">
+        <h2 id="s-biz">Business</h2>
+        <p class="sub">Shown to customers in WhatsApp replies and on their wallet page.</p>
+        <div class="fields">
+          <div class="field"><label for="s-name">BUSINESS NAME</label><input id="s-name" class="input" name="business_name" value="{{ business.name }}" maxlength="80" required></div>
+          <div class="field"><label for="s-wa">WHATSAPP NUMBER</label><input id="s-wa" class="input" name="whatsapp_number" inputmode="tel" value="{{ settings.whatsapp_number or '' }}" placeholder="98765 43210"></div>
+        </div>
+        <p class="hint">The counter QR opens a chat with this number.</p>
+      </section>
+
+      <section class="card anchor" id="earning" aria-labelledby="s-earn">
+        <h2 id="s-earn">Earning</h2>
+        <p class="sub">Customers get points once a day when they scan the QR at your counter.</p>
+        <div class="fields">
+          <div class="field"><label for="s-ppv">POINTS PER VISIT</label><input id="s-ppv" class="input" name="points_per_visit" inputmode="numeric" value="{{ settings.points_per_visit }}" required></div>
+          <div class="field"><label for="s-wb">WELCOME BONUS</label><input id="s-wb" class="input" name="welcome_bonus" inputmode="numeric" value="{{ settings.welcome_bonus }}"></div>
+        </div>
+        <p class="hint">The welcome bonus is added once, on a customer's first scan. Use 0 for none.</p>
+      </section>
+
+      <section class="card anchor" id="streaks" aria-labelledby="s-streak">
+        <h2 id="s-streak">Streak bonuses</h2>
+        <p class="sub">Extra points for coming back in a row. The bonus grows each time, up to the limit you set.</p>
+        <div class="between" style="flex-wrap: nowrap; align-items: flex-start">
+          <div><label for="s-dso" style="font-weight: 800">Daily streak</label><p class="hint">Visits on days in a row. Days you're closed don't break it.</p></div>
+          <input id="s-dso" class="switch" type="checkbox" name="daily_streak_on" value="on" {% if settings.daily_streak_on %}checked{% endif %}>
+        </div>
+        <div class="fields">
+          <div class="field"><label for="s-dss">BONUS PER EXTRA DAY</label><input id="s-dss" class="input" name="daily_streak_step" inputmode="numeric" value="{{ settings.daily_streak_step }}"></div>
+          <div class="field"><label for="s-dsm">BIGGEST DAILY BONUS</label><input id="s-dsm" class="input" name="daily_streak_max" inputmode="numeric" value="{{ settings.daily_streak_max }}"></div>
+        </div>
+        <div class="example">Day 2: +{{ [settings.daily_streak_step, settings.daily_streak_max]|min }} · day 3: +{{ [settings.daily_streak_step * 2, settings.daily_streak_max]|min }} · day 4: +{{ [settings.daily_streak_step * 3, settings.daily_streak_max]|min }} · never more than +{{ settings.daily_streak_max }}</div>
+        <div class="between" style="flex-wrap: nowrap; align-items: flex-start; margin-top: 6px">
+          <div><label for="s-wso" style="font-weight: 800">Weekly streak</label><p class="hint">At least one visit every week (Monday to Sunday). Given on the first visit of each week.</p></div>
+          <input id="s-wso" class="switch" type="checkbox" name="weekly_streak_on" value="on" {% if settings.weekly_streak_on %}checked{% endif %}>
+        </div>
+        <div class="fields">
+          <div class="field"><label for="s-wss">BONUS PER EXTRA WEEK</label><input id="s-wss" class="input" name="weekly_streak_step" inputmode="numeric" value="{{ settings.weekly_streak_step }}"></div>
+          <div class="field"><label for="s-wsm">BIGGEST WEEKLY BONUS</label><input id="s-wsm" class="input" name="weekly_streak_max" inputmode="numeric" value="{{ settings.weekly_streak_max }}"></div>
+        </div>
+        <div class="example">Week 2: +{{ [settings.weekly_streak_step, settings.weekly_streak_max]|min }} · week 3: +{{ [settings.weekly_streak_step * 2, settings.weekly_streak_max]|min }} · week 4: +{{ [settings.weekly_streak_step * 3, settings.weekly_streak_max]|min }} · never more than +{{ settings.weekly_streak_max }}</div>
+      </section>
+      <div style="display: flex; justify-content: flex-end"><button type="submit" class="btn big">Save changes</button></div>
+    </form>
+
+    <section class="card anchor" id="qr" aria-labelledby="s-qr">
+      <h2 id="s-qr">Counter QR</h2>
+      <p class="sub">Customers scan this at your counter. WhatsApp opens with their code typed in; they tap send and get points.</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+        {% if qr_link %}<a class="btn" href="/owner/loyalty/qr" target="_blank" rel="noopener">Print QR poster</a>
+        {% else %}<span class="hint">Add your WhatsApp number above and save to make the QR.</span>{% endif %}
+        <span class="hint">Current code: <span class="code-box">{{ settings.earn_code }}</span></span>
+      </div>
+      <form method="post" action="/owner/loyalty/rotate-code" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0">
+        <button class="btn danger sm" type="submit" onclick="return confirm('Make a new QR code? The QR you printed before will stop giving points.');">Make a new QR code</button>
+        <span class="hint">Use this if your QR is being misused. You'll need to print the new one.</span>
+      </form>
+    </section>
+
+    {% if plus %}
+    <section class="card anchor" id="outlets" aria-labelledby="s-out">
+      <h2 id="s-out">Outlets</h2>
+      <p class="sub">Several counters or branches on this one WhatsApp number? Give each its own QR. Points work everywhere, and Results show each outlet.</p>
+      {% if outlets %}
+      <ul class="list">
+        <li class="item">
+          <form method="post" action="/owner/loyalty/outlets/main" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; flex: 1 1 auto">
+            <input class="input" name="name" value="{{ outlet_names[None] }}" maxlength="60" aria-label="Main outlet name" style="max-width: 240px; height: 40px">
+            <button class="btn ghost sm" type="submit">Rename</button>
+            <span class="hint">Main counter · code <span class="code-box">{{ settings.earn_code }}</span></span>
+          </form>
+        </li>
+        {% for o in outlets %}
+        <li class="item">
+          <div class="who"><strong>{{ o.name }}</strong><span class="meta">Code <span class="code-box">{{ o.earn_code }}</span>{% if not o.is_active %} · paused{% endif %}</span></div>
+          {% if o.is_active and qr_link %}<a class="btn sm" href="/owner/loyalty/qr?outlet={{ o.id }}" target="_blank" rel="noopener">Print QR</a>{% endif %}
+          <form method="post" action="/owner/loyalty/outlets/{{ o.id }}/rotate" style="margin: 0"><button class="btn ghost sm" type="submit" onclick="return confirm('Make a new QR for {{ o.name }}? Its old QR stops giving points.');">New code</button></form>
+          <form method="post" action="/owner/loyalty/outlets/{{ o.id }}/toggle" style="margin: 0"><button class="btn {{ 'danger' if o.is_active else 'ghost' }} sm" type="submit">{{ 'Pause' if o.is_active else 'Turn on' }}</button></form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <form method="post" action="/owner/loyalty/outlets" class="fields" style="align-items: end">
+        {% if not outlets %}<div class="field"><label for="o-main">THIS OUTLET'S NAME</label><input id="o-main" class="input" name="main_name" maxlength="60" placeholder="e.g. Baner"></div>{% endif %}
+        <div class="field"><label for="o-new">NEW OUTLET</label><input id="o-new" class="input" name="name" maxlength="60" placeholder="e.g. Koregaon Park" required></div>
+        <button class="btn" type="submit">Add outlet</button>
+      </form>
+      <p class="hint">Points can be collected once a day across all outlets.</p>
+    </section>
+
+    <section class="card anchor" id="staff" aria-labelledby="s-staff">
+      <h2 id="s-staff">Counter staff</h2>
+      <p class="sub">Staff sign in at verzio.codes/owner/login and see only the counter: rewards to hand over, bill points and adding a visit. Not your customer list, results or settings.</p>
+      {% if staff %}
+      <ul class="list">
+        {% for s_, oid in staff %}
+        <li class="item">
+          <span class="avatar s c{{ s_.id % 7 }}" aria-hidden="true">{{ (s_.full_name or '?')[:1] | upper }}</span>
+          <div class="who"><strong>{{ s_.full_name }}</strong><span class="meta">Login: {{ s_.email }}{% if outlets %} · {{ outlet_names.get(oid, outlet_names[None]) }}{% endif %}</span></div>
+          <form method="post" action="/owner/loyalty/staff/{{ s_.id }}/delete" style="margin: 0"><button class="btn danger sm" type="submit" onclick="return confirm('Remove {{ s_.full_name }}\'s login?');">Remove</button></form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <form method="post" action="/owner/loyalty/staff" style="display: flex; flex-direction: column; gap: 12px">
+        <div class="fields">
+          <div class="field"><label for="st-name">NAME</label><input id="st-name" class="input" name="name" maxlength="60" required></div>
+          <div class="field"><label for="st-user">LOGIN NAME</label><input id="st-user" class="input" name="username" placeholder="counter.baner" autocapitalize="none" required></div>
+          <div class="field"><label for="st-pass">PASSWORD (8+ CHARACTERS)</label><input id="st-pass" class="input" type="password" name="password" minlength="8" autocomplete="new-password" required></div>
+          {% if outlets %}
+          <div class="field"><label for="st-out">OUTLET</label>
+            <select id="st-out" class="input" name="outlet_id">
+              <option value="">{{ outlet_names[None] }}</option>
+              {% for o in outlets if o.is_active %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
+            </select></div>
+          {% endif %}
+        </div>
+        <button class="btn" type="submit" style="align-self: flex-start">Add staff login</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="card anchor" id="whatsapp" aria-labelledby="s-wa2">
+      <h2 id="s-wa2">WhatsApp</h2>
+      {% set h = v3.health %}
+      <div class="fields">
+        <div style="padding: 14px; border-radius: 16px; display: flex; flex-direction: column; gap: 4px; {{ 'background: #fbe6dc; border: 1px solid #f0c3ad' if h and h.state == 'offline' else 'background: #f1f6f3; border: 1px solid #bfd9c9' }}">
+          <span class="label">CONNECTION</span>
+          {% if h and h.state == 'offline' %}
+          <strong style="color: #8a3a1e">Disconnected</strong><span class="hint">The bot isn't replying. Contact Verzio to reconnect.</span>
+          {% elif h and h.state in ('ok', 'warning') %}
+          <strong style="color: #1f5446; display: flex; align-items: center; gap: 8px"><span class="dot"></span>Working</strong>
+          <span class="hint">{% if h.checked_at %}Checked {{ clock(h.checked_at) }}{% endif %}</span>
+          {% else %}
+          <strong>{{ 'Connected' if running else 'Paused' }}</strong><span class="hint">Verzio checks it every hour.</span>
+          {% endif %}
+        </div>
+        <div style="padding: 14px; border-radius: 16px; background: #fbf7f0; border: 1px solid #ecd9b8; display: flex; flex-direction: column; gap: 4px">
+          <span class="label">OFFERS THIS MONTH</span>
+          <strong class="num">{{ v3.marketing_used }} of {{ settings.offers_per_month }}</strong>
+          <div class="meter"><div style="width: {{ [v3.marketing_used * 100 / (settings.offers_per_month or 1), 100]|min|round|int }}%"></div></div>
+          <span class="hint">Birthday and other offers, about ₹1 each</span>
+        </div>
+      </div>
+      <p class="hint">Don't log out of WhatsApp Business, reinstall it or change phones without telling Verzio first: it disconnects the bot. Open the WhatsApp Business app at least once every 14 days.</p>
+    </section>
+
+    <section class="card anchor" id="plan" aria-labelledby="s-plan">
+      <h2 id="s-plan">Your plan</h2>
+      <div class="fields">
+        <div class="field"><span class="label">PLAN</span><strong>Verzio Loyalty · {{ plan.label }}</strong></div>
+        {% if plan.paid_until %}<div class="field"><span class="label">PAID UNTIL</span><strong>{{ plan.paid_until.strftime('%d %b %Y') }}</strong></div>{% endif %}
+        {% if plan.key == 'active' and plan.amount %}<div class="field"><span class="label">PRICE</span><strong class="num">₹{{ '{:,}'.format(plan.amount) }} / month</strong></div>{% endif %}
+      </div>
+      <p class="hint">{% if plan.reason %}{{ plan.reason }}{% elif plan.key == 'trial' %}You're on a free trial. Verzio Solutions will contact you before it ends.{% else %}Rewards are running on WhatsApp. For billing questions, contact Verzio Solutions.{% endif %}</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

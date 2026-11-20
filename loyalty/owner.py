@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from activity_log import log_event
 from database import get_db
 from loyalty import engine as L
+from loyalty import v3 as V3
 from loyalty.bot import local_clock, wallet_url
 from loyalty.models import LoyaltyReward
 from owner.owner_auth import is_mobile, resolve_owner_and_business
@@ -135,6 +136,13 @@ def _render(request: Request, db: Session, page: str, template: str, extra=None)
     }
     if settings is not None and extra:
         context.update(extra(owner, business, settings))
+    if settings is not None and template in V3.TEMPLATES and V3.wants_v3(business, settings):
+        # The v3 ("warm") screens, only for businesses in VERZIO_PREVIEW (Verzio Test first).
+        try:
+            v3_context = {**context, **V3.context(db, request, page, owner, business, settings, context)}
+            return templates.TemplateResponse(request=request, name=V3.TEMPLATES[template], context=v3_context)
+        except Exception:
+            logger.exception("v3 screen failed for business_id=%s page=%s; showing the current one", business.id, page)
     return templates.TemplateResponse(request=request, name="loyalty/off.html" if settings is None else template,
                                       context=context)
 

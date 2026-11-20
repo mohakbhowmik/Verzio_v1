@@ -1,0 +1,20 @@
+{% macro initials(m) -%}
+{%- set n = (m.name or '').strip() -%}
+{%- if n -%}{{ (n.split()[:2] | map('first') | join) | upper }}{%- else -%}{{ (m.phone or '??')[-2:] }}{%- endif -%}
+{%- endmacro %}
+
+{% macro avatar(m, size='') -%}
+<span class="avatar {{ size }} c{{ (m.id or 0) % 7 }}" aria-hidden="true">{{ initials(m) }}</span>
+{%- endmacro %}
+
+{% macro who(m, is_staff, mask) -%}
+{%- if m.name -%}{{ m.name }}{%- elif is_staff -%}{{ mask(m.phone) }}{%- else -%}+{{ m.phone }}{%- endif -%}
+{%- endmacro %}
+
+{% macro tier_badge(t) -%}
+{%- if t and t.key -%}<span class="tier {{ t.key }}">{{ t.label | upper }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro gift_icon(size=30) -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="20" width="32" height="22" rx="3" fill="#fbf3e4"/><rect x="6" y="14" width="36" height="8" rx="2" fill="#fbf3e4"/><rect x="21" y="14" width="6" height="28" fill="#6b4226"/><path d="M24 14c-3-6-11-8-11-3s8 4 11 3zM24 14c3-6 11-8 11-3s-8 4-11 3z" fill="#fbf3e4"/></svg>
+{%- endmacro %}

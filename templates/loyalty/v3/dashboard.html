@@ -1,0 +1,193 @@
+{% extends "loyalty/v3/base.html" %}
+{% import "loyalty/v3/_macros.html" as ui %}
+{% block content %}
+
+<section class="hero" aria-label="Today">
+  <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 8px">
+    <span class="when">{{ v3.today_label }}{% if is_staff and staff_outlet_name %} · {{ staff_outlet_name }}{% endif %}</span>
+    <h1>{{ v3.greeting }}, <em>{{ business.name }}</em></h1>
+    {% if boosts_now %}
+    <div class="pill-boost" role="status">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+      {% if boost_now > 1 %}{{ boost_now }}x points right now{% else %}Later today{% endif %}:
+      {% for b in boosts_now %}{{ describe_boost(b) }}{{ '' if loop.last else ' · ' }}{% endfor %}
+      {% if plus and not is_staff %}<a href="/owner/loyalty/grow#boosts">Edit</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% if not is_staff %}
+  <div class="kpis">
+    <div class="kpi"><b>{{ v3.today.visits }}</b><span>Visits today</span><small>{{ v3.today.repeat }} came back</small></div>
+    <div class="kpi"><b>{{ v3.today.new_members }}</b><span>New members</span><small>{{ stats.members }} in total</small></div>
+    <div class="kpi"><b>{{ v3.given_today }}</b><span>Rewards given</span><small>{{ pending|length }} waiting now</small></div>
+    {% if v3.today.extra_revenue is not none %}
+    <div class="kpi hl"><b>₹{{ '{:,}'.format(v3.today.extra_revenue) }}</b><span>Brought back</span><small>Repeat visits × ₹{{ '{:,}'.format(v3.today.avg_bill) }}</small></div>
+    {% else %}
+    <div class="kpi hl"><b>{{ stats.visits_30d }}</b><span>Visits, 30 days</span><small>{{ stats.rewards_30d }} rewards given</small></div>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{% if not is_staff and (reward_count == 0 or not qr_link) %}
+<section class="card sand" aria-label="Getting started">
+  <h2>Three steps to start</h2>
+  <div class="fields">
+    <a class="btn {{ 'ghost' if reward_count else 'brass' }}" href="/owner/loyalty/rewards">{{ '✓ Rewards added' if reward_count else '1. Add your first reward' }}</a>
+    <a class="btn {{ 'ghost' if qr_link else 'brass' }}" href="/owner/loyalty/settings#business">{{ '✓ WhatsApp number set' if qr_link else '2. Add your WhatsApp number' }}</a>
+    <a class="btn ghost" href="/owner/loyalty/settings#qr">3. Print the counter QR</a>
+  </div>
+</section>
+{% endif %}
+
+<div class="row">
+  <div class="grow1">
+
+    <section class="card anchor" id="give" aria-labelledby="t-claims">
+      <div class="between">
+        <div>
+          <h2 id="t-claims" class="big">Rewards to hand over</h2>
+          <p class="sub">Customers tap Claim in WhatsApp. Check the code on their phone matches, hand it over, tap Given.</p>
+        </div>
+        <span class="badge {{ 'warn' if pending else 'off' }}" role="status">{{ pending|length }} waiting</span>
+      </div>
+
+      {% if code %}
+        {% if found and not problem %}
+        <div class="ticket" style="border-color: #9cc7b0">
+          <div class="stub"><b>{{ found.code }}</b><small>{{ found.points }} PTS</small></div>
+          <div class="body">
+            <div class="what"><strong>{{ found.reward_name }}</strong>
+              <span>{{ ui.who(found.member, is_staff, mask) }} · has {{ found.member.points }} points · {{ found_visits }} visit{{ '' if found_visits == 1 else 's' }} · until {{ clock(found.expires_at) }}</span></div>
+            <form method="post" action="/owner/loyalty/claims/{{ found.id }}/give" style="margin: 0"><button class="btn green big" type="submit">Given ✓</button></form>
+          </div>
+        </div>
+        {% else %}
+        <div class="alert err" role="alert">{% if found %}{{ found.reward_name }}: {% endif %}{{ problem }}</div>
+        {% endif %}
+      {% endif %}
+
+      {% if pending %}
+      {% for c in pending %}
+      <div class="ticket" style="animation-delay: {{ loop.index0 * 0.06 }}s">
+        <div class="stub"><b>{{ c.code }}</b><small>{{ c.points }} PTS</small></div>
+        <div class="body">
+          <div class="what"><strong>{{ c.reward_name }}</strong>
+            <span>{{ ui.who(c.member, is_staff, mask) }} · {{ c.member.visits }} visit{{ '' if c.member.visits == 1 else 's' }} · code valid until {{ clock(c.expires_at) }}</span></div>
+          <form method="post" action="/owner/loyalty/claims/{{ c.id }}/give" style="margin: 0"><button class="btn green big" type="submit" aria-label="Mark {{ c.reward_name }} as given">Given ✓</button></form>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="empty">No rewards waiting. When a customer taps Claim, it shows here for 15 minutes.</div>
+      {% endif %}
+
+      <details class="more" {% if code and problem %}open{% endif %}>
+        <summary>Customer showing a code that isn't listed? Type it</summary>
+        <form method="post" action="/owner/loyalty/lookup" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px">
+          <input class="input code" name="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="5" autocomplete="off" placeholder="0000" value="{{ code }}" aria-label="Claim code" required>
+          <button class="btn" type="submit">Check</button>
+        </form>
+      </details>
+    </section>
+
+    {% if plus and settings.bill_points_on %}
+    <section class="card anchor" id="bill" aria-labelledby="t-bill">
+      <h2 id="t-bill">Bill points</h2>
+      <p class="sub">The customer shows a 4-digit bill code after scanning. {{ settings.points_per_100 }} points per ₹100.</p>
+      <form method="post" action="/owner/loyalty/bill">
+        <div class="fields">
+          <div class="field"><label for="b-code">BILL CODE</label><input id="b-code" class="input code" style="max-width: none" name="code" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="0000"></div>
+          <div class="field"><label for="b-amt">BILL AMOUNT (₹)</label><input id="b-amt" class="input" style="font-size: 22px; font-weight: 700" name="amount" inputmode="decimal" placeholder="450" required></div>
+        </div>
+        <details class="more" style="margin-top: 10px"><summary>No code? Use the customer's WhatsApp number</summary>
+          <input class="input" style="margin-top: 8px" name="phone" inputmode="tel" placeholder="98765 43210" aria-label="Customer's WhatsApp number">
+        </details>
+        <button class="btn" type="submit" style="margin-top: 12px">Add bill points</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="card" aria-labelledby="t-scans">
+      <div class="between">
+        <div>
+          <h2 id="t-scans" style="display: flex; align-items: center; gap: 8px"><span class="dot" style="background: #2f7d55"></span>Just scanned</h2>
+          <p class="sub">Points are added automatically when customers scan your QR. Nothing to type.</p>
+        </div>
+        {% if not is_staff %}<a href="/owner/loyalty/customers" style="font-size: 13.5px; font-weight: 700">All customers</a>{% endif %}
+      </div>
+      {% if v3.scans %}
+      <ol class="list">
+        {% for e, m in v3.scans %}
+        <li class="item">
+          {{ ui.avatar(m) }}
+          <div class="who">
+            <span><strong>{{ ui.who(m, is_staff, mask) }}</strong> <span class="meta">· {{ clock(e.created_at) }}{% if e.created_at.date() != v3.today_date %}, {{ e.created_at.strftime('%d %b') }}{% endif %}</span></span>
+            <span class="meta">{{ e.note if (e.kind in note_kinds and e.note) else labels.get(e.kind, e.kind) }} · balance {{ e.balance_after }}</span>
+          </div>
+          <strong class="num {{ 'pos' if e.delta > 0 else ('neg' if e.delta < 0 else '') }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</strong>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="empty">Nothing yet today. Scans appear here as customers arrive.</div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="side">
+    {% if not is_staff %}
+    <section class="card sand" aria-labelledby="t-qr">
+      <h2 id="t-qr">Counter QR</h2>
+      {% if qr_link %}
+      <p class="sub">Customers scan it, WhatsApp opens with their code typed in, they tap send and get points.</p>
+      <a class="btn" href="/owner/loyalty/qr" target="_blank" rel="noopener">Print the QR poster</a>
+      {% else %}
+      <p class="sub">Add your WhatsApp number in Settings to make your QR.</p>
+      <a class="btn ghost" href="/owner/loyalty/settings#business">Open Settings</a>
+      {% endif %}
+    </section>
+
+    {% if v3.winback %}
+    <section class="card" aria-labelledby="t-win">
+      <div>
+        <h2 id="t-win">Missing your regulars</h2>
+        <p class="sub">Came {{ v3.winback_visits }}+ times, not seen for {{ v3.winback_days }}+ days.</p>
+      </div>
+      {% for m, days in v3.winback %}
+      <div style="display: flex; align-items: center; gap: 12px">
+        {{ ui.avatar(m) }}
+        <div style="flex: 1 1 auto; display: flex; flex-direction: column"><strong style="font-size: 14.5px">{{ ui.who(m, false, mask) }}</strong><span class="meta" style="font-size: 13px; color: #5f6b66">{{ m.visits }} visits · {{ days }} days ago</span></div>
+        {% if is_real(m.phone) %}<a class="btn soft sm" href="https://wa.me/{{ m.phone }}" target="_blank" rel="noopener" aria-label="Message {{ m.name or 'this customer' }} on WhatsApp">Message</a>{% endif %}
+      </div>
+      {% endfor %}
+      <a href="/owner/loyalty/customers?seg=risk" style="font-size: 13.5px; font-weight: 700">See everyone at risk</a>
+    </section>
+    {% endif %}
+    {% endif %}
+
+    <section class="card anchor" id="points" aria-labelledby="t-add">
+      <h2 id="t-add">{{ 'Add a visit' if is_staff else 'Add or fix points' }}</h2>
+      <p class="sub">{% if is_staff %}For a customer who couldn't scan the QR.{% else %}For a customer who couldn't scan, or to fix a mistake.{% endif %}</p>
+      <form method="post" action="/owner/loyalty/points" style="display: flex; flex-direction: column; gap: 12px">
+        <div class="field"><label for="loy-phone">CUSTOMER'S WHATSAPP</label><input id="loy-phone" class="input" name="phone" inputmode="tel" placeholder="98765 43210" required></div>
+        <div class="fields">
+          <div class="field"><label for="loy-name">NAME (OPTIONAL)</label><input id="loy-name" class="input" name="name" maxlength="60"></div>
+          <div class="field"><label for="loy-pts">POINTS</label><input id="loy-pts" class="input" name="points" inputmode="numeric" value="{{ settings.points_per_visit }}" required></div>
+        </div>
+        {% if is_staff %}
+        <input type="hidden" name="kind" value="visit">
+        {% else %}
+        <div class="days" role="radiogroup" aria-label="What to do">
+          <label><input type="radio" name="kind" value="visit" checked> A visit</label>
+          <label><input type="radio" name="kind" value="add"> Add points</label>
+          <label><input type="radio" name="kind" value="remove"> Remove points</label>
+        </div>
+        {% endif %}
+        <input class="input" name="note" maxlength="120" placeholder="Note (optional)" aria-label="Note">
+        <button class="btn" type="submit">Save</button>
+      </form>
+    </section>
+  </aside>
+</div>
+{% endblock %}

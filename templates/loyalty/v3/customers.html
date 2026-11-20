@@ -1,0 +1,119 @@
+{% extends "loyalty/v3/base.html" %}
+{% import "loyalty/v3/_macros.html" as ui %}
+{% block content %}
+<header class="head">
+  <div>
+    <span class="eyebrow">Customers</span>
+    <h1>{{ stats.members }} {{ 'person' if stats.members == 1 else 'people' }} in your club</h1>
+    <p>Tap a group to see who's in it. Tap a name to see their visits.</p>
+  </div>
+  <form method="get" action="/owner/loyalty/customers" role="search" style="display: flex; gap: 8px">
+    <input type="hidden" name="seg" value="{{ v3.seg }}">
+    <input class="input" style="background: #fff; width: 250px" type="search" name="q" value="{{ q }}" placeholder="Search name or number" aria-label="Search customers">
+    <button class="btn ghost" type="submit">Search</button>
+  </form>
+</header>
+
+<nav class="seg" aria-label="Customer groups">
+  {% for g in v3.segments %}
+  <a href="/owner/loyalty/customers?seg={{ g.id }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="{{ 'on' if v3.seg == g.id else '' }}" {% if v3.seg == g.id %}aria-current="page"{% endif %} style="animation: vzRise .4s ease-out {{ loop.index0 * 0.04 }}s both">
+    <i style="background: {{ g.color }}"></i>
+    <b>{{ g.count }}</b><span>{{ g.label }}</span><small>{{ g.hint }}</small>
+  </a>
+  {% endfor %}
+</nav>
+
+<div class="row">
+  <section class="card grow1" aria-labelledby="c-list" style="padding: 10px 10px 14px">
+    <div class="between" style="padding: 12px 14px 4px">
+      <h2 id="c-list">{{ v3.seg_label }} · {{ v3.members|length }}{% if v3.capped %}+{% endif %} shown</h2>
+      {% if q %}<a href="/owner/loyalty/customers?seg={{ v3.seg }}" style="font-size: 13.5px; font-weight: 700">Clear search</a>{% endif %}
+    </div>
+    {% if v3.members %}
+    <div class="scroll">
+      <table class="table">
+        <thead><tr><th scope="col">CUSTOMER</th><th scope="col">POINTS</th><th scope="col">VISITS</th><th scope="col">LAST VISIT</th>{% if plus and settings.birthday_on %}<th scope="col">BIRTHDAY</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for m in v3.members %}
+        {% set st = streaks[m.id] %}
+        <tr class="{{ 'on' if v3.selected and v3.selected.id == m.id else '' }}">
+          <td><a href="/owner/loyalty/customers?seg={{ v3.seg }}&m={{ m.id }}{% if q %}&q={{ q|urlencode }}{% endif %}#who" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit">
+            {{ ui.avatar(m, 's') }}
+            <span style="display: flex; flex-direction: column"><strong>{{ m.name or 'Customer' }}</strong><span style="font-size: 12.5px; color: #5f6b66">+{{ m.phone }}{% if m.offers_off %} · no offers (STOP){% endif %}</span></span>
+            {{ ui.tier_badge(tiers[m.id]) }}
+            {% if settings.daily_streak_on and st.daily >= 2 %}<span class="badge warn">{{ st.daily }}-day streak</span>{% elif settings.weekly_streak_on and st.weekly >= 2 %}<span class="badge">{{ st.weekly }}-week streak</span>{% endif %}
+          </a></td>
+          <td class="num"><strong>{{ m.points }}</strong></td>
+          <td class="num">{{ m.visits }}</td>
+          {% set ago = v3.days_ago.get(m.id) %}
+          <td style="{{ 'font-weight: 800; color: #a8492a' if ago is not none and ago > 14 else '' }}">{{ v3.ago_label(ago) }}</td>
+          {% if plus and settings.birthday_on %}
+          <td>
+            <form method="post" action="/owner/loyalty/customers/{{ m.id }}/birthday" style="display: flex; gap: 6px; margin: 0">
+              <input class="input" name="birthday" value="{{ birthday_label(m.birthday) }}" placeholder="14 Aug" style="width: 92px; height: 38px; font-size: 14px" aria-label="Birthday of {{ m.name or 'customer' }}">
+              <button class="btn ghost sm" type="submit">Save</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif q %}
+    <div class="empty">No customer in this group matches "{{ q }}".</div>
+    {% else %}
+    <div class="empty">Nobody in this group yet.</div>
+    {% endif %}
+  </section>
+
+  <aside class="side">
+    {% if v3.selected %}
+    {% set m = v3.selected %}
+    <section class="card dark anchor" id="who" aria-labelledby="c-who">
+      <div style="display: flex; align-items: center; gap: 14px">
+        {{ ui.avatar(m, 'l') }}
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+          <h2 id="c-who" class="serif" style="font-size: 26px; font-weight: 500">{{ m.name or 'Customer' }}</h2>
+          <span class="sub">+{{ m.phone }} · member since {{ m.created_at.strftime('%b %Y') }}</span>
+        </div>
+      </div>
+      <div class="kpis" style="grid-template-columns: repeat(3, minmax(0, 1fr)); flex: none">
+        <div class="kpi"><b>{{ m.visits }}</b><small>Visits</small></div>
+        <div class="kpi"><b>{{ m.points }}</b><small>Points</small></div>
+        <div class="kpi hl"><b>{{ v3.selected_given }}</b><small>Rewards</small></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <strong style="font-size: 12.5px; color: #e2c48f; letter-spacing: .4px">RECENT</strong>
+        {% for e in v3.selected_history %}
+        <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08)">
+          <span>{{ e.note if (e.kind in note_kinds and e.note) else labels.get(e.kind, e.kind) }} <span class="num {{ 'pos' if e.delta > 0 else 'neg' }}" style="color: {{ '#6fd39b' if e.delta > 0 else '#f0a487' }}">{{ '+' if e.delta > 0 else '' }}{{ e.delta }}</span></span>
+          <span style="color: #c9d6d0">{{ e.created_at.strftime('%d %b') }}</span>
+        </div>
+        {% else %}
+        <span class="sub">No activity yet.</span>
+        {% endfor %}
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        {% if is_real(m.phone) %}<a class="btn brass sm" href="https://wa.me/{{ m.phone }}" target="_blank" rel="noopener">Message on WhatsApp</a>{% endif %}
+        <a class="btn ghost sm" href="/owner/loyalty#points">Add or fix points</a>
+      </div>
+    </section>
+    {% else %}
+    <section class="card sand">
+      <h2>Pick someone</h2>
+      <p class="sub">Tap a name to see their visits, points and rewards.</p>
+    </section>
+    {% endif %}
+    <section class="card" aria-labelledby="c-groups">
+      <h2 id="c-groups">How groups work</h2>
+      <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; color: #3d4a44">
+        <li><strong>New:</strong> joined in the last 30 days.</li>
+        <li><strong>Regulars:</strong> 4+ visits and seen in the last 14 days.</li>
+        <li><strong>At risk:</strong> 2+ visits, not seen for 15–30 days.</li>
+        <li><strong>Lost:</strong> not seen for over 30 days.</li>
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

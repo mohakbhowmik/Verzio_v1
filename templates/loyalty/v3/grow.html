@@ -1,0 +1,128 @@
+{% extends "loyalty/v3/base.html" %}
+{% block content %}
+<header class="head">
+  <div>
+    <span class="eyebrow">Grow</span>
+    <h1>Ways to bring people back</h1>
+    <p>Switch on what suits you, then save. Each card shows what it did in the last 30 days.</p>
+  </div>
+  <button type="submit" form="loy-grow" class="btn">Save changes</button>
+</header>
+
+<section class="hero" aria-labelledby="g-boost">
+  <div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 6px">
+    <span class="when">Double points</span>
+    <strong id="g-boost" class="serif" style="font-size: 26px; font-weight: 500">Quiet hours? Give 2x points on the days and times you choose.</strong>
+    <span style="font-size: 13.5px; color: #c9d6d0">{{ v3.r.boosted }} visits came during double points in the last 30 days.{% if boosts %} {{ boosts | selectattr('is_active') | list | length }} rule{{ '' if (boosts | selectattr('is_active') | list | length) == 1 else 's' }} on.{% endif %}</span>
+  </div>
+  <a class="btn brass" href="#boosts">Set double points</a>
+</section>
+
+<form method="post" action="/owner/loyalty/grow" id="loy-grow">
+<div class="tools">
+
+  <article class="tool anchor" id="tiers">
+    <div class="top">
+      <span class="glyph" style="background: #f0d79c; color: #6a4a0c" aria-hidden="true">★</span>
+      <div><h2><label for="g-tiers">Silver and Gold members</label></h2><span class="hint">Regulars move up after a number of visits and get extra points on every visit and bill.</span></div>
+      <input id="g-tiers" class="switch" type="checkbox" name="tiers_on" value="on" {% if settings.tiers_on %}checked{% endif %}>
+    </div>
+    <div class="fields" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+      <div class="field"><label for="g-sv">SILVER AFTER (VISITS)</label><input id="g-sv" class="input" name="silver_visits" inputmode="numeric" value="{{ settings.silver_visits }}"></div>
+      <div class="field"><label for="g-sb">SILVER EXTRA (%)</label><input id="g-sb" class="input" name="silver_bonus" inputmode="numeric" value="{{ settings.silver_bonus }}"></div>
+      <div class="field"><label for="g-gv">GOLD AFTER (VISITS)</label><input id="g-gv" class="input" name="gold_visits" inputmode="numeric" value="{{ settings.gold_visits }}"></div>
+      <div class="field"><label for="g-gb">GOLD EXTRA (%)</label><input id="g-gb" class="input" name="gold_bonus" inputmode="numeric" value="{{ settings.gold_bonus }}"></div>
+    </div>
+    {% set sp = (settings.points_per_visit * (100 + settings.silver_bonus) / 100)|round|int %}
+    {% set gp = (settings.points_per_visit * (100 + settings.gold_bonus) / 100)|round|int %}
+    <div class="example">With {{ settings.points_per_visit }} points per visit: Silver gets {{ sp }}, Gold gets {{ gp }}.</div>
+    <div class="result"><b>{{ v3.silver + v3.gold }}</b><span>members are Silver ({{ v3.silver }}) or Gold ({{ v3.gold }})</span></div>
+  </article>
+
+  <article class="tool anchor" id="referral">
+    <div class="top">
+      <span class="glyph" style="background: #e3efe8; color: #1f5446" aria-hidden="true">+</span>
+      <div><h2><label for="g-ref">Invite a friend</label></h2><span class="hint">Customers get an invite link (wallet page, or reply INVITE). When a friend makes a first visit, both get points. Up to 10 a month per customer.</span></div>
+      <input id="g-ref" class="switch" type="checkbox" name="referral_on" value="on" {% if settings.referral_on %}checked{% endif %}>
+    </div>
+    <div class="field"><label for="g-refp">POINTS FOR EACH OF THEM</label><input id="g-refp" class="input" name="referral_points" inputmode="numeric" value="{{ settings.referral_points }}"></div>
+    <div class="result"><b>{{ v3.r.referrals }}</b><span>friends joined with an invite</span></div>
+  </article>
+
+  <article class="tool anchor" id="birthday">
+    <div class="top">
+      <span class="glyph" style="background: #fbe9d8; color: #8a5a1c" aria-hidden="true">B</span>
+      <div><h2><label for="g-bday">Birthday gift</label></h2><span class="hint">On their second visit we ask for their birthday. On the day they get points and a happy-birthday message. Only customers seen in the last 6 months.</span></div>
+      <input id="g-bday" class="switch" type="checkbox" name="birthday_on" value="on" {% if settings.birthday_on %}checked{% endif %}>
+    </div>
+    <div class="field"><label for="g-bdp">BIRTHDAY POINTS</label><input id="g-bdp" class="input" name="birthday_points" inputmode="numeric" value="{{ settings.birthday_points }}"></div>
+    <p class="hint">If the customer hasn't messaged you in the last 24 hours, WhatsApp charges about ₹1 for this message. This month: {{ marketing_used }} of {{ settings.offers_per_month }}. Customers who reply STOP get no more offers.</p>
+    <div class="result"><b>{{ v3.r.birthdays }}</b><span>birthday gifts sent</span></div>
+  </article>
+
+  <article class="tool anchor" id="review">
+    <div class="top">
+      <span class="glyph" style="background: #e8eef8; color: #2a4a8a" aria-hidden="true">G</span>
+      <div><h2><label for="g-rev">Ask for a Google review</label></h2><span class="hint">Once per customer, in the reply to their scan on the visit number you choose. Free: it's a reply.</span></div>
+      <input id="g-rev" class="switch" type="checkbox" name="review_on" value="on" {% if settings.review_on %}checked{% endif %}>
+    </div>
+    <div class="field"><label for="g-link">YOUR GOOGLE REVIEW LINK</label><input id="g-link" class="input" name="review_link" value="{{ settings.review_link or '' }}" placeholder="https://g.page/r/.../review"></div>
+    <div class="field"><label for="g-ra">ASK ON VISIT NUMBER</label><input id="g-ra" class="input" name="review_after" inputmode="numeric" value="{{ settings.review_after }}"></div>
+    <div class="result"><b>{{ v3.reviews_asked }}</b><span>customers asked so far</span></div>
+  </article>
+
+  <article class="tool anchor" id="bill">
+    <div class="top">
+      <span class="glyph" style="background: #efe9df; color: #3d4a44" aria-hidden="true">₹</span>
+      <div><h2><label for="g-bill">Points by bill amount</label></h2><span class="hint">After scanning, customers get a 4-digit bill code; staff type it with the bill on Today. Visit points still apply.</span></div>
+      <input id="g-bill" class="switch" type="checkbox" name="bill_points_on" value="on" {% if settings.bill_points_on %}checked{% endif %}>
+    </div>
+    <div class="fields" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+      <div class="field"><label for="g-p100">POINTS PER ₹100</label><input id="g-p100" class="input" name="points_per_100" inputmode="numeric" value="{{ settings.points_per_100 }}"></div>
+      <div class="field"><label for="g-avg">YOUR AVERAGE BILL (₹)</label><input id="g-avg" class="input" name="avg_bill" inputmode="numeric" value="{{ settings.avg_bill }}"></div>
+    </div>
+    <p class="hint">The average bill is used on Results to estimate the money repeat visits bring in.</p>
+    <div class="result"><b>{{ v3.r.bill_count }}</b><span>bills typed (₹{{ '{:,}'.format(v3.r.bill_total) }})</span></div>
+  </article>
+
+  <article class="tool anchor" id="summary">
+    <div class="top">
+      <span class="glyph" style="background: #efe9df; color: #3d4a44" aria-hidden="true">M</span>
+      <div><h2><label for="g-sum">Monday summary on WhatsApp</label></h2><span class="hint">Every Monday morning: last week's new members, visits, repeat visits and rewards, sent to your manager number{% if business.manager_phone_number %} (+{{ business.manager_phone_number }}){% endif %}.</span></div>
+      <input id="g-sum" class="switch" type="checkbox" name="summary_on" value="on" {% if settings.summary_on %}checked{% endif %}>
+    </div>
+    <p class="hint">Not sent if the manager number is the same as the business number.</p>
+  </article>
+</div>
+<div style="display: flex; justify-content: flex-end; margin-top: 18px"><button type="submit" class="btn big">Save changes</button></div>
+</form>
+
+<section class="card anchor" id="boosts" aria-labelledby="g-rules">
+  <h2 id="g-rules">Double points rules</h2>
+  <p class="sub">Double or triple points on the days (and hours) you choose. Applies to visit and bill points.</p>
+  {% if boosts %}
+  <ul class="list">
+    {% for b in boosts %}
+    <li class="item">
+      <div class="who"><strong>{{ describe_boost(b) }}</strong>{% if not b.is_active %}<span class="meta">Paused</span>{% endif %}</div>
+      <form method="post" action="/owner/loyalty/boosts/{{ b.id }}/toggle" style="margin: 0"><button class="btn ghost sm" type="submit">{{ 'Pause' if b.is_active else 'Turn on' }}</button></form>
+      <form method="post" action="/owner/loyalty/boosts/{{ b.id }}/delete" style="margin: 0"><button class="btn danger sm" type="submit" onclick="return confirm('Delete this rule?');">Delete</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form method="post" action="/owner/loyalty/boosts" style="display: flex; flex-direction: column; gap: 12px">
+    <span class="label">DAYS</span>
+    <div class="days">
+      {% for d in day_names %}<label><input type="checkbox" name="days" value="{{ loop.index0 }}"> {{ d }}</label>{% endfor %}
+    </div>
+    <div class="fields">
+      <div class="field"><label for="b-start">FROM (OPTIONAL)</label><input id="b-start" class="input" type="time" name="start"></div>
+      <div class="field"><label for="b-end">TO (OPTIONAL)</label><input id="b-end" class="input" type="time" name="end"></div>
+      <div class="field"><label for="b-mult">POINTS</label><select id="b-mult" class="input" name="multiplier"><option value="2">Double (2x)</option><option value="3">Triple (3x)</option></select></div>
+    </div>
+    <p class="hint">Leave the times empty for the whole day. Example: Tue and Wed, 15:00 to 18:00, double points.</p>
+    <button class="btn" type="submit" style="align-self: flex-start">Add rule</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "loyalty/v3/base.html" %}
+{% import "loyalty/v3/_macros.html" as ui %}
+{% block content %}
+<header class="head">
+  <div>
+    <span class="eyebrow">Rewards</span>
+    <h1>What customers can earn</h1>
+    <p>Customers get {{ settings.points_per_visit }} points per visit. Keep the first reward close: a reward within 3–6 visits brings people back sooner.</p>
+  </div>
+  <a class="btn" href="#add">+ Add a reward</a>
+</header>
+
+<div class="row">
+  <div class="grow1">
+    {% if rewards %}
+    <div class="rewards">
+      {% for r in rewards %}
+      <article class="reward {{ '' if r.is_active else 'off' }}" style="animation: vzRise .4s ease-out {{ loop.index0 * 0.05 }}s both">
+        <div class="between" style="align-items: flex-start">
+          <span class="icon">{{ ui.gift_icon(30) }}</span>
+          <form method="post" action="/owner/loyalty/rewards/{{ r.id }}/toggle" style="margin: 0">
+            <button class="btn {{ 'ghost' if r.is_active else 'soft' }} sm" type="submit">{{ 'Hide' if r.is_active else 'Show' }}</button>
+          </form>
+        </div>
+        <div>
+          <h2 class="name">{{ r.name }}</h2>
+          <span class="cost num">{{ r.points }} points · about {{ (r.points / settings.points_per_visit)|round(0, 'ceil')|int if settings.points_per_visit else '–' }} visits</span>
+        </div>
+        <span class="badge {{ '' if r.is_active else 'off' }}" style="align-self: flex-start">{{ 'Shown to customers' if r.is_active else 'Hidden' }}</span>
+        <div class="between" style="padding-top: 10px; border-top: 1px solid #f0e6d6">
+          <span class="hint num">Given {{ v3.given_by_reward.get(r.id, 0) }} time{{ '' if v3.given_by_reward.get(r.id, 0) == 1 else 's' }} in 30 days</span>
+        </div>
+        <details class="more">
+          <summary>Edit</summary>
+          <form method="post" action="/owner/loyalty/rewards/{{ r.id }}" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px">
+            <div class="field"><label for="rn{{ r.id }}">REWARD</label><input id="rn{{ r.id }}" class="input" name="name" value="{{ r.name }}" maxlength="60"></div>
+            <div class="field"><label for="rp{{ r.id }}">POINTS NEEDED</label><input id="rp{{ r.id }}" class="input" name="points" value="{{ r.points }}" inputmode="numeric"></div>
+            <button class="btn sm" type="submit">Save</button>
+          </form>
+          <form method="post" action="/owner/loyalty/rewards/{{ r.id }}/delete" style="margin: 10px 0 0">
+            <button class="btn danger sm" type="submit" onclick="return confirm('Delete this reward?');">Delete reward</button>
+          </form>
+        </details>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">No rewards yet. Add your first one below, e.g. "Free Cappuccino" for {{ settings.points_per_visit * 5 }} points (5 visits).</div>
+    {% endif %}
+
+    <section class="card anchor" id="add" aria-labelledby="r-add" style="border: 2px solid #e6d3b3">
+      <h2 id="r-add">Add a reward</h2>
+      <form method="post" action="/owner/loyalty/rewards" class="fields" style="align-items: end">
+        <div class="field"><label for="new-name">REWARD</label><input id="new-name" class="input" name="name" maxlength="60" placeholder="e.g. Free Brownie" required></div>
+        <div class="field"><label for="new-pts">POINTS NEEDED</label><input id="new-pts" class="input" name="points" inputmode="numeric" placeholder="{{ settings.points_per_visit * 5 }}" required></div>
+        <button class="btn" type="submit">Add reward</button>
+      </form>
+      <p class="hint">At {{ settings.points_per_visit }} points per visit, a {{ settings.points_per_visit * 10 }}-point reward takes about 10 visits.</p>
+    </section>
+  </div>
+
+  <aside class="side">
+    <section class="card dark" aria-labelledby="r-prev">
+      <h2 id="r-prev" style="color: #e2c48f; font-size: 16px">What customers see in WhatsApp</h2>
+      <div style="border-radius: 18px; background: #f7f1e6; color: #1d2621; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+        <strong class="serif" style="font-size: 20px">Your {{ business.name }} card</strong>
+        {% set shown = rewards | selectattr('is_active') | list %}
+        {% if shown %}
+          {% for r in shown[:4] %}
+          <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 8px 10px; border-radius: 10px; background: #fff"><span>{{ r.name }}</span><strong class="num" style="color: #8a5a1c">{{ r.points }} pts</strong></div>
+          {% endfor %}
+        {% else %}
+          <span class="hint">No rewards shown yet.</span>
+        {% endif %}
+      </div>
+      <p class="sub" style="font-size: 12.5px">Only rewards that are shown appear here. Hiding one keeps everyone's points.</p>
+    </section>
+    <section class="card" aria-labelledby="r-tips">
+      <h2 id="r-tips">Good to know</h2>
+      <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #3d4a44">
+        <li>Customers claim in WhatsApp; staff tap Given on Today.</li>
+        <li>Points are only used when a reward is given.</li>
+        {% if plus %}<li>Birthday and invite rewards are in <a href="/owner/loyalty/grow">Grow</a>.</li>{% endif %}
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

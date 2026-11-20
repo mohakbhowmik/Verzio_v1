@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f2b24">
+<title>{{ page_title }} · Verzio Loyalty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% include "loyalty/v3/_styles.html" %}
+</head>
+<body class="v3">
+{% set icons = {
+  "dashboard": '<path d="M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  "rewards": '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1s6 1 6 1zm0 0c2-4 6-4 6-1s-6 1-6 1z"/>',
+  "customers": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.3 0 4 1.5 4.5 4"/>',
+  "grow": '<path d="M4 20l5-5M14 4c3 0 6 3 6 6l-7 7-6-6z"/><circle cx="15" cy="9" r="1.5"/>',
+  "results": '<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',
+  "settings": '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  "book": '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'
+} %}
+{% if is_staff %}
+{% set nav_items = [("dashboard", "/owner/loyalty", "Counter")] %}
+{% elif plus %}
+{% set nav_items = [("dashboard", "/owner/loyalty", "Today"), ("rewards", "/owner/loyalty/rewards", "Rewards"),
+  ("customers", "/owner/loyalty/customers", "Customers"), ("grow", "/owner/loyalty/grow", "Grow"),
+  ("results", "/owner/loyalty/results", "Results"), ("settings", "/owner/loyalty/settings", "Settings")] %}
+{% else %}
+{% set nav_items = [("dashboard", "/owner/loyalty", "Today"), ("rewards", "/owner/loyalty/rewards", "Rewards"),
+  ("customers", "/owner/loyalty/customers", "Customers"), ("settings", "/owner/loyalty/settings", "Settings")] %}
+{% endif %}
+<div class="v3-shell">
+  <nav class="v3-nav" aria-label="Loyalty">
+    <a class="v3-brand" href="/owner/loyalty" aria-label="Verzio Loyalty home"><span class="mark" aria-hidden="true">V</span><span><strong>Verzio</strong><small>Loyalty</small></span></a>
+    {% for key, href, label in nav_items %}
+    <a href="{{ href }}" class="v3-link {{ 'on' if active_page == key else '' }}" {% if active_page == key %}aria-current="page"{% endif %}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">{{ icons[key]|safe }}</svg>{{ label }}</a>
+    {% endfor %}
+    {% if has_book or has_tables %}<div class="v3-sep"></div>{% endif %}
+    {% if has_book %}<a href="/owner/dashboard" class="v3-link"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">{{ icons.book|safe }}</svg>Verzio Book</a>{% endif %}
+    {% if has_tables %}<a href="/owner/tables" class="v3-link"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">{{ icons.book|safe }}</svg>Verzio Tables</a>{% endif %}
+    {% if business %}
+    <div class="v3-foot">
+      <strong>{{ business.name }}</strong>
+      <span class="v3-live">{% if settings and running %}<span class="dot"></span>Live on WhatsApp{% else %}<span class="dot off"></span>Rewards paused{% endif %}</span>
+      <span class="v3-live">{{ owner.full_name if owner and owner.full_name else 'Owner' }}</span>
+      <a href="/owner/password">Change password</a>
+      <form action="/owner/logout" method="post"><button type="submit">Sign out</button></form>
+    </div>
+    {% endif %}
+  </nav>
+  <nav class="v3-topnav" aria-label="Loyalty">
+    {% for key, href, label in nav_items %}<a href="{{ href }}" class="{{ 'on' if active_page == key else '' }}" {% if active_page == key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+    {% if has_book %}<a href="/owner/dashboard">Verzio Book</a>{% endif %}
+    {% if has_tables %}<a href="/owner/tables">Verzio Tables</a>{% endif %}
+    <a href="/owner/password">Password</a>
+    <form action="/owner/logout" method="post"><button type="submit">Sign out</button></form>
+  </nav>
+  <main class="v3-main" id="main">
+    {% if ok %}<div class="alert ok" role="status">{{ ok }}</div>{% endif %}
+    {% if err %}<div class="alert err" role="alert">{{ err }}</div>{% endif %}
+    {% if settings and not running %}<div class="alert err" role="alert">{{ plan.reason if plan and plan.reason else "Rewards are paused on WhatsApp. Contact Verzio Solutions to switch them back on." }}</div>{% elif plan and plan.in_grace %}<div class="alert err" role="status">{{ plan.reason }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>
