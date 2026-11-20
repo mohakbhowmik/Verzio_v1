@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from activity_log import log_event
 from database import Business
 from loyalty import engine as L
+from preview import preview_on
 from whatsapp_client import mask_phone, normalize_phone, send_whatsapp
 
 logger = logging.getLogger("VERZIO_LOYALTY_BOT")
@@ -126,6 +127,20 @@ def _summary(db: Session, biz: Business, member, headline: str) -> str:
     nxt = next((p for p in L.progress(db, member) if not p.unlocked), None)
     if nxt:
         body += f"\n\n{nxt.missing} more points to {nxt.reward.name}."
+    return body[:MAX_BODY]
+
+
+def one_tap_wallet(biz: Business, settings) -> bool:
+    """Scan reply carries the wallet link itself (Verzio Test first, see preview.py)."""
+    return preview_on(biz, getattr(settings, "whatsapp_number", None))
+
+
+def _short_summary(db: Session, member, headline: str) -> str:
+    """Scan reply for the one-tap flow: the wallet page shows the bars and rewards."""
+    body = f"{headline}\n\nWallet: *{member.points} points*"
+    nxt = next((p for p in L.progress(db, member) if not p.unlocked), None)
+    if nxt and not any(p.unlocked for p in L.progress(db, member)):
+        body += f" · {nxt.missing} more to {nxt.reward.name}"
     return body[:MAX_BODY]
 
 
@@ -285,8 +300,15 @@ async def _stamp(db, biz, sender, code, name, send) -> None:
         headline += f"\n\n⭐ Enjoying {biz.name}? A quick Google review helps us a lot: {settings.review_link}"
     elif result.ask_birthday:
         headline += "\n\n🎂 Get a birthday treat from us: reply with your birthday, like *14 Aug*."
-    await send({"type": "buttons", "body": _summary(db, biz, member, headline),
-                "buttons": _wallet_buttons(db, member)})
+    if one_tap_wallet(biz, settings):
+        # Preview: one reply with an "Open my wallet" link instead of reply buttons, so the
+        # customer is one tap from the wallet (claim, invite and birthday all live there).
+        headline = headline.replace("Tap Claim reward when you'd like it.", "Open your wallet to claim it.")
+        await send({"type": "cta_url", "body": _short_summary(db, member, headline),
+                    "display_text": "Open my wallet", "url": wallet_url(member)})
+    else:
+        await send({"type": "buttons", "body": _summary(db, biz, member, headline),
+                    "buttons": _wallet_buttons(db, member)})
     if result.referrer and result.referrer_bonus:
         await tell_referrer(db, biz, result.referrer, member, result.referrer_bonus)
 
