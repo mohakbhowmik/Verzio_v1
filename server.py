@@ -881,13 +881,28 @@ def terms(request: Request):
 
 @app.api_route("/health", methods=["GET", "HEAD"])  # uptime monitors often use HEAD
 def health():
+    """For uptime monitors (Better Stack): app answering, database readable, disk not full."""
+    import shutil
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return {"status": "healthy", "database": "ok"}
     except Exception:
         logger.exception("Health check: database unreachable")
         return JSONResponse({"status": "degraded", "database": "error"}, status_code=503)
+    body = {"status": "healthy", "database": "ok"}
+    try:
+        usage = shutil.disk_usage(os.getenv("HEALTH_DISK_PATH", "."))
+        free_gb = usage.free / 1024 ** 3
+        min_gb = float(os.getenv("HEALTH_MIN_FREE_GB", "1"))
+        body["disk_free_gb"] = round(free_gb, 1)
+        if free_gb < min_gb or usage.free / usage.total < 0.05:
+            logger.error("Health check: disk almost full (%.1f GB free)", free_gb)
+            body.update(status="degraded", disk="low")
+            return JSONResponse(body, status_code=503)
+        body["disk"] = "ok"
+    except OSError:
+        body["disk"] = "unknown"
+    return body
 
 
 @app.get("/admin", response_class=HTMLResponse)

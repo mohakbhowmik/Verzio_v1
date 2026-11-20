@@ -372,6 +372,22 @@ async def tick() -> dict:
     return result
 
 
+async def heartbeat() -> bool:
+    """Tell the uptime monitor the scheduler is alive (HEARTBEAT_URL, e.g. a Better Stack
+    heartbeat). If these pings stop, the monitor alerts you. Never raises."""
+    url = os.getenv("HEARTBEAT_URL", "").strip()
+    if not url:
+        return False
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+        return resp.status_code < 400
+    except Exception as exc:
+        logger.warning("Heartbeat ping failed: %s", type(exc).__name__)
+        return False
+
+
 async def run_forever() -> None:
     logger.info("Scheduler started: every %ss", TICK_SECONDS)
     await asyncio.sleep(20)                  # let the app finish starting
@@ -380,6 +396,7 @@ async def run_forever() -> None:
             result = await tick()
             if any(v for v in result.values() if v not in (0, (0, 0)) and not (isinstance(v, dict) and not any(v.values()))):
                 logger.info("Scheduler tick: %s", result)
+            await heartbeat()                # only after a tick that ran
         except Exception:
             logger.exception("Scheduler tick failed")
         await asyncio.sleep(TICK_SECONDS)

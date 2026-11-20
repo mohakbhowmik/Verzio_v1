@@ -112,6 +112,24 @@ with TestClient(server.app) as c:
         r = c.get(path)
         check(f"owner {path:32} loads (no admin nav)", r.status_code == 200 and ADMIN_MARK not in r.text, r.status_code)
     check("uptime monitors: HEAD /health -> 200", c.head("/health").status_code == 200)
+    h = c.get("/health").json()
+    check("/health reports database and disk", h.get("database") == "ok" and h.get("disk") == "ok" and "disk_free_gb" in h, h)
+    os.environ["HEALTH_MIN_FREE_GB"] = "999999"
+    r = c.get("/health")
+    check("/health -> 503 when the disk is almost full", r.status_code == 503 and r.json().get("disk") == "low", r.text)
+    os.environ.pop("HEALTH_MIN_FREE_GB")
+    import asyncio as _aio, httpx as _hx, scheduler as _sch
+    pings = []
+    _RealAC = _hx.AsyncClient
+    def _hb_client(*a, **k):
+        k["transport"] = _hx.MockTransport(lambda req: (pings.append(str(req.url)), _hx.Response(200))[1])
+        return _RealAC(*a, **k)
+    _hx.AsyncClient = _hb_client
+    check("heartbeat off when HEARTBEAT_URL isn't set", _aio.run(_sch.heartbeat()) is False and pings == [])
+    os.environ["HEARTBEAT_URL"] = "https://uptime.betterstack.com/api/v1/heartbeat/TEST"
+    check("heartbeat pings the URL", _aio.run(_sch.heartbeat()) is True and pings == ["https://uptime.betterstack.com/api/v1/heartbeat/TEST"], pings)
+    os.environ.pop("HEARTBEAT_URL")
+    _hx.AsyncClient = _RealAC
     for path, text_ in [("/", "Your business, running on WhatsApp"), ("/products", "Verzio Loyalty"),
                         ("/products/book", "takes bookings while you sleep"), ("/products/loyalty", "Get started"),
                         ("/products/messaging", "Built to protect your number"), ("/pricing", "Founding offer"),
