@@ -44,7 +44,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, text
@@ -842,31 +842,41 @@ async def verify(
 
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def home(request: Request):
-    """Verzio Solutions company homepage: the products and how to get started."""
-    return templates.TemplateResponse(request=request, name="public/home.html", context={"page": "home"})
+    """Verzio Solutions company homepage: one platform, a page for each industry."""
+    return templates.TemplateResponse(request=request, name="public/site/home.html", context={})
 
 
-# Product pages. Verzio Tables is coming soon; the others are on sale.
-_PRODUCT_PAGES = {"book": "public/book.html", "loyalty": "public/loyalty.html",
-                  "messaging": "public/messaging.html", "tables": "public/tables.html"}
+# Website pages, one per industry (templates/public/site, built from the design canvas).
+_SITE_PAGES = {"cafes": "public/site/cafes.html", "salons": "public/site/salons.html",
+               "clinics": "public/site/clinics.html", "restaurants": "public/site/restaurants.html",
+               "pricing": "public/site/pricing.html"}
+# Old product addresses (Nov 2026 and before) keep working: they move to the matching page.
+# Verzio Messaging isn't on sale until it's built, so its old page goes to pricing.
+_OLD_PRODUCT_PAGES = {"loyalty": "/cafes", "book": "/clinics", "messaging": "/pricing", "tables": "/restaurants"}
 
 
-@app.get("/products", response_class=HTMLResponse)
-def products(request: Request):
-    return templates.TemplateResponse(request=request, name="public/products.html", context={"page": "products"})
+def _site_page(slug: str):
+    def page(request: Request):
+        return templates.TemplateResponse(request=request, name=_SITE_PAGES[slug], context={})
+    page.__name__ = f"site_{slug}"
+    return page
 
 
-@app.get("/pricing", response_class=HTMLResponse)
-def pricing(request: Request):
-    return templates.TemplateResponse(request=request, name="public/pricing.html", context={"page": "pricing"})
+for _slug in _SITE_PAGES:
+    app.add_api_route(f"/{_slug}", _site_page(_slug), methods=["GET", "HEAD"], response_class=HTMLResponse)
 
 
-@app.get("/products/{product}", response_class=HTMLResponse)
-def product_page(product: str, request: Request):
-    name = _PRODUCT_PAGES.get(product)
-    if name is None:
+@app.get("/products")
+def products():
+    return RedirectResponse(url="/", status_code=301)
+
+
+@app.get("/products/{product}")
+def product_page(product: str):
+    target = _OLD_PRODUCT_PAGES.get(product)
+    if target is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return templates.TemplateResponse(request=request, name=name, context={"page": product})
+    return RedirectResponse(url=target, status_code=301)
 
 
 @app.get("/privacy", response_class=HTMLResponse)

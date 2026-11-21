@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verzio · WhatsApp automation for local businesses</title>
+<meta name="description" content="Bookings, reminders, rewards and comebacks on the WhatsApp number your customers already message. For cafés, clinics, salons and spas.">
+<link rel="canonical" href="https://verzio.codes/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Verzio">
+<meta property="og:title" content="Verzio · WhatsApp automation for local businesses">
+<meta property="og:description" content="Bookings, reminders, rewards and comebacks on the WhatsApp number your customers already message. For cafés, clinics, salons and spas.">
+<meta property="og:url" content="https://verzio.codes/">
+<meta name="theme-color" content="#0f2b24">
+<link rel="icon" href="/static/img/verzio-mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..600&amp;family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f7f1e6}
+a{color:#1f5446}a:hover{color:#0f2b24}
+button:focus-visible,a:focus-visible{outline:3px solid #c79a5a;outline-offset:3px}
+@keyframes vzRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes vzIn{0%{opacity:0;transform:translateY(10px) scale(.97)}100%{opacity:1;transform:none}}
+@keyframes vzDots{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes vzFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes vzPulse{0%{box-shadow:0 0 0 0 rgba(111,211,155,.7)}70%{box-shadow:0 0 0 9px rgba(111,211,155,0)}100%{box-shadow:0 0 0 0 rgba(111,211,155,0)}}
+@keyframes vzMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes vzGlow{0%,100%{opacity:.55}50%{opacity:.9}}
+.lift{transition:transform .4s cubic-bezier(.2,.7,.2,1),box-shadow .4s}
+.lift:hover{transform:translateY(-6px);box-shadow:0 2px 4px rgba(29,38,33,.04),0 44px 80px -40px rgba(23,59,50,.55)!important}
+.gbtn{transition:transform .25s,box-shadow .25s}.gbtn:hover{transform:translateY(-2px)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+
+summary::-webkit-details-marker{display:none}
+.vz-faq .vz-sign{flex:none;width:34px;height:34px;border-radius:17px;border:1px solid #d9c9ad;display:inline-flex;align-items:center;justify-content:center;font-size:20px;color:#a77a3a;transition:transform .25s}
+.vz-faq[open] .vz-sign{transform:rotate(45deg)}
+.vz-burger{display:none;position:relative}
+.vz-burger summary{list-style:none;cursor:pointer;color:#fff;width:44px;height:44px;border-radius:12px;border:1px solid rgba(226,196,143,.35);display:flex;align-items:center;justify-content:center}
+.vz-burger-panel{position:absolute;right:0;top:54px;z-index:20;min-width:220px;padding:10px;border-radius:16px;background:#0b201b;border:1px solid rgba(226,196,143,.25);box-shadow:0 30px 60px -20px rgba(0,0,0,.6);display:flex;flex-direction:column}
+.vz-burger-panel a{color:#e4ece8;text-decoration:none;padding:12px 14px;border-radius:10px;font-size:15px}
+.vz-burger-panel a:hover{background:rgba(255,255,255,.06)}
+@media (max-width: 1020px){nav[aria-label="Main"],.vz-login{display:none!important}.vz-burger{display:block}}
+@media (max-width: 720px){.vz-float{display:none!important}.vz-mockside{display:none!important}}
+@media (max-width: 520px){.vz-cta-top{display:none!important}}
+</style>
+</head>
+<body>
+<div style="font-family: 'Hanken Grotesk', system-ui, sans-serif; color: #1d2621; background: #f7f1e6; overflow: hidden">
+<section style="position: relative; background: #0f2b24; color: #fff; padding-bottom: 110px">
+<svg aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: .16; mix-blend-mode: overlay; pointer-events: none"><filter id="vzg"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0"/></filter><rect width="100%" height="100%" filter="url(#vzg)"/></svg>
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, rgba(226,196,143,0), rgba(226,196,143,.45), rgba(226,196,143,0))"></div>
+<div aria-hidden="true" style="position: absolute; right: -10%; top: -20%; width: 70%; height: 140%; background: radial-gradient(closest-side, rgba(199,154,90,.22), rgba(199,154,90,0) 70%)"></div>
+<header style="position: relative; z-index: 2; max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 24px; border-bottom: 1px solid rgba(226,196,143,.14)">
+<a href="/" aria-label="Verzio home" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff">
+<svg width="40" height="35" viewBox="86 70 344 300" fill="#c79a5a" aria-hidden="true" style="flex: none; "><g transform="rotate(-22 258 214)"><polygon points="150,110 184,110 184,236 288,140 312,140 150,290"/><polygon points="166,290 190,290 292,195.5 292,268 316,268 316,151"/><polygon points="266,284 366,284 366,318 266,318"/></g></svg>
+<span style="font-family: 'Fraunces', Georgia, serif; font-size: 25px; letter-spacing: -.3px">Verzio</span>
+</a>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px">
+<a href="/cafes" style="color: #c9d6d0; text-decoration: none; font-size: 14.5px; padding: 10px 4px">For cafés</a><a href="/clinics" style="color: #c9d6d0; text-decoration: none; font-size: 14.5px; padding: 10px 4px">For clinics</a><a href="/restaurants" style="color: #c9d6d0; text-decoration: none; font-size: 14.5px; padding: 10px 4px">For restaurants</a><a href="/salons" style="color: #c9d6d0; text-decoration: none; font-size: 14.5px; padding: 10px 4px">For salons</a><a href="/pricing" style="color: #c9d6d0; text-decoration: none; font-size: 14.5px; padding: 10px 4px">Pricing</a>
+</nav>
+<div style="display: flex; align-items: center; gap: 12px">
+<details class="vz-burger">
+<summary aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></summary>
+<div class="vz-burger-panel">
+<a href="/cafes">For cafés</a><a href="/clinics">For clinics</a><a href="/salons">For salons &amp; spas</a><a href="/restaurants">For restaurants</a><a href="/pricing">Pricing</a><a href="/owner/login">Owner login</a>
+</div>
+</details>
+<a class="vz-login" href="/owner/login" style="color: #c9d6d0; text-decoration: none; font-size: 14.5px">Owner login</a>
+<a href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20see%20a%20demo%20of%20Verzio%20for%20my%20business." target="_blank" rel="noopener" class="vz-cta-top" style="display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 999px; background: #c79a5a; color: #0f2b24; font-weight: 800; font-size: 14px; text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.3 1.8 2.7 4.2 4.5 4.5l1.2-1.2 1.8.8-.4 1.6c-3 .4-7.6-4.2-7.2-7.2l1.6-.4.8 1.8z"/></svg>Try it on WhatsApp</a>
+</div>
+</header>
+<div style="position: relative; max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; padding-top: 70px; display: flex; flex-wrap: wrap; align-items: center; gap: 60px">
+<div style="flex: 1 1 480px; display: flex; flex-direction: column; gap: 26px; animation: vzRise .7s ease-out both">
+<span style="display: inline-flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #e2c48f"><span aria-hidden="true" style="width: 34px; height: 1px; background: currentColor; opacity: .7"></span>WhatsApp automation for local businesses</span>
+<h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 300; font-size: clamp(56px, 7.6vw, 104px); line-height: .95; letter-spacing: -3px">Your front desk,<br><em style="font-style: italic; color: #e2c48f">on WhatsApp.</em></h1>
+<p style="margin: 0; font-size: 19px; line-height: 1.6; color: #c9d6d0; max-width: 500px">Bookings, reminders, rewards and comebacks, answered on the WhatsApp number your customers already message. Nothing for them to install.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 14px">
+<a href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20see%20a%20demo%20of%20Verzio%20for%20my%20business." target="_blank" rel="noopener" class="gbtn" style="display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 28px; border-radius: 999px; background: linear-gradient(180deg, #d9b274, #c0904f); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 18px 36px -16px rgba(199,154,90,.95); color: #0f2b24; font-weight: 800; font-size: 15.5px; text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.3 1.8 2.7 4.2 4.5 4.5l1.2-1.2 1.8.8-.4 1.6c-3 .4-7.6-4.2-7.2-7.2l1.6-.4.8 1.8z"/></svg>See it on your phone</a>
+<a href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20book%20a%2015-minute%20Verzio%20demo." target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 26px; border-radius: 999px; border: 1px solid rgba(226,196,143,.38); background: rgba(255,255,255,.04); color: #fff; font-weight: 700; font-size: 15.5px; text-decoration: none">Book a 15-minute demo <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+<span style="font-size: 13.5px; color: #93ada4">Message us on WhatsApp and we'll show you a live demo on your own phone.</span>
+</div>
+<div style="flex: 1 1 380px; display: flex; flex-direction: column; align-items: center; gap: 18px">
+<div role="tablist" aria-label="Pick an industry" style="display: flex; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12)">
+<button type="button" role="tab" data-scene="cafe" aria-selected="true" style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; background: #c79a5a; color: #0f2b24">Café</button><button type="button" role="tab" data-scene="clinic" aria-selected="false" style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; background: transparent; color: #c9d6d0">Clinic</button><button type="button" role="tab" data-scene="rest" aria-selected="false" style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; background: transparent; color: #c9d6d0">Restaurant</button>
+</div>
+<div style="animation: vzFloat 7s ease-in-out infinite">
+<div style="width: 330px; max-width: 100%; border-radius: 46px; background: #0b1512; padding: 11px; box-sizing: border-box; box-shadow: 0 50px 90px -30px rgba(0,0,0,.65), inset 0 0 0 1.5px rgba(255,255,255,.08)">
+<div style="border-radius: 36px; overflow: hidden; background: #efe7dc; display: flex; flex-direction: column; height: 560px">
+<div style="background: #12352d; color: #fff; padding: 34px 16px 12px; display: flex; align-items: center; gap: 10px">
+<span style="width: 34px; height: 34px; border-radius: 17px; background: #c79a5a; color: #0f2b24; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px"><span id="vz-scene-initial">B</span></span>
+<div style="display: flex; flex-direction: column"><strong style="font-size: 14.5px"><span id="vz-scene-name">Bean There Café</span></strong><span style="font-size: 11.5px; color: #a9c2b8">Business account</span></div>
+</div>
+<div style="flex: 1 1 auto; padding: 16px 12px 20px; display: flex; flex-direction: column; gap: 9px; background-image: radial-gradient(rgba(23,59,50,.06) 1px, transparent 1px); background-size: 14px 14px" id="vz-chat" aria-live="polite">
+
+</div>
+</div>
+</div>
+</div>
+<span style="font-size: 13px; color: #93ada4"><span id="vz-scene-caption">Verzio Loyalty · cafés and bakeries</span></span>
+</div>
+</div>
+</section><section aria-label="Why owners trust it" style="background: #fbf7f0; border-bottom: 1px solid #eadfcb">
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; padding-top: 28px; padding-bottom: 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 36px"><span style="display: inline-flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; color: #2c3a34"><span style="color: #a77a3a; display: inline-flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg></span>Your own WhatsApp number</span><span style="display: inline-flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; color: #2c3a34"><span style="color: #a77a3a; display: inline-flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>Built on WhatsApp's official Cloud API</span><span style="display: inline-flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; color: #2c3a34"><span style="color: #a77a3a; display: inline-flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>Set up in one visit</span><span style="display: inline-flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; color: #2c3a34"><span style="color: #a77a3a; display: inline-flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 17.5h2"/></svg></span>Nothing for customers to install</span></div>
+</section><section style="position: relative; overflow: hidden; isolation: isolate; padding: 100px 0 80px"><div aria-hidden="true" style="position: absolute; right: -140px; top: 40px; width: 620px; height: 540px; z-index: -1; opacity: .07; filter: blur(1.5px); transform: rotate(8deg); pointer-events: none"><svg width="620" height="541" viewBox="86 70 344 300" fill="#a77a3a" aria-hidden="true" style="flex: none; "><g transform="rotate(-22 258 214)"><polygon points="150,110 184,110 184,236 288,140 312,140 150,290"/><polygon points="166,290 190,290 292,195.5 292,268 316,268 316,151"/><polygon points="266,284 366,284 366,318 266,318"/></g></svg></div>
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; display: flex; flex-direction: column; gap: 56px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 18px; max-width: 640px"><span style="display: inline-flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #a77a3a"><span aria-hidden="true" style="width: 34px; height: 1px; background: currentColor; opacity: .7"></span>One platform, made for your trade</span><h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -1px">Built around how<br>your business runs.</h2></div>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4b5852; max-width: 560px; max-width: 380px">Each industry gets its own flow, its own words and its own dashboard. All on one WhatsApp number.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px"><article class="lift" style="display: flex; flex-direction: column; gap: 16px; padding: 30px 26px; border-radius: 26px; background: #fff; box-shadow: 0 2px 4px rgba(29,38,33,.04), 0 30px 60px -40px rgba(23,59,50,.45); animation: vzRise .6s ease-out 0.0s both">
+<span style="width: 52px; height: 52px; border-radius: 16px; background: #0f2b24; color: #e2c48f; display: inline-flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 3v3M12 3v3"/></svg></span>
+<span style="font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #a77a3a">Cafés & bakeries</span>
+<h3 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 27px; line-height: 1.15">Turn first-time customers into regulars</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4b5852; flex: 1 1 auto">Counter QR, points and rewards in WhatsApp. Birthday treats and win-back messages run by themselves.</p>
+<div style="display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid #efe5d3"><span style="font-size: 12.5px; font-weight: 800; color: #1f5446">Verzio Loyalty</span><a href="/cafes" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14.5px; color: #0f2b24; text-decoration: none">See how it works <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+</article><article class="lift" style="display: flex; flex-direction: column; gap: 16px; padding: 30px 26px; border-radius: 26px; background: #fff; box-shadow: 0 2px 4px rgba(29,38,33,.04), 0 30px 60px -40px rgba(23,59,50,.45); animation: vzRise .6s ease-out 0.1s both">
+<span style="width: 52px; height: 52px; border-radius: 16px; background: #0f2b24; color: #e2c48f; display: inline-flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 4v16M4 12h16"/><rect x="3" y="3" width="18" height="18" rx="5"/></svg></span>
+<span style="font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #a77a3a">Clinics & doctors</span>
+<h3 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 27px; line-height: 1.15">A receptionist that never misses a message</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4b5852; flex: 1 1 auto">Patients book, reschedule and get reminders on WhatsApp. Fewer no-shows, fewer calls at the desk.</p>
+<div style="display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid #efe5d3"><span style="font-size: 12.5px; font-weight: 800; color: #1f5446">Verzio Book</span><a href="/clinics" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14.5px; color: #0f2b24; text-decoration: none">See how it works <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+</article><article class="lift" style="display: flex; flex-direction: column; gap: 16px; padding: 30px 26px; border-radius: 26px; background: #fff; box-shadow: 0 2px 4px rgba(29,38,33,.04), 0 30px 60px -40px rgba(23,59,50,.45); animation: vzRise .6s ease-out 0.2s both">
+<span style="width: 52px; height: 52px; border-radius: 16px; background: #0f2b24; color: #e2c48f; display: inline-flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8 15L19 4M16 15L5 4"/></svg></span>
+<span style="font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #a77a3a">Salons, spas & studios</span>
+<h3 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 27px; line-height: 1.15">A full diary, and clients who rebook</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4b5852; flex: 1 1 auto">Clients book a free slot day or night, then earn rewards that bring them back before they drift to the salon next door.</p>
+<div style="display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid #efe5d3"><span style="font-size: 12.5px; font-weight: 800; color: #1f5446">Verzio Book + Loyalty</span><a href="/salons" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14.5px; color: #0f2b24; text-decoration: none">See how it works <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+</article><article class="lift" style="display: flex; flex-direction: column; gap: 16px; padding: 30px 26px; border-radius: 26px; background: #fff; box-shadow: 0 2px 4px rgba(29,38,33,.04), 0 30px 60px -40px rgba(23,59,50,.45); animation: vzRise .6s ease-out 0.3s both">
+<span style="width: 52px; height: 52px; border-radius: 16px; background: #efe7da; color: #7c6a4c; display: inline-flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 10h18M6 10v9M18 10v9M8 6h8"/></svg></span>
+<span style="font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #a77a3a">Restaurants</span>
+<h3 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 27px; line-height: 1.15">Tables booked by zone and party size</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4b5852; flex: 1 1 auto">Guests choose garden, indoor or rooftop, and get confirmations and reminders on WhatsApp.</p>
+<div style="display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid #efe5d3"><span style="font-size: 12.5px; font-weight: 700; color: #7c6a4c">Verzio Tables · coming 2027</span><a href="/restaurants" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; color: #5f6b66; text-decoration: none">Join the waitlist <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+</article></div>
+</div>
+</section><section style="position: relative; overflow: hidden; isolation: isolate; padding: 0 0 120px">
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; display: flex; flex-direction: column; gap: 30px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px"><span style="display: inline-flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #a77a3a"><span aria-hidden="true" style="width: 34px; height: 1px; background: currentColor; opacity: .7"></span>The building blocks</span><span style="font-size: 15px; color: #4b5852">Mix them on one number. Each industry page shows the right combination.</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 0 36px"><div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 12px; padding: 26px 0; border-top: 2px solid #0f2b24">
+<strong style="font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 26px; color: #1d2621">Verzio Book</strong>
+<span style="font-size: 15px; line-height: 1.6; color: #4b5852">Bookings, approvals, reminders and rescheduling, all on WhatsApp.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px"><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Clinics</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Salons</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Spas</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Studios</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Tutors</span></div>
+</div><div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 12px; padding: 26px 0; border-top: 2px solid #0f2b24">
+<strong style="font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 26px; color: #1d2621">Verzio Loyalty</strong>
+<span style="font-size: 15px; line-height: 1.6; color: #4b5852">Points, rewards, birthdays and win-back messages that bring people back.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px"><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Cafés</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Bakeries</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Salons</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Spas</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Gyms</span></div>
+</div><div style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 12px; padding: 26px 0; border-top: 2px solid #d9c9ad">
+<strong style="font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 26px; color: #7c6a4c">Verzio Tables</strong>
+<span style="font-size: 15px; line-height: 1.6; color: #4b5852">Restaurant tables by zone and party size. Coming 2027.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px"><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Restaurants</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Rooftops</span><span style="padding: 5px 12px; border-radius: 999px; background: #efe7da; font-size: 12.5px; font-weight: 700; color: #4a3d27">Lounges</span></div>
+</div></div>
+</div>
+</section><section style="position: relative; background: #0f2b24; color: #fff; padding: 120px 0 0; overflow: hidden">
+<div aria-hidden="true" style="position: absolute; left: 50%; top: 40%; width: 1100px; height: 700px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(199,154,90,.20), rgba(199,154,90,0))"></div>
+<div style="position: relative; max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center">
+<span style="display: inline-flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #e2c48f"><span aria-hidden="true" style="width: 34px; height: 1px; background: currentColor; opacity: .7"></span>The owner's view</span>
+<h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -1px; color: #fff; max-width: 820px">See who came back,<br>and what it was worth.</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4b5852; max-width: 560px; color: #c9d6d0; text-align: center">One calm screen on your phone or laptop. Who's at the counter, who you're losing, and what Verzio brought in this month.</p>
+<div style="width: 100%; max-width: 1040px; margin-top: 40px; transform: perspective(1800px) rotateX(8deg); transform-origin: 50% 100%; margin-bottom: -60px">
+<div style="border-radius: 18px; background: #fff; overflow: hidden; box-shadow: 0 60px 120px -40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06)">
+<div style="height: 42px; background: #ece5d8; display: flex; align-items: center; gap: 8px; padding: 0 16px">
+<span style="width: 11px; height: 11px; border-radius: 6px; background: #d9cdb8"></span><span style="width: 11px; height: 11px; border-radius: 6px; background: #d9cdb8"></span><span style="width: 11px; height: 11px; border-radius: 6px; background: #d9cdb8"></span>
+<span style="margin-left: 14px; flex: 1 1 auto; max-width: 360px; height: 26px; border-radius: 8px; background: #f7f1e6; color: #5f6b66; font-size: 12px; display: flex; align-items: center; padding: 0 12px">verzio.codes/owner</span>
+</div>
+<div style="display: flex; min-height: 430px; text-align: left">
+<div class="vz-mockside" style="flex: 0 0 170px; background: #0f2b24; padding: 18px 12px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'Fraunces', Georgia, serif; color: #fff; font-size: 18px; padding: 2px 12px 16px">Verzio</span><span style="display: block; padding: 10px 12px; border-radius: 10px; font-size: 13px; background: #c79a5a; color: #0f2b24; font-weight: 800">Today</span><span style="display: block; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: #c9d6d0">Rewards</span><span style="display: block; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: #c9d6d0">Customers</span><span style="display: block; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: #c9d6d0">Grow</span><span style="display: block; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: #c9d6d0">Results</span><span style="display: block; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: #c9d6d0">Settings</span>
+</div>
+<div style="flex: 1 1 auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; background: #f7f1e6; color: #1d2621">
+<div style="border-radius: 18px; background: #173b32; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<span style="color: #fff; font-family: 'Fraunces', Georgia, serif; font-size: 22px">Good evening. A busy Tuesday.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 10px"><div style="flex: 1 1 140px; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.12)"><strong style="font-family: 'Hanken Grotesk', sans-serif; font-size: 24px; font-weight: 800">23</strong><span style="font-size: 12.5px; font-weight: 700">Visits today</span><span style="font-size: 11.5px; color: #e2c48f">16 regulars back</span></div><div style="flex: 1 1 140px; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.12)"><strong style="font-family: 'Hanken Grotesk', sans-serif; font-size: 24px; font-weight: 800">7</strong><span style="font-size: 12.5px; font-weight: 700">New members</span><span style="font-size: 11.5px; color: #e2c48f">2 from invites</span></div><div style="flex: 1 1 140px; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.12)"><strong style="font-family: 'Hanken Grotesk', sans-serif; font-size: 24px; font-weight: 800">4</strong><span style="font-size: 12.5px; font-weight: 700">Rewards given</span><span style="font-size: 11.5px; color: #e2c48f">2 waiting now</span></div><div style="flex: 1 1 140px; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; background: #c79a5a; color: #0f2b24"><strong style="font-family: 'Hanken Grotesk', sans-serif; font-size: 24px; font-weight: 800">₹6,900</strong><span style="font-size: 12.5px; font-weight: 700">Repeat business</span><span style="font-size: 11.5px; color: #3d2a0c">from members, 30 days</span></div></div>
+</div>
+<strong style="font-size: 14px">Waiting at the counter</strong>
+<div style="display: flex; flex-direction: column; gap: 10px"><div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #fbf3e4; border: 1px solid #ecd9b8"><span style="width: 32px; height: 32px; border-radius: 16px; background: #c8643b; color: #fff; font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; justify-content: center">PS</span><div style="flex: 1 1 auto; display: flex; flex-direction: column"><strong style="font-size: 14px; color: #1d2621">Free Cappuccino</strong><span style="font-size: 12px; color: #5f6b66">Priya S. · Gold · 14 visits</span></div><span style="height: 34px; padding: 0 14px; border-radius: 10px; background: #173b32; color: #fff; font-size: 12.5px; font-weight: 800; display: inline-flex; align-items: center">Give</span></div><div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #fbf3e4; border: 1px solid #ecd9b8"><span style="width: 32px; height: 32px; border-radius: 16px; background: #173b32; color: #fff; font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; justify-content: center">RM</span><div style="flex: 1 1 auto; display: flex; flex-direction: column"><strong style="font-size: 14px; color: #1d2621">Free Brownie</strong><span style="font-size: 12px; color: #5f6b66">Rahul M. · Silver · 6 visits</span></div><span style="height: 34px; padding: 0 14px; border-radius: 10px; background: #173b32; color: #fff; font-size: 12.5px; font-weight: 800; display: inline-flex; align-items: center">Give</span></div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section><section style="position: relative; overflow: hidden; isolation: isolate; padding: 150px 0 90px"><div aria-hidden="true" style="position: absolute; left: -160px; top: 40px; width: 620px; height: 540px; z-index: -1; opacity: .07; filter: blur(1.5px); transform: rotate(-10deg); pointer-events: none"><svg width="620" height="541" viewBox="86 70 344 300" fill="#a77a3a" aria-hidden="true" style="flex: none; "><g transform="rotate(-22 258 214)"><polygon points="150,110 184,110 184,236 288,140 312,140 150,290"/><polygon points="166,290 190,290 292,195.5 292,268 316,268 316,151"/><polygon points="266,284 366,284 366,318 266,318"/></g></svg></div>
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; display: flex; flex-direction: column; gap: 56px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 18px"><span style="display: inline-flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #a77a3a"><span aria-hidden="true" style="width: 34px; height: 1px; background: currentColor; opacity: .7"></span>Getting started</span><h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -1px">Live in one visit.</h2></div>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4b5852; max-width: 560px; max-width: 380px">No new number, no app for customers, nothing technical for you to learn.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 32px"><div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px; padding-top: 24px; border-top: 1px solid #d9c9ad">
+<span style="font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 300; color: #c79a5a; line-height: 1">01</span>
+<strong style="font-size: 18px">A short call</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">We check your WhatsApp Business app and Facebook login are ready.</span></div><div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px; padding-top: 24px; border-top: 1px solid #d9c9ad">
+<span style="font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 300; color: #c79a5a; line-height: 1">02</span>
+<strong style="font-size: 18px">One visit</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">We connect your number through Meta's official sign-up. Your app keeps working.</span></div><div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px; padding-top: 24px; border-top: 1px solid #d9c9ad">
+<span style="font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 300; color: #c79a5a; line-height: 1">03</span>
+<strong style="font-size: 18px">Your setup</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">Services, hours or rewards, done with you. QR stand printed.</span></div><div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px; padding-top: 24px; border-top: 1px solid #d9c9ad">
+<span style="font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 300; color: #c79a5a; line-height: 1">04</span>
+<strong style="font-size: 18px">Live</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">Customers start the same day. You watch it work from your phone.</span></div></div>
+</div>
+</section><section style="position: relative; overflow: hidden; isolation: isolate; padding: 0 0 100px">
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; display: flex; flex-direction: column; gap: 44px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 18px"><span style="display: inline-flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #a77a3a"><span aria-hidden="true" style="width: 34px; height: 1px; background: currentColor; opacity: .7"></span>People, not a help desk</span><h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -1px">A team that sets it up<br>with you.</h2></div>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4b5852; max-width: 560px; max-width: 380px">You're never left with software and a login. We stay on call after you go live.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px"><div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 10px; padding: 28px; border-radius: 24px; background: #fff; box-shadow: 0 30px 60px -44px rgba(23,59,50,.5)">
+<strong style="font-size: 18px">We set it up with you</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">Someone from our team visits, connects your number and prints your QR stand.</span></div><div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 10px; padding: 28px; border-radius: 24px; background: #fff; box-shadow: 0 30px 60px -44px rgba(23,59,50,.5)">
+<strong style="font-size: 18px">We train your staff</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">A ten-minute walkthrough at the counter, so nobody has to figure it out alone.</span></div><div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 10px; padding: 28px; border-radius: 24px; background: #fff; box-shadow: 0 30px 60px -44px rgba(23,59,50,.5)">
+<strong style="font-size: 18px">We answer on WhatsApp</strong><span style="font-size: 15px; line-height: 1.6; color: #4b5852">Message us like you'd message a supplier. A real person replies, the same day.</span></div></div>
+</div>
+</section><section style="position: relative; background: #0f2b24; color: #fff; overflow: hidden">
+<svg aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: .16; mix-blend-mode: overlay; pointer-events: none"><filter id="vzg"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0"/></filter><rect width="100%" height="100%" filter="url(#vzg)"/></svg>
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, rgba(226,196,143,0), rgba(226,196,143,.45), rgba(226,196,143,0))"></div>
+<div style="position: relative; max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; padding-top: 110px; padding-bottom: 110px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 40px">
+<h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; letter-spacing: -1px; color: #fff; font-size: clamp(40px, 5.4vw, 72px); max-width: 700px">Try it the way<br>your customers will.</h2>
+<div style="display: flex; flex-direction: column; gap: 16px; align-items: flex-start">
+<a href="https://wa.me/918262858396?text=Hi%2C%20I%27d%20like%20to%20see%20a%20demo%20of%20Verzio%20for%20my%20business." target="_blank" rel="noopener" class="gbtn" style="display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 28px; border-radius: 999px; background: linear-gradient(180deg, #d9b274, #c0904f); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 18px 36px -16px rgba(199,154,90,.95); color: #0f2b24; font-weight: 800; font-size: 15.5px; text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.3 1.8 2.7 4.2 4.5 4.5l1.2-1.2 1.8.8-.4 1.6c-3 .4-7.6-4.2-7.2-7.2l1.6-.4.8 1.8z"/></svg>Message us on WhatsApp</a>
+<span style="font-size: 14px; color: #c9d6d0">Or call our team on <strong style="color: #fff">+91 82628 58396</strong></span>
+</div>
+</div>
+</section><footer style="background: #0b201b; color: #a9c2b8">
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; padding-top: 56px; padding-bottom: 44px; display: flex; flex-wrap: wrap; gap: 40px; justify-content: space-between">
+<div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 14px; max-width: 320px">
+<a href="/" aria-label="Verzio home" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff">
+<svg width="40" height="35" viewBox="86 70 344 300" fill="#c79a5a" aria-hidden="true" style="flex: none; "><g transform="rotate(-22 258 214)"><polygon points="150,110 184,110 184,236 288,140 312,140 150,290"/><polygon points="166,290 190,290 292,195.5 292,268 316,268 316,151"/><polygon points="266,284 366,284 366,318 266,318"/></g></svg>
+<span style="font-family: 'Fraunces', Georgia, serif; font-size: 25px; letter-spacing: -.3px">Verzio</span>
+</a>
+<span style="font-size: 14px; line-height: 1.6">WhatsApp automation for local businesses. Built on WhatsApp's official Cloud API.</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 48px; font-size: 14px">
+<div style="display: flex; flex-direction: column; gap: 10px"><strong style="color: #fff">Industries</strong><a href="/cafes" style="color: #a9c2b8; text-decoration: none">Cafés</a><a href="/clinics" style="color: #a9c2b8; text-decoration: none">Clinics</a><a href="/restaurants" style="color: #a9c2b8; text-decoration: none">Restaurants</a><a href="/salons" style="color: #a9c2b8; text-decoration: none">Salons</a></div>
+<div style="display: flex; flex-direction: column; gap: 10px"><strong style="color: #fff">Company</strong><a href="/pricing" style="color: #a9c2b8; text-decoration: none">Pricing</a><a href="/owner/login" style="color: #a9c2b8; text-decoration: none">Owner login</a><a href="/privacy" style="color: #a9c2b8; text-decoration: none">Privacy</a><a href="/terms" style="color: #a9c2b8; text-decoration: none">Terms</a></div>
+<div style="display: flex; flex-direction: column; gap: 10px"><strong style="color: #fff">Talk to us</strong><span>+91 82628 58396</span><span>WhatsApp or call, 10 AM to 8 PM</span></div>
+</div>
+</div>
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); box-sizing: border-box; padding-top: 20px; padding-bottom: 28px; font-size: 12.5px; color: #7f988f; border-top: 1px solid rgba(255,255,255,.06)">© 2026 Verzio Solutions</div>
+</footer>
+</div>
+<script>
+(function () {
+  var scenes = {
+    cafe: { name: 'Bean There Café', caption: 'Verzio Loyalty · cafés and bakeries', msgs: [
+      ['me', 'STAMP 7JBERM'], ['bot', '+10 points at Bean There Café!\n4-day streak, +10 bonus\n\nWallet: 60 points · 1 visit to a free brownie'],
+      ['btn', 'Open my wallet'], ['me', 'Got my brownie, thanks!'], ['bot', 'Enjoy! See you tomorrow.']] },
+    clinic: { name: 'Smile Dental Clinic', caption: 'Verzio Book · clinics, salons and studios', msgs: [
+      ['me', 'Hi, I need a check-up this week'], ['bot', 'Hello! Which day suits you?\nTue · Wed · Thu'], ['me', 'Wednesday evening'],
+      ['bot', 'Booked: Dr. Mehta, Wed 6:30 PM.\nWe will remind you 2 hours before.'], ['btn', 'Reschedule']] },
+    rest: { name: 'The Terrace Kitchen', caption: 'Verzio Tables · coming 2027', msgs: [
+      ['me', 'Table for 4 tonight at 8?'], ['bot', 'Lovely. Where would you like to sit?\nGarden · Indoor · Rooftop'], ['me', 'Garden'],
+      ['bot', 'Confirmed: Garden, 4 people, 8:00 PM.\nSee you tonight!']] }
+  };
+  var base = 'padding: 9px 12px; font-size: 13.5px; line-height: 1.45; white-space: pre-line; box-shadow: 0 1px 1px rgba(0,0,0,.08); color: #13261f;';
+  var styles = {
+    me: 'align-self: flex-end; max-width: 78%; background: #d6f3c9; border-radius: 14px 14px 4px 14px; ' + base,
+    bot: 'align-self: flex-start; max-width: 86%; background: #fff; border-radius: 14px 14px 14px 4px; ' + base,
+    btn: 'align-self: flex-start; width: 86%; box-sizing: border-box; margin-top: -6px; background: #fff; border-radius: 4px 4px 14px 14px; border-top: 1px solid #ece6dc; padding: 10px; text-align: center; color: #1a7f64; font-weight: 800; font-size: 13.5px;'
+  };
+  var chat = document.getElementById('vz-chat'), tabs = document.querySelectorAll('[data-scene]');
+  function show(id) {
+    var s = scenes[id], t = 0;
+    document.getElementById('vz-scene-name').textContent = s.name;
+    document.getElementById('vz-scene-initial').textContent = s.name.charAt(0);
+    document.getElementById('vz-scene-caption').textContent = s.caption;
+    chat.innerHTML = '';
+    s.msgs.forEach(function (m) {
+      var d = document.createElement('div');
+      t += m[0] === 'btn' ? 0.2 : (m[0] === 'me' ? 0.7 : 0.7);
+      d.setAttribute('style', styles[m[0]] + ' animation: vzIn .5s ease-out ' + t.toFixed(1) + 's both');
+      d.textContent = m[1];
+      chat.appendChild(d);
+    });
+    tabs.forEach(function (b) {
+      var on = b.getAttribute('data-scene') === id;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.style.background = on ? '#c79a5a' : 'transparent';
+      b.style.color = on ? '#0f2b24' : '#c9d6d0';
+    });
+  }
+  tabs.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-scene')); }); });
+  show('cafe');
+})();
+</script>
+</body>
+</html>

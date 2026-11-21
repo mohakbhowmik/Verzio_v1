@@ -157,10 +157,11 @@ with TestClient(server.app) as c:
 
     # ---------------- website: owner login visible on phones ----------------
     c.cookies.clear()
-    for path in ["/", "/pricing", "/products/book"]:
+    for path in ["/", "/pricing", "/clinics"]:
         r = c.get(path)
-        check(f"{path}: Owner login is in the top menu with a short phone label",
-              'class="nav-login" href="/owner/login"' in r.text and ">Log in<" in r.text)
+        check(f"{path}: Owner login is in the top menu and in the phone menu",
+              'class="vz-login" href="/owner/login"' in r.text and 'class="vz-burger"' in r.text
+              and r.text.count('href="/owner/login"') >= 2)
     db.close()
 
 print("\nALL PASSED" if fails == 0 else f"\n{fails} FAILED")

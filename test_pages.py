@@ -130,10 +130,9 @@ with TestClient(server.app) as c:
     check("heartbeat pings the URL", _aio.run(_sch.heartbeat()) is True and pings == ["https://uptime.betterstack.com/api/v1/heartbeat/TEST"], pings)
     os.environ.pop("HEARTBEAT_URL")
     _hx.AsyncClient = _RealAC
-    for path, text_ in [("/", "Your business, running on WhatsApp"), ("/products", "Verzio Loyalty"),
-                        ("/products/book", "takes bookings while you sleep"), ("/products/loyalty", "Get started"),
-                        ("/products/messaging", "Built to protect your number"), ("/pricing", "Founding offer"),
-                        ("/products/tables", "Coming soon"), ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
+    for path, text_ in [("/", "Your front desk,"), ("/cafes", "regulars."), ("/salons", "Keep it full."),
+                        ("/clinics", "message."), ("/restaurants", "on WhatsApp."), ("/pricing", "Keep it if it pays."),
+                        ("/privacy", "Privacy policy"), ("/terms", "Terms of service")]:
         r = c.get(path, auth=None)
         check(f"public page {path} loads without login", r.status_code == 200 and text_ in r.text, r.status_code)
     r = c.get("/owner/settings")
